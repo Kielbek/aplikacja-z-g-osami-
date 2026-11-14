@@ -1,0 +1,5 @@
+# Silnik VoxCPM2 — instaluj na maszynie z GPU (CUDA).
+# Wersję pakietu dopasuj do wydania modelu: https://github.com/OpenBMB/VoxCPM
+-r requirements.txt
+voxcpm
+torch

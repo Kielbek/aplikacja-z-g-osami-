@@ -1,0 +1,7 @@
+# Rdzeń serwisu (wystarcza do trybu demonstracyjnego)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+numpy>=1.26
+soundfile>=0.12
+lameenc>=1.7
+python-multipart>=0.0.9
