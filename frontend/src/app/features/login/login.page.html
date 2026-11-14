@@ -1,10 +1,7 @@
 <div class="auth">
   <main class="form-side">
-    <header class="top">
-      <vc-logo [size]="28" [wordmark]="true" />
-    </header>
-
     <div class="form-wrap">
+      <div class="brand"><vc-logo [size]="40" /></div>
       @switch (mode()) {
         @case ('login') {
           <h1>Zaloguj się</h1>
@@ -132,36 +129,4 @@
     </footer>
   </main>
 
-  <aside class="art" aria-hidden="true">
-    <div class="art-inner">
-      <div class="doc">
-        <div class="doc-title">Podcast „Miasto po zmroku” – odc. 12</div>
-        <div class="seg ready">
-          <span class="n">1</span>
-          <div><p>Witajcie w dwunastym odcinku podcastu.</p><span class="st"><i></i>Gotowy · 0:04</span></div>
-        </div>
-        <div class="seg active">
-          <span class="n">2</span>
-          <div><p>Dziś zabiorę was tam, gdzie miasto cichnie.</p><span class="st gen"><i></i>Generowanie…</span></div>
-        </div>
-        <div class="seg">
-          <span class="n">3</span>
-          <div><p>Noc daje im coś, czego dzień nie potrafi.</p><span class="st draft"><i></i>Do wygenerowania</span></div>
-        </div>
-        <div class="player">
-          <span class="play"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M7 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5Z" fill="currentColor"/></svg></span>
-          <div class="wave">
-            @for (h of [30,55,40,75,60,90,45,70,35,80,55,65,40,85,50,30,60,45,70,40,55,35,65,50,75,45,30,55,40,60]; track $index) {
-              <span [style.height.%]="h" [class.on]="$index < 11"></span>
-            }
-          </div>
-          <span class="time">0:11</span>
-        </div>
-      </div>
-      <div class="caption">
-        <p class="claim">Popraw jedno zdanie —<br />wygeneruj tylko jedno zdanie.</p>
-        <p class="sub">Edytor oparty na fragmentach, głosy VoxCPM2 i eksport do MP3 lub WAV.</p>
-      </div>
-    </div>
-  </aside>
 </div>

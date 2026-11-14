@@ -105,7 +105,7 @@ Zmiana planu (`PUT /api/account/plan`) działa w wersji demonstracyjnej bez pła
 
 ## Logowanie
 
-- **Strona logowania** ma trzy tryby: logowanie, rejestracja (z miernikiem siły hasła) i reset hasła. Walidacja jest inline, a pole hasła ma przycisk pokaż/ukryj i opcję „Zapamiętaj mnie”.
+- **Strona logowania** to wyśrodkowany formularz z logo. Ma trzy tryby: logowanie, rejestracja (z miernikiem siły hasła) i reset hasła. Walidacja jest inline, a pole hasła ma przycisk pokaż/ukryj i opcję „Zapamiętaj mnie”.
 - **Logowanie przez Google** działa w przepływie tokenu OAuth 2.0 Google Identity Services. Frontend pobiera token, a backend (`POST /api/auth/google`) weryfikuje go w Google: sprawdza, czy został wydany dla naszego klienta (`aud`) i czy e-mail jest zweryfikowany. Konfiguracja:
   1. W Google Cloud Console utwórz identyfikator klienta OAuth typu „Aplikacja internetowa”.
   2. Dodaj autoryzowane źródło JavaScript, np. `http://localhost:4200`.
