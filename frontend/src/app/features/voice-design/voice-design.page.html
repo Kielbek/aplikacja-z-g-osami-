@@ -1,0 +1,149 @@
+<div class="page">
+  <div class="page-inner">
+    <a class="back-link" routerLink="/voices"><vc-icon name="arrow-left" [size]="14" />Głosy</a>
+    <header class="page-header">
+      <div class="page-header-text">
+        <h1 class="t-display">Stwórz głos</h1>
+        <p>Opisz głos słowami — barwę, wiek brzmienia, charakter i sposób mówienia. VoxCPM2 zaprojektuje go na podstawie opisu, bez nagrania referencyjnego.</p>
+      </div>
+    </header>
+
+    <vc-engine-banner class="banner" [compact]="true" />
+
+    <div class="layout">
+      <div class="form">
+        <section class="block">
+          <div class="block-head">
+            <h2>Opis głosu</h2>
+            <button class="btn btn-ghost btn-sm" (click)="useExample()">Wstaw przykład</button>
+          </div>
+          <textarea class="textarea big" rows="4" [value]="freeText()" (input)="freeText.set($any($event.target).value)"
+            placeholder="Np. „Męski głos, około 35 lat, niski, spokojny, profesjonalny, naturalny, idealny do narracji dokumentalnych”."
+            aria-label="Opis głosu"></textarea>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Doprecyzuj</h2><span class="t-xs t-muted">Opcjonalne — zostanie dodane do opisu</span></div>
+
+          <div class="field">
+            <span class="field-label">Barwa płci</span>
+            <div class="segmented">
+              <button [class.is-active]="gender() === null" (click)="gender.set(null)">Dowolna</button>
+              <button [class.is-active]="gender() === 'female'" (click)="gender.set('female')">Kobieca</button>
+              <button [class.is-active]="gender() === 'male'" (click)="gender.set('male')">Męska</button>
+              <button [class.is-active]="gender() === 'neutral'" (click)="gender.set('neutral')">Neutralna</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <div class="row-between">
+              <label class="checkbox"><input type="checkbox" [checked]="useAge()" (change)="useAge.set($any($event.target).checked)" />Wiek brzmienia</label>
+              <span class="t-xs tabular" [class.t-muted]="!useAge()">ok. {{ age() }} lat</span>
+            </div>
+            <input class="range" type="range" min="18" max="80" step="1" [value]="age()" [disabled]="!useAge()" [style.--fill.%]="((age() - 18) / 62) * 100"
+              (input)="age.set(+$any($event.target).value)" aria-label="Wiek brzmienia" />
+          </div>
+
+          <div class="field">
+            <span class="field-label">Barwa</span>
+            <div class="chips">
+              @for (t of TIMBRES; track t) {
+                <button class="chip" [class.is-active]="timbres().includes(t)" (click)="toggle(timbres, t)">{{ t }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Charakter</span>
+            <div class="chips">
+              @for (c of CATEGORIES; track c.id) {
+                <button class="chip" [class.is-active]="characters().includes(c.id)" (click)="toggle(characters, c.id)">{{ c.label }}</button>
+              }
+            </div>
+          </div>
+
+          <div class="field">
+            <span class="field-label">Tempo mówienia</span>
+            <div class="segmented">
+              <button [class.is-active]="pace() === null" (click)="pace.set(null)">Dowolne</button>
+              <button [class.is-active]="pace() === 'wolne'" (click)="pace.set('wolne')">Wolne</button>
+              <button [class.is-active]="pace() === 'umiarkowane'" (click)="pace.set('umiarkowane')">Umiarkowane</button>
+              <button [class.is-active]="pace() === 'szybkie'" (click)="pace.set('szybkie')">Szybkie</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-head"><h2>Tekst próbki</h2></div>
+          <div class="sample-grid">
+            <textarea class="textarea" rows="3" [value]="sampleText()" (input)="sampleText.set($any($event.target).value)" aria-label="Tekst próbki" maxlength="1000"></textarea>
+            <div class="stack-sm">
+              <div class="field">
+                <label for="lang">Język</label>
+                <select id="lang" class="select-native" [value]="language()" (change)="language.set($any($event.target).value)">
+                  @for (l of engine.languages(); track l) { <option [value]="l" [selected]="l === language()">{{ languageLabel(l) }}</option> }
+                </select>
+              </div>
+              <div class="field">
+                <div class="row-between"><label for="expr">Ekspresja</label><span class="t-xs tabular">{{ (expressiveness() * 100).toFixed(0) }}%</span></div>
+                <input id="expr" class="range" type="range" min="0" max="1" step="0.05" [value]="expressiveness()" [style.--fill.%]="expressiveness() * 100" (input)="expressiveness.set(+$any($event.target).value)" />
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side">
+        <div class="panel side-panel">
+          <div class="side-section">
+            <span class="t-overline">Opis przekazany do modelu</span>
+            <p class="composed" [class.t-muted]="!description()">{{ description() || 'Opisz głos lub wybierz cechy po lewej stronie.' }}</p>
+            <button class="btn btn-primary btn-block" [disabled]="!canGenerate()" (click)="generate()">
+              @if (generating()) { <span class="spinner"></span>Generowanie próbki… } @else { <vc-icon name="wand" />{{ variants().length ? 'Generuj kolejny wariant' : 'Generuj próbkę' }} }
+            </button>
+            @if (description().length > 0 && description().length < 10) { <span class="t-xs t-muted">Opis musi mieć co najmniej 10 znaków.</span> }
+          </div>
+
+          <div class="side-section">
+            <div class="row-between"><span class="t-overline">Warianty</span><span class="t-xs t-muted">{{ variants().length }}</span></div>
+            @for (v of variants(); track v.previewId) {
+              <div class="variant" [class.is-selected]="selected() === v.previewId" (click)="selected.set(v.previewId)">
+                <input type="radio" name="variant" [checked]="selected() === v.previewId" [attr.aria-label]="'Wybierz wariant ' + v.n" />
+                <vc-play-button [track]="track(v)" [iconSize]="11" />
+                <div class="variant-body">
+                  <div class="row-between">
+                    <span class="t-small"><strong>Wariant {{ v.n }}</strong></span>
+                    <span class="row">
+                      @if (v.engineMode === 'demo') { <span class="badge badge-demo">Demo</span> }
+                      <span class="t-xs t-muted tabular">{{ fmt(v.durationMs) }}</span>
+                    </span>
+                  </div>
+                  @if (isActive(v)) {
+                    <vc-waveform class="mini" [peaks]="player.peaks()" [progress]="player.progress()" (seek)="player.seek($event)" />
+                  }
+                </div>
+              </div>
+            } @empty {
+              <p class="t-xs t-muted">Wygeneruj kilka wariantów i wybierz ten, który najlepiej pasuje. Każdy wariant używa innego ziarna losowości.</p>
+            }
+          </div>
+
+          <div class="side-section">
+            <span class="t-overline">Zapisz głos</span>
+            <div class="field">
+              <label for="vname">Nazwa</label>
+              <input id="vname" class="input" placeholder="Np. Lektor dokumentalny" [value]="name()" (input)="name.set($any($event.target).value)" maxlength="60" />
+            </div>
+            <button class="btn btn-accent btn-block" [disabled]="!canSave()" (click)="save()">
+              @if (saving()) { <span class="spinner"></span> } @else { <vc-icon name="check" /> }
+              Zapisz w „Moich głosach”
+            </button>
+            @if (selectedVariant()?.engineMode === 'demo') {
+              <span class="t-xs demo-text">Wariant demonstracyjny — po podłączeniu VoxCPM2 głos zostanie wygenerowany z tego samego opisu.</span>
+            }
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,229 @@
+<div class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="page-header-text">
+        <h1 class="t-display">Ustawienia</h1>
+        <p>Profil, subskrypcja, domyślne ustawienia eksportu i połączenie z silnikiem VoxCPM2.</p>
+      </div>
+    </header>
+
+    <div class="layout">
+      <nav class="subnav" aria-label="Sekcje ustawień">
+        @for (t of TABS; track t.id) {
+          <a [routerLink]="['/settings', t.id]" [class.is-active]="tab() === t.id"><vc-icon [name]="t.icon" [size]="15" />{{ t.label }}</a>
+        }
+      </nav>
+
+      <div class="content">
+        @if (draft(); as d) {
+          @switch (tab()) {
+            <!-- PROFIL -->
+            @case ('profile') {
+              <section class="section">
+                <div class="section-head"><div><h2>Profil</h2><p>Dane widoczne w aplikacji i na fakturach.</p></div></div>
+                <div class="profile-head">
+                  <span class="big-avatar">{{ initials() }}</span>
+                  <div><div class="t-title">{{ d.fullName }}</div><div class="t-small t-muted">{{ d.role }} · {{ d.company }}</div></div>
+                </div>
+                <div class="form-grid">
+                  <div class="field"><label for="fn">Imię i nazwisko</label><input id="fn" class="input" [value]="d.fullName" (input)="set('fullName', $any($event.target).value)" /></div>
+                  <div class="field"><label for="em">Adres e-mail</label><input id="em" class="input" type="email" [value]="d.email" (input)="set('email', $any($event.target).value)" /></div>
+                  <div class="field"><label for="co">Firma</label><input id="co" class="input" [value]="d.company" (input)="set('company', $any($event.target).value)" /></div>
+                  <div class="field"><label for="ro">Rola</label><input id="ro" class="input" [value]="d.role" (input)="set('role', $any($event.target).value)" /></div>
+                </div>
+                <div class="form-actions">
+                  <button class="btn btn-ghost" [disabled]="!dirty()" (click)="reset()">Anuluj</button>
+                  <button class="btn btn-primary" [disabled]="!dirty() || saving()" (click)="saveProfile()">@if (saving()) { <span class="spinner"></span> } Zapisz zmiany</button>
+                </div>
+              </section>
+            }
+
+            <!-- KONTO -->
+            @case ('account') {
+              <section class="section">
+                <div class="section-head"><div><h2>Logowanie</h2><p>Zarządzanie hasłem i sesjami.</p></div></div>
+                <div class="callout"><vc-icon name="info" /><div class="callout-body">Uwierzytelnianie nie jest jeszcze podłączone — w wersji demonstracyjnej sesja jest przechowywana lokalnie w przeglądarce. Formularz zmiany hasła zostanie aktywowany po integracji z usługą logowania.</div></div>
+                <div class="form-grid" style="margin-top:16px">
+                  <div class="field"><label>Obecne hasło</label><input class="input" type="password" disabled placeholder="••••••••" /></div>
+                  <div class="field"><label>Nowe hasło</label><input class="input" type="password" disabled /></div>
+                </div>
+                <div class="form-actions"><button class="btn" disabled>Zmień hasło</button></div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Aktywna sesja</h2><p>Urządzenia zalogowane do konta.</p></div></div>
+                <div class="list">
+                  <div class="list-row session">
+                    <vc-icon name="monitor" [size]="18" />
+                    <div class="grow"><div class="t-small">Ta przeglądarka</div><div class="cell-muted">Aktywna teraz</div></div>
+                    <button class="btn btn-sm" (click)="logout()"><vc-icon name="logout" [size]="13" />Wyloguj</button>
+                  </div>
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Usunięcie konta</h2><p>Trwale usuwa projekty, głosy i historię.</p></div></div>
+                <button class="btn btn-danger" disabled title="Dostępne po podłączeniu uwierzytelniania"><vc-icon name="trash" />Usuń konto</button>
+              </section>
+            }
+
+            <!-- SUBSKRYPCJA -->
+            @case ('subscription') {
+              <section class="section">
+                <div class="section-head"><div><h2>Plan</h2><p>Bieżący okres rozliczeniowy.</p></div></div>
+                <div class="panel plan">
+                  <div class="plan-main">
+                    <span class="t-overline">Twój plan</span>
+                    <span class="plan-name">{{ d.plan }}</span>
+                    <span class="t-small t-muted">{{ fmtNum(d.monthlyCharacterLimit) }} znaków · {{ d.monthlyMinuteLimit }} minut audio miesięcznie</span>
+                  </div>
+                  <div class="plan-side">
+                    <span class="t-small t-muted">Odnowienie</span>
+                    <span class="t-small">{{ fmtDate(d.renewsOn) }}</span>
+                  </div>
+                </div>
+              </section>
+              @if (store.usage(); as u) {
+                <section class="section">
+                  <div class="section-head"><div><h2>Wykorzystanie</h2><p>Od {{ fmtDate(u.periodStart) }}. Liczone są tylko udane generacje.</p></div></div>
+                  <div class="usage">
+                    <div class="usage-row">
+                      <div class="row-between"><span class="t-small">Znaki</span><span class="t-small tabular">{{ fmtNum(u.charactersUsed) }} <span class="t-muted">/ {{ fmtNum(u.characterLimit) }}</span></span></div>
+                      <div class="meter" [class.meter-warning]="charPct() > 80" [class.meter-danger]="charPct() >= 100"><span [style.width.%]="charPct()"></span></div>
+                    </div>
+                    <div class="usage-row">
+                      <div class="row-between"><span class="t-small">Minuty audio</span><span class="t-small tabular">{{ u.minutesUsed.toFixed(1) }} <span class="t-muted">/ {{ u.minuteLimit }}</span></span></div>
+                      <div class="meter" [class.meter-warning]="minPct() > 80"><span [style.width.%]="minPct()"></span></div>
+                    </div>
+                    <div class="row-between t-small"><span class="t-muted">Liczba generacji</span><span class="tabular">{{ fmtNum(u.generations) }}</span></div>
+                  </div>
+                  <a class="btn btn-sm" routerLink="/history" style="margin-top:16px"><vc-icon name="history" [size]="13" />Historia generowania</a>
+                </section>
+              }
+              <section class="section">
+                <div class="section-head"><div><h2>Zarządzanie subskrypcją</h2><p>Zmiana planu, metoda płatności i faktury.</p></div></div>
+                <div class="callout"><vc-icon name="card" /><div class="callout-body">Płatności nie są jeszcze podłączone. Zmiana planu i faktury będą dostępne po integracji z operatorem płatności.</div></div>
+                <div class="form-actions" style="justify-content:flex-start"><button class="btn" disabled>Zmień plan</button><button class="btn btn-ghost" disabled>Faktury</button></div>
+              </section>
+            }
+
+            <!-- EKSPORT -->
+            @case ('export') {
+              <section class="section">
+                <div class="section-head"><div><h2>Domyślny format</h2><p>Używany przy eksporcie całych projektów.</p></div></div>
+                <div class="stack">
+                  <div class="segmented fmt">
+                    <button [class.is-active]="d.exportFormat === 'mp3'" (click)="setNow('exportFormat', 'mp3')">MP3</button>
+                    <button [class.is-active]="d.exportFormat === 'wav'" (click)="setNow('exportFormat', 'wav')">WAV</button>
+                  </div>
+                  <div class="field narrow">
+                    <label for="br">Jakość MP3</label>
+                    <select id="br" class="select-native" [value]="d.mp3Bitrate" (change)="setNow('mp3Bitrate', +$any($event.target).value)" [disabled]="d.exportFormat !== 'mp3'">
+                      @for (b of [128, 192, 256, 320]; track b) { <option [value]="b" [selected]="b === d.mp3Bitrate">{{ b }} kb/s{{ b === 192 ? ' — zalecane' : '' }}</option> }
+                    </select>
+                  </div>
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Łączenie fragmentów</h2><p>Pauza wstawiana między fragmentami w połączonym nagraniu.</p></div></div>
+                <div class="field narrow">
+                  <div class="row-between"><label for="pause">Pauza między fragmentami</label><span class="t-xs tabular">{{ d.pauseBetweenSegmentsMs }} ms</span></div>
+                  <input id="pause" class="range" type="range" min="0" max="2000" step="50" [value]="d.pauseBetweenSegmentsMs" [style.--fill.%]="d.pauseBetweenSegmentsMs / 20"
+                    (input)="set('pauseBetweenSegmentsMs', +$any($event.target).value)" (change)="setNow('pauseBetweenSegmentsMs', +$any($event.target).value)" />
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Nazwa pliku</h2><p>Dostępne zmienne: <code>{{ '{project}' }}</code>, <code>{{ '{date}' }}</code>.</p></div></div>
+                <div class="field narrow">
+                  <input class="input t-mono" [value]="d.fileNamePattern" (input)="set('fileNamePattern', $any($event.target).value)" (change)="setNow('fileNamePattern', $any($event.target).value)" aria-label="Wzorzec nazwy pliku" />
+                  <span class="field-hint">Podgląd: <code>{{ fileNamePreview() }}</code></span>
+                </div>
+              </section>
+            }
+
+            <!-- PREFERENCJE -->
+            @case ('preferences') {
+              <section class="section">
+                <div class="section-head"><div><h2>Wygląd</h2></div></div>
+                <div class="segmented theme">
+                  <button [class.is-active]="d.theme === 'light'" (click)="setNow('theme', 'light')"><vc-icon name="sun" [size]="14" />Jasny</button>
+                  <button [class.is-active]="d.theme === 'dark'" (click)="setNow('theme', 'dark')"><vc-icon name="moon" [size]="14" />Ciemny</button>
+                  <button [class.is-active]="d.theme === 'system'" (click)="setNow('theme', 'system')"><vc-icon name="monitor" [size]="14" />Systemowy</button>
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Nowe projekty</h2><p>Ustawienia początkowe każdego nowego projektu.</p></div></div>
+                <div class="form-grid">
+                  <div class="field">
+                    <label for="dl">Domyślny język</label>
+                    <select id="dl" class="select-native" [value]="d.defaultLanguage" (change)="setNow('defaultLanguage', $any($event.target).value)">
+                      @for (l of engine.languages(); track l) { <option [value]="l" [selected]="l === d.defaultLanguage">{{ languageLabel(l) }}</option> }
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="dv">Domyślny głos</label>
+                    <select id="dv" class="select-native" [value]="d.defaultVoiceId" (change)="setNow('defaultVoiceId', $any($event.target).value)">
+                      @for (v of sortedVoices(); track v.id) { <option [value]="v.id" [selected]="v.id === d.defaultVoiceId">{{ v.name }} · {{ languageLabel(v.languages[0] ?? '') }}</option> }
+                    </select>
+                  </div>
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Edytor</h2></div></div>
+                <div class="toggles">
+                  <label class="switch"><span class="switch-text">Dziel wklejany tekst na fragmenty<small>Akapity i długie bloki tekstu trafią do osobnych fragmentów</small></span><input type="checkbox" [checked]="d.autoSplitOnPaste" (change)="setNow('autoSplitOnPaste', $any($event.target).checked)" /></label>
+                  <label class="switch"><span class="switch-text">Odtwarzaj po wygenerowaniu<small>Automatycznie odsłuchaj nowo wygenerowany fragment</small></span><input type="checkbox" [checked]="d.playAfterGenerate" (change)="setNow('playAfterGenerate', $any($event.target).checked)" /></label>
+                  <label class="switch"><span class="switch-text">Potwierdzaj usuwanie<small>Pytaj przed usunięciem projektu</small></span><input type="checkbox" [checked]="d.confirmBeforeDelete" (change)="setNow('confirmBeforeDelete', $any($event.target).checked)" /></label>
+                  <label class="switch"><span class="switch-text">Powiadomienia e-mail<small>Informacja o zakończeniu długich generacji</small></span><input type="checkbox" [checked]="d.emailNotifications" (change)="setNow('emailNotifications', $any($event.target).checked)" /></label>
+                </div>
+              </section>
+            }
+
+            <!-- SILNIK -->
+            @case ('engine') {
+              <section class="section">
+                <div class="section-head">
+                  <div><h2>Silnik TTS</h2><p>VoxCPM2 działa w osobnym serwisie Python (FastAPI), z którym łączy się backend Spring Boot.</p></div>
+                  <button class="btn btn-sm" (click)="engine.refresh(true)" [disabled]="engine.loading()">@if (engine.loading()) { <span class="spinner"></span> } @else { <vc-icon name="refresh" [size]="13" /> } Odśwież</button>
+                </div>
+                <div class="panel engine">
+                  <div class="engine-head">
+                    <span class="dot" [class.dot-success]="engine.isReal()" [class.dot-warning]="engine.isDemo()" [class.dot-danger]="engine.isOffline()"></span>
+                    <strong>{{ engine.label() }}</strong>
+                    @if (engine.isDemo()) { <span class="badge badge-demo">Demo</span> }
+                  </div>
+                  @if (engine.status()?.message; as m) { <p class="t-small t-muted">{{ m }}</p> }
+                  <dl class="kv">
+                    <div><dt>Adres serwisu</dt><dd><code>{{ engine.status()?.url ?? '—' }}</code></dd></div>
+                    <div><dt>Tryb</dt><dd>{{ engine.mode() }}</dd></div>
+                    <div><dt>Model</dt><dd>{{ engine.status()?.model ?? '—' }}</dd></div>
+                    <div><dt>Urządzenie</dt><dd>{{ engine.status()?.device ?? '—' }}</dd></div>
+                    <div><dt>Próbkowanie</dt><dd>{{ engine.status()?.sampleRate ? (engine.status()!.sampleRate! / 1000) + ' kHz' : '—' }}</dd></div>
+                  </dl>
+                  @if (engine.caps(); as c) {
+                    <div class="caps">
+                      <span class="cap" [class.on]="c.voice_design"><vc-icon [name]="c.voice_design ? 'check' : 'x'" [size]="12" />Projektowanie głosu</span>
+                      <span class="cap" [class.on]="c.cloning"><vc-icon [name]="c.cloning ? 'check' : 'x'" [size]="12" />Klonowanie</span>
+                      <span class="cap" [class.on]="c.style_prompt"><vc-icon [name]="c.style_prompt ? 'check' : 'x'" [size]="12" />Instrukcje stylu</span>
+                      <span class="cap" [class.on]="c.emotion"><vc-icon [name]="c.emotion ? 'check' : 'x'" [size]="12" />Emocje</span>
+                      <span class="cap" [class.on]="c.speed"><vc-icon [name]="c.speed ? 'check' : 'x'" [size]="12" />Kontrola tempa</span>
+                    </div>
+                  }
+                </div>
+              </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Jak podłączyć VoxCPM2</h2><p>Na maszynie z GPU (CUDA) zainstaluj zależności modelu i uruchom serwis silnika.</p></div></div>
+                <ol class="howto">
+                  <li><span>Zainstaluj zależności</span><code class="cmd" (click)="copy('pip install -r tts-engine/requirements-voxcpm.txt')">pip install -r tts-engine/requirements-voxcpm.txt</code></li>
+                  <li><span>Uruchom serwis z modelem</span><code class="cmd" (click)="copy('cd tts-engine && ENGINE_MODE=voxcpm2 uvicorn app.main:app --port 8808')">cd tts-engine && ENGINE_MODE=voxcpm2 uvicorn app.main:app --port 8808</code></li>
+                  <li><span>Wskaż adres backendowi (jeśli inny niż domyślny)</span><code class="cmd" (click)="copy('ENGINE_URL=http://gpu-host:8808')">ENGINE_URL=http://gpu-host:8808</code></li>
+                </ol>
+                <p class="t-xs t-muted">Kliknij polecenie, aby je skopiować. Po uruchomieniu modelu fragmenty wygenerowane w trybie demo zostaną oznaczone jako nieaktualne.</p>
+              </section>
+            }
+          }
+        } @else {
+          <div class="empty"><span class="spinner"></span></div>
+        }
+      </div>
+    </div>
+  </div>
+</div>

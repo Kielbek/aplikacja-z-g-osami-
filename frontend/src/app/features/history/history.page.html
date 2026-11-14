@@ -1,0 +1,79 @@
+<div class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="page-header-text">
+        <h1 class="t-display">Historia generowania</h1>
+        <p>Każda generacja fragmentu, próbki głosu i eksport. Odsłuchaj wcześniejsze wersje — także te, które zastąpiłeś nowszymi.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" [disabled]="!items().length" (click)="clear()"><vc-icon name="trash" />Wyczyść</button>
+      </div>
+    </header>
+
+    @if (account.usage(); as u) {
+      <div class="stats">
+        <div class="stat"><span class="stat-value">{{ fmtNum(u.generations) }}</span><span class="stat-label">Generacje w tym okresie</span></div>
+        <div class="stat"><span class="stat-value">{{ fmtNum(u.charactersUsed) }}</span><span class="stat-label">Znaki z {{ fmtNum(u.characterLimit) }}</span></div>
+        <div class="stat"><span class="stat-value">{{ u.minutesUsed.toFixed(1) }} min</span><span class="stat-label">Audio z {{ u.minuteLimit }} min</span></div>
+      </div>
+    }
+
+    <div class="toolbar">
+      <div class="segmented">
+        <button [class.is-active]="filter() === 'all'" (click)="filter.set('all')">Wszystko</button>
+        <button [class.is-active]="filter() === 'segment'" (click)="filter.set('segment')">Fragmenty</button>
+        <button [class.is-active]="filter() === 'voice_design'" (click)="filter.set('voice_design')">Projekty głosów</button>
+        <button [class.is-active]="filter() === 'export'" (click)="filter.set('export')">Eksporty</button>
+        <button [class.is-active]="filter() === 'error'" (click)="filter.set('error')">Błędy</button>
+      </div>
+    </div>
+
+    @if (!loaded()) {
+      <div class="list"><div class="empty"><span class="spinner"></span></div></div>
+    } @else if (error(); as e) {
+      <div class="list"><div class="empty"><div class="empty-icon"><vc-icon name="plug" [size]="20" /></div><h3>Nie można wczytać historii</h3><p>{{ e }}</p></div></div>
+    } @else {
+      @for (g of groups(); track g.day) {
+        <h2 class="day">{{ g.day }}</h2>
+        <div class="list">
+          @for (it of g.items; track it.record.id) {
+            <div class="list-row item">
+              <span class="time tabular">{{ fmtTime(it.record.createdAt) }}</span>
+              <span class="type" [title]="TYPE[it.record.type].label"><vc-icon [name]="TYPE[it.record.type].icon" [size]="14" /></span>
+              <div class="main">
+                <span class="text">{{ it.record.textPreview }}</span>
+                <span class="cell-muted">
+                  {{ TYPE[it.record.type].label }}
+                  @if (it.record.projectId && it.record.projectName) { · <a [routerLink]="['/editor', it.record.projectId]">{{ it.record.projectName }}</a> }
+                  @if (it.record.voiceName) { · {{ it.record.voiceName }} }
+                </span>
+                @if (it.record.error) { <span class="err">{{ it.record.error }}</span> }
+              </div>
+              <div class="nums">
+                @if (it.record.characters) { <span class="cell-muted tabular">{{ fmtNum(it.record.characters) }} zn.</span> }
+                @if (it.record.durationMs) { <span class="cell-muted tabular">{{ fmtDur(it.record.durationMs) }}</span> }
+              </div>
+              <div class="flags">
+                @if (it.record.status === 'error') { <span class="badge badge-danger">Błąd</span> }
+                @else if (it.record.engineMode === 'demo') { <span class="badge badge-demo">Demo</span> }
+                @else { <span class="badge badge-success">VoxCPM2</span> }
+              </div>
+              <div class="cell-actions">
+                <vc-play-button [track]="track(it)" [disabled]="!it.audioAvailable" [label]="it.audioAvailable ? 'Odtwórz' : 'Brak pliku audio'" />
+              </div>
+            </div>
+          }
+        </div>
+      } @empty {
+        <div class="list">
+          <div class="empty">
+            <div class="empty-icon"><vc-icon name="history" [size]="20" /></div>
+            <h3>{{ filter() === 'all' ? 'Historia jest pusta' : 'Brak wpisów tego typu' }}</h3>
+            <p>Wygenerowane fragmenty, próbki głosów i eksporty pojawią się tutaj automatycznie.</p>
+            <a class="btn" routerLink="/">Otwórz edytor</a>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>

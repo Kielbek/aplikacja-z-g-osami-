@@ -1,0 +1,140 @@
+@if (s(); as s) {
+  <div class="panel-head">
+    <h2>Ustawienia głosu</h2>
+    <button class="btn btn-ghost btn-icon btn-sm close" aria-label="Zamknij panel" (click)="close.emit()"><vc-icon name="x" /></button>
+  </div>
+
+  <div class="scroll">
+    <!-- Silnik -->
+    <section class="group">
+      <div class="label">Silnik TTS</div>
+      <div class="engine-row">
+        <select class="select-native" [value]="s.engine" (change)="set('engine', $any($event.target).value)" aria-label="Silnik TTS">
+          <option value="voxcpm2">VoxCPM2</option>
+        </select>
+        <a class="engine-status" routerLink="/settings/engine" [title]="engine.status()?.message ?? ''">
+          <span class="dot" [class.dot-success]="engine.isReal()" [class.dot-warning]="engine.isDemo()" [class.dot-danger]="engine.isOffline()"></span>
+          {{ engine.isReal() ? 'Połączony' : engine.isDemo() ? 'Demo' : 'Offline' }}
+        </a>
+      </div>
+      @if (engine.isDemo()) {
+        <p class="hint demo">Model nie jest załadowany — generowany jest sygnał zastępczy.</p>
+      }
+    </section>
+
+    <!-- Język i głos -->
+    <section class="group">
+      <div class="label">Język</div>
+      <select class="select-native" [value]="s.language" (change)="set('language', $any($event.target).value)" aria-label="Język">
+        @for (l of engine.languages(); track l) {
+          <option [value]="l" [selected]="l === s.language">{{ languageLabel(l) }}</option>
+        }
+      </select>
+    </section>
+
+    <section class="group">
+      <div class="label">Głos</div>
+      <vc-voice-picker [selectedId]="s.voiceId" [language]="s.language" (select)="set('voiceId', $event)" />
+      @if (voiceLangMismatch()) {
+        <p class="hint warn"><vc-icon name="info" [size]="12" /> Ten głos został przygotowany dla innego języka.</p>
+      }
+    </section>
+
+    <!-- Sposób mówienia -->
+    <section class="group">
+      <div class="label">Sposób mówienia</div>
+      <div class="chips">
+        @for (p of STYLE_PRESETS; track p.label) {
+          <button class="chip" [class.is-active]="s.style === p.value" (click)="applyPreset(p.value)">{{ p.label }}</button>
+        }
+      </div>
+      <textarea
+        class="textarea style"
+        rows="2"
+        placeholder="Opisz własnymi słowami, np. „spokojnie, z lekkim uśmiechem, wyraźne pauzy”"
+        [value]="s.style ?? ''"
+        (change)="set('style', $any($event.target).value || null)"
+        aria-label="Instrukcja stylu"
+        [disabled]="caps() && !caps()!.style_prompt"
+      ></textarea>
+    </section>
+
+    <section class="group">
+      <div class="row-between">
+        <div class="label">Tempo</div>
+        <span class="value tabular">{{ s.speed.toFixed(2) }}× <span class="t-muted">· {{ speedLabel(s.speed) }}</span></span>
+      </div>
+      <input class="range" type="range" min="0.5" max="2" step="0.05" [value]="s.speed" [style.--fill.%]="pct(s.speed, 0.5, 2)"
+        [disabled]="caps() !== null && !caps()!.speed" (change)="set('speed', num($event))" aria-label="Tempo wypowiedzi" />
+      @if (caps() && !caps()!.speed) {
+        <p class="hint">VoxCPM2 nie ma osobnego parametru tempa — opisz tempo w polu „Sposób mówienia”.</p>
+      }
+    </section>
+
+    <section class="group">
+      <div class="row-between">
+        <div class="label">Ekspresja</div>
+        <span class="value tabular">{{ (s.expressiveness * 100).toFixed(0) }}%</span>
+      </div>
+      <input class="range" type="range" min="0" max="1" step="0.05" [value]="s.expressiveness" [style.--fill.%]="s.expressiveness * 100"
+        (change)="set('expressiveness', num($event))" aria-label="Ekspresja" />
+      <div class="scale"><span>Stonowana</span><span>Wyrazista</span></div>
+    </section>
+
+    @if (!caps() || caps()!.emotion) {
+      <section class="group">
+        <div class="label">Emocja</div>
+        <div class="chips">
+          @for (e of EMOTIONS; track e) {
+            <button class="chip cap" [class.is-active]="s.emotion === e" (click)="toggleEmotion(e)">{{ e }}</button>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Zaawansowane -->
+    <section class="group advanced">
+      <button class="adv-toggle" (click)="advancedOpen.set(!advancedOpen())" [attr.aria-expanded]="advancedOpen()">
+        <vc-icon name="sliders" [size]="14" />
+        <span class="grow">Ustawienia zaawansowane</span>
+        <vc-icon [name]="advancedOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
+      </button>
+      @if (advancedOpen()) {
+        <div class="adv-body">
+          <div class="field">
+            <div class="row-between"><label for="cfg">Zgodność z opisem (CFG)</label><span class="value tabular">{{ s.cfgValue.toFixed(1) }}</span></div>
+            <input id="cfg" class="range" type="range" min="0.5" max="5" step="0.1" [value]="s.cfgValue" [style.--fill.%]="pct(s.cfgValue, 0.5, 5)" (change)="set('cfgValue', num($event))" />
+            <span class="field-hint">Wyższa wartość — ściślejsze trzymanie się głosu i stylu, mniej naturalnej zmienności.</span>
+          </div>
+          <div class="field">
+            <div class="row-between"><label for="steps">Kroki inferencji</label><span class="value tabular">{{ s.inferenceTimesteps }}</span></div>
+            <input id="steps" class="range" type="range" min="4" max="50" step="1" [value]="s.inferenceTimesteps" [style.--fill.%]="pct(s.inferenceTimesteps, 4, 50)" (change)="set('inferenceTimesteps', num($event))" />
+            <span class="field-hint">Więcej kroków to wyższa jakość kosztem czasu generowania.</span>
+          </div>
+          <label class="switch">
+            <span class="switch-text">Normalizacja tekstu<small>Liczby, skróty i daty zapisane słownie</small></span>
+            <input type="checkbox" [checked]="s.normalize" (change)="set('normalize', $any($event.target).checked)" />
+          </label>
+          <label class="switch">
+            <span class="switch-text">Odszumianie referencji<small>Dla głosów klonowanych</small></span>
+            <input type="checkbox" [checked]="s.denoise" (change)="set('denoise', $any($event.target).checked)" />
+          </label>
+          <div class="field">
+            <label for="seed">Ziarno losowości</label>
+            <div class="row">
+              <input id="seed" class="input" type="number" placeholder="Losowe" [value]="s.seed ?? ''" (change)="set('seed', $any($event.target).value === '' ? null : +$any($event.target).value)" />
+              <button class="btn btn-icon" title="Losuj ziarno" aria-label="Losuj ziarno" (click)="randomSeed()"><vc-icon name="dice" /></button>
+            </div>
+            <span class="field-hint">Stałe ziarno daje powtarzalne wyniki przy ponownym generowaniu.</span>
+          </div>
+          <button class="btn btn-ghost btn-sm reset" (click)="resetAdvanced()">Przywróć domyślne</button>
+        </div>
+      }
+    </section>
+  </div>
+
+  <div class="panel-foot">
+    <vc-icon name="info" [size]="13" />
+    <span>Zmiana ustawień oznaczy wygenerowane fragmenty jako nieaktualne. Ponownie wygenerujesz tylko to, co chcesz.</span>
+  </div>
+}

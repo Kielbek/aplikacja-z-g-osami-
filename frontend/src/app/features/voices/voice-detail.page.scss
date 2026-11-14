@@ -1,0 +1,85 @@
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin: 8px 0 28px;
+}
+.hero-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 6px; font-size: var(--text-sm); color: var(--text-3); .sep { color: var(--text-4); } }
+.name-input { font-size: var(--text-xl); height: 42px; max-width: 360px; }
+.fav { color: var(--text-4); &.is-fav { color: var(--warning); } }
+
+.sample {
+  display: flex;
+  gap: 18px;
+  align-items: flex-start;
+  padding: 18px 20px;
+  margin-bottom: 10px;
+}
+.sample-play {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  background: var(--graphite);
+  color: var(--text-inverse);
+  margin-top: 18px;
+  &:hover { background: var(--graphite-hover); }
+}
+.sample-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+.sample-body vc-waveform { height: 44px; }
+.sample-text { font-family: var(--font-serif); font-size: var(--text-md); color: var(--text-2); line-height: 1.55; }
+.demo-note { display: flex; align-items: center; gap: 6px; color: var(--demo-text); margin-bottom: 18px; }
+
+.section { margin-top: 18px; }
+.desc { color: var(--text-2); line-height: 1.65; margin-bottom: 18px; }
+
+.props {
+  display: grid;
+  grid-template-columns: 1fr;
+  margin: 0;
+  > div {
+    display: grid;
+    grid-template-columns: 140px 1fr;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border-subtle);
+  }
+  dt { font-size: var(--text-sm); color: var(--text-3); }
+  dd { margin: 0; font-size: var(--text-sm); }
+}
+
+.disclosure {
+  all: unset;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--text-sm);
+  font-weight: 550;
+  color: var(--text-2);
+  &:hover { color: var(--text); }
+}
+
+.prompt {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--bg-sunken);
+  border: 1px solid var(--border);
+  div { display: flex; flex-direction: column; gap: 6px; }
+  code { font-size: var(--text-xs); color: var(--text-2); line-height: 1.6; word-break: break-word; }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}

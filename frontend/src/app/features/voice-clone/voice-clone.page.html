@@ -1,0 +1,144 @@
+<div class="page">
+  <div class="page-inner page-narrow">
+    <a class="back-link" routerLink="/voices"><vc-icon name="arrow-left" [size]="14" />Głosy</a>
+    <header class="page-header">
+      <div class="page-header-text">
+        <h1 class="t-display">Klonuj głos</h1>
+        <p>Utwórz profil głosu na podstawie krótkiego nagrania. Klonować możesz wyłącznie własny głos lub głos osoby, która udzieliła Ci na to zgody.</p>
+      </div>
+    </header>
+
+    @if (!cloningAvailable()) {
+      <div class="callout" [class.callout-demo]="engine.isDemo()" [class.callout-danger]="engine.isOffline()" role="note">
+        <vc-icon [name]="engine.isDemo() ? 'flask' : 'plug'" />
+        <div class="callout-body">
+          <strong>Klonowanie jest obecnie niedostępne.</strong>
+          <span>
+            @if (engine.isDemo()) {
+              Silnik działa w trybie demonstracyjnym, bez modelu VoxCPM2. Możesz przesłać i przeanalizować nagranie (analiza jest prawdziwa), ale utworzenie profilu głosu wymaga podłączonego modelu.
+            } @else {
+              Serwis silnika TTS nie odpowiada. Analiza i klonowanie będą dostępne po jego uruchomieniu.
+            }
+            <a routerLink="/settings/engine">Jak podłączyć VoxCPM2</a>
+          </span>
+        </div>
+      </div>
+    }
+
+    <ol class="steps">
+      <!-- 1. Nagranie -->
+      <li class="step" [class.is-done]="step() > 1">
+        <div class="step-num">@if (step() > 1) { <vc-icon name="check" [size]="13" /> } @else { 1 }</div>
+        <div class="step-body">
+          <h2>Nagranie referencyjne</h2>
+          @if (!file()) {
+            <label class="drop" [class.is-over]="dragOver()" (dragover)="$event.preventDefault(); dragOver.set(true)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
+              <input type="file" accept=".wav,.mp3,.flac,.ogg,audio/*" (change)="onPick($event)" class="sr-only" />
+              <span class="drop-icon"><vc-icon name="upload" [size]="20" /></span>
+              <span class="drop-title">Przeciągnij plik audio lub <u>wybierz z dysku</u></span>
+              <span class="t-xs t-muted">WAV, MP3, FLAC lub OGG · do 50 MB</span>
+            </label>
+            <ul class="reqs">
+              <li><vc-icon name="check" [size]="13" />10–30 sekund wyraźnej mowy jednej osoby (minimum 5 s)</li>
+              <li><vc-icon name="check" [size]="13" />Ciche pomieszczenie, bez muzyki, pogłosu i szumu tła</li>
+              <li><vc-icon name="check" [size]="13" />Naturalne tempo i ton — taki, jakiego oczekujesz od klonu</li>
+              <li><vc-icon name="check" [size]="13" />Bez przesterowań; najlepiej WAV, 24 kHz lub więcej</li>
+            </ul>
+          } @else {
+            <div class="file panel">
+              <button class="file-play" (click)="playLocal()" [attr.aria-label]="localActive() && player.playing() ? 'Pauza' : 'Odsłuchaj nagranie'">
+                <vc-icon [name]="localActive() && player.playing() ? 'pause' : 'play'" [size]="14" />
+              </button>
+              <div class="file-body">
+                <div class="row-between">
+                  <span class="file-name">{{ file()!.name }}</span>
+                  <span class="t-xs t-muted tabular">{{ sizeLabel(file()!.size) }}@if (analysis()) { · {{ fmt(analysis()!.duration_sec) }} }</span>
+                </div>
+                <vc-waveform [peaks]="localActive() ? player.peaks() : []" [progress]="localActive() ? player.progress() : 0" (seek)="localActive() && player.seek($event)" />
+              </div>
+              <button class="btn btn-ghost btn-icon btn-sm" aria-label="Usuń plik" (click)="removeFile()"><vc-icon name="x" /></button>
+            </div>
+          }
+        </div>
+      </li>
+
+      <!-- 2. Analiza -->
+      <li class="step" [class.is-done]="step() > 2" [class.is-muted]="step() < 2">
+        <div class="step-num">@if (step() > 2) { <vc-icon name="check" [size]="13" /> } @else { 2 }</div>
+        <div class="step-body">
+          <h2>Analiza nagrania</h2>
+          @if (analyzing()) {
+            <p class="row t-small t-muted"><span class="spinner"></span>Analizowanie jakości nagrania…</p>
+          } @else if (analysisError(); as err) {
+            <div class="callout callout-danger"><vc-icon name="circle-alert" /><div class="callout-body">{{ err }}<button class="btn btn-sm" style="align-self:flex-start;margin-top:6px" (click)="analyze()">Ponów analizę</button></div></div>
+          } @else if (analysis(); as a) {
+            <div class="metrics">
+              <div class="metric" [class]="check(a.duration_sec >= 10 && a.duration_sec <= 60, a.duration_sec >= 5)"><span class="m-label">Długość</span><span class="m-value tabular">{{ a.duration_sec.toFixed(1) }} s</span></div>
+              <div class="metric" [class]="check(a.sample_rate >= 22050, a.sample_rate >= 16000)"><span class="m-label">Próbkowanie</span><span class="m-value tabular">{{ (a.sample_rate / 1000).toFixed(1) }} kHz</span></div>
+              <div class="metric" [class]="check(a.estimated_snr_db >= 30, a.estimated_snr_db >= 20)"><span class="m-label">Szum tła (SNR)</span><span class="m-value tabular">{{ a.estimated_snr_db > 90 ? '> 90' : a.estimated_snr_db.toFixed(0) }} dB</span></div>
+              <div class="metric" [class]="check(a.clipping_ratio <= 0.001, a.clipping_ratio <= 0.01)"><span class="m-label">Przesterowanie</span><span class="m-value tabular">{{ (a.clipping_ratio * 100).toFixed(2) }}%</span></div>
+              <div class="metric" [class]="check(a.rms_dbfs >= -30, a.rms_dbfs >= -35)"><span class="m-label">Głośność (RMS)</span><span class="m-value tabular">{{ a.rms_dbfs.toFixed(1) }} dBFS</span></div>
+              <div class="metric" [class]="check(a.silence_ratio <= 0.35, a.silence_ratio <= 0.5)"><span class="m-label">Cisza</span><span class="m-value tabular">{{ (a.silence_ratio * 100).toFixed(0) }}%</span></div>
+            </div>
+            @if (a.issues.length) {
+              <ul class="issues">
+                @for (i of a.issues; track i) { <li><vc-icon name="alert" [size]="13" />{{ i }}</li> }
+              </ul>
+            } @else {
+              <p class="ok-line"><vc-icon name="circle-check" [size]="14" />Nagranie spełnia wymagania.</p>
+            }
+          } @else {
+            <p class="t-small t-muted">Po dodaniu pliku sprawdzimy długość, poziom szumu, przesterowania i głośność.</p>
+          }
+        </div>
+      </li>
+
+      <!-- 3. Zgoda -->
+      <li class="step" [class.is-done]="step() > 3" [class.is-muted]="step() < 3">
+        <div class="step-num">@if (step() > 3) { <vc-icon name="check" [size]="13" /> } @else { 3 }</div>
+        <div class="step-body">
+          <h2>Zgoda właściciela głosu</h2>
+          <label class="checkbox consent">
+            <input type="checkbox" [checked]="consent()" (change)="consent.set($any($event.target).checked)" [disabled]="!file()" />
+            <span>Oświadczam, że nagranie przedstawia mój głos lub mam wyraźną zgodę osoby nagranej na utworzenie i wykorzystanie jej cyfrowego głosu. Nie użyję klonu do podszywania się, wprowadzania w błąd ani w celach niezgodnych z prawem.</span>
+          </label>
+        </div>
+      </li>
+
+      <!-- 4. Profil -->
+      <li class="step" [class.is-muted]="step() < 4">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h2>Profil głosu</h2>
+          <div class="form-grid">
+            <div class="field">
+              <label for="cname">Nazwa głosu</label>
+              <input id="cname" class="input" [value]="name()" (input)="name.set($any($event.target).value)" maxlength="60" placeholder="Np. Mój głos – lektor" />
+            </div>
+            <div class="field">
+              <label for="clang">Język nagrania</label>
+              <select id="clang" class="select-native" [value]="language()" (change)="language.set($any($event.target).value)">
+                @for (l of engine.languages(); track l) { <option [value]="l" [selected]="l === language()">{{ languageLabel(l) }}</option> }
+              </select>
+            </div>
+            <div class="field span-2">
+              <label for="ctrans">Transkrypcja nagrania <span class="t-muted">opcjonalnie</span></label>
+              <textarea id="ctrans" class="textarea" rows="3" [value]="transcript()" (input)="transcript.set($any($event.target).value)" placeholder="Dokładny tekst wypowiedziany w nagraniu — poprawia wierność klonu."></textarea>
+            </div>
+          </div>
+
+          @if (createError(); as err) {
+            <div class="callout callout-danger create-err"><vc-icon name="circle-alert" /><div class="callout-body">{{ err }}</div></div>
+          }
+
+          <div class="create-row">
+            <button class="btn btn-primary" [disabled]="!canCreate()" (click)="create()">
+              @if (creating()) { <span class="spinner"></span>Tworzenie profilu… } @else { <vc-icon name="mic" />Utwórz profil głosu }
+            </button>
+            @if (blockReason(); as r) { <span class="t-xs t-muted">{{ r }}</span> }
+          </div>
+        </div>
+      </li>
+    </ol>
+  </div>
+</div>

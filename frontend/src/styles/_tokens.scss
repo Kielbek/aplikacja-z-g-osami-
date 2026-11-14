@@ -1,0 +1,160 @@
+/* ==========================================================================
+   VoiceCraft AI — design tokens
+   Złamana biel, ciepłe szarości, grafit, kobaltowy akcent.
+   ========================================================================== */
+
+:root {
+  /* Typography */
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-serif: 'Source Serif 4 Variable', 'Iowan Old Style', Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 14px;
+  --text-md: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-3xl: 32px;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.7;
+
+  /* Spacing (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 999px;
+
+  /* Layout */
+  --sidebar-w: 248px;
+  --inspector-w: 320px;
+  --player-h: 72px;
+  --topbar-h: 56px;
+  --content-max: 760px;
+
+  /* Motion */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 120ms;
+  --dur: 180ms;
+
+  /* ---- Light palette ---- */
+  --bg: #faf9f7;
+  --bg-sunken: #f4f3f0;
+  --surface: #ffffff;
+  --surface-hover: #f5f4f1;
+  --surface-active: #eeece8;
+  --surface-raised: #ffffff;
+
+  --border: #e7e5e0;
+  --border-subtle: #efede9;
+  --border-strong: #d5d2cb;
+
+  --text: #1e2228;
+  --text-2: #484d55;
+  --text-3: #767b83;
+  --text-4: #a2a6ac;
+  --text-inverse: #faf9f7;
+
+  --graphite: #1f2430;
+  --graphite-hover: #2b3140;
+
+  --accent: #2c4ba3;
+  --accent-hover: #233e8a;
+  --accent-text: #2a4699;
+  --accent-soft: #eef1f9;
+  --accent-soft-2: #e1e7f5;
+  --accent-ring: rgba(44, 75, 163, 0.28);
+
+  --success: #2c7a57;
+  --success-soft: #e9f3ee;
+  --warning: #9a650f;
+  --warning-soft: #fbf3e4;
+  --danger: #b2382f;
+  --danger-soft: #faeceb;
+
+  --demo-bg: #fbf6ea;
+  --demo-border: #ecdfbf;
+  --demo-text: #6f5414;
+
+  --wave: #c9c6bf;
+  --wave-played: #2c4ba3;
+
+  --shadow-xs: 0 1px 1px rgba(20, 22, 26, 0.04);
+  --shadow-sm: 0 1px 2px rgba(20, 22, 26, 0.06), 0 0 0 1px rgba(20, 22, 26, 0.03);
+  --shadow-md: 0 4px 12px -2px rgba(20, 22, 26, 0.08), 0 0 0 1px rgba(20, 22, 26, 0.05);
+  --shadow-lg: 0 16px 40px -8px rgba(20, 22, 26, 0.16), 0 0 0 1px rgba(20, 22, 26, 0.06);
+
+  --scrim: rgba(24, 26, 31, 0.32);
+
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg: #15171b;
+  --bg-sunken: #121417;
+  --surface: #1b1e23;
+  --surface-hover: #22262c;
+  --surface-active: #292d34;
+  --surface-raised: #1f2228;
+
+  --border: #2a2e35;
+  --border-subtle: #23272d;
+  --border-strong: #383d45;
+
+  --text: #e9e7e3;
+  --text-2: #bcbab5;
+  --text-3: #8b8e94;
+  --text-4: #62666d;
+  --text-inverse: #15171b;
+
+  --graphite: #e9e7e3;
+  --graphite-hover: #ffffff;
+
+  --accent: #6f8fe6;
+  --accent-hover: #86a1ec;
+  --accent-text: #93abee;
+  --accent-soft: #1f2638;
+  --accent-soft-2: #263049;
+  --accent-ring: rgba(111, 143, 230, 0.35);
+
+  --success: #5fb48c;
+  --success-soft: #1a2a23;
+  --warning: #d9a654;
+  --warning-soft: #2c2519;
+  --danger: #e2766d;
+  --danger-soft: #2f1d1c;
+
+  --demo-bg: #26221a;
+  --demo-border: #3d3523;
+  --demo-text: #d8bf86;
+
+  --wave: #41454d;
+  --wave-played: #7d9ae8;
+
+  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-md: 0 6px 16px -4px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-lg: 0 20px 48px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.06);
+
+  --scrim: rgba(0, 0, 0, 0.5);
+
+  color-scheme: dark;
+}

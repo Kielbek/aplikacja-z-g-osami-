@@ -1,12 +1,17 @@
-import { Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
+import { ThemeService } from './core/services/theme.service';
+import { ConfirmHostComponent } from './shared/confirm-host.component';
+import { ToastHostComponent } from './shared/toast-host.component';
 
 @Component({
-  imports: [RouterOutlet],
   selector: 'app-root',
-  styleUrl: './app.scss',
-  templateUrl: './app.html',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RouterOutlet, ToastHostComponent, ConfirmHostComponent],
+  template: `<router-outlet /><vc-toast-host /><vc-confirm-host />`,
 })
 export class App {
-  protected readonly title = signal('frontend');
+  constructor() {
+    inject(ThemeService);
+  }
 }

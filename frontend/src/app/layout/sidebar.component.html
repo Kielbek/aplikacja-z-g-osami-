@@ -1,0 +1,69 @@
+<aside class="sb">
+  <div class="brand">
+    <span class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="currentColor" /><g stroke="var(--logo-fg)" stroke-width="2.4" stroke-linecap="round"><path d="M9 13v6" /><path d="M13.5 9v14" /><path d="M18 12v8" /><path d="M22.5 14.5v3" /></g></svg>
+    </span>
+    <span class="brand-name">VoiceCraft <span>AI</span></span>
+  </div>
+
+  <button class="btn btn-block new" (click)="newProject()" [disabled]="creating()">
+    @if (creating()) { <span class="spinner"></span> } @else { <vc-icon name="plus" /> }
+    Nowy projekt
+  </button>
+
+  <nav class="nav" aria-label="Nawigacja główna">
+    <a routerLink="/projects" routerLinkActive="is-active" (click)="navigate.emit()"><vc-icon name="folder" />Wszystkie projekty</a>
+    <a routerLink="/voices" routerLinkActive="is-active" [routerLinkActiveOptions]="{ exact: true }" (click)="navigate.emit()"><vc-icon name="voices" />Głosy</a>
+    <a routerLink="/voices/favorites" routerLinkActive="is-active" (click)="navigate.emit()"><vc-icon name="star" />Ulubione głosy</a>
+    <a routerLink="/history" routerLinkActive="is-active" (click)="navigate.emit()"><vc-icon name="history" />Historia generowania</a>
+
+    <div class="nav-label">Własne głosy</div>
+    <a routerLink="/voices/design" routerLinkActive="is-active" (click)="navigate.emit()"><vc-icon name="wand" />Stwórz głos</a>
+    <a routerLink="/voices/clone" routerLinkActive="is-active" (click)="navigate.emit()"><vc-icon name="mic" />Klonuj głos</a>
+
+    @if (recent().length) {
+      <div class="nav-label">Ostatnie projekty</div>
+      @for (p of recent(); track p.id) {
+        <a class="recent" [routerLink]="['/editor', p.id]" routerLinkActive="is-active" (click)="navigate.emit()" [title]="p.name">
+          <span class="dot" [class]="'dot-' + PROJECT_STATUS[p.stats.status].tone"></span>
+          <span class="truncate">{{ p.name }}</span>
+        </a>
+      }
+    }
+  </nav>
+
+  <div class="foot">
+    <a class="engine" routerLink="/settings/engine" (click)="navigate.emit()" [title]="engine.status()?.message ?? engine.label()">
+      <span class="dot" [class.dot-success]="engine.isReal()" [class.dot-warning]="engine.isDemo()" [class.dot-danger]="engine.isOffline()"></span>
+      <span class="grow">{{ engine.label() }}</span>
+      @if (engine.isDemo()) { <span class="badge badge-demo">Demo</span> }
+    </a>
+
+    <a class="usage" routerLink="/settings/subscription" (click)="navigate.emit()">
+      <div class="row-between t-xs">
+        <span class="t-muted">Znaki</span>
+        <span class="tabular nowrap">{{ usageLabel() }}</span>
+      </div>
+      <div class="meter" [class.meter-warning]="usagePct() > 80"><span [style.width.%]="usagePct()"></span></div>
+    </a>
+
+    <vc-dropdown align="start" [width]="220">
+      <button trigger class="profile" aria-label="Menu profilu">
+        <span class="pavatar">{{ initials() }}</span>
+        <span class="pinfo">
+          <span class="pname">{{ account.account()?.fullName ?? 'Użytkownik' }}</span>
+          <span class="pplan">Plan {{ account.account()?.plan ?? '—' }}</span>
+        </span>
+        <vc-icon name="chevron-up" [size]="14" />
+      </button>
+      <div menu>
+        <div class="menu-label">{{ account.account()?.email }}</div>
+        <button class="menu-item" routerLink="/settings/profile" (click)="navigate.emit()"><vc-icon name="user" />Profil</button>
+        <button class="menu-item" routerLink="/settings/subscription" (click)="navigate.emit()"><vc-icon name="card" />Subskrypcja</button>
+        <button class="menu-item" routerLink="/settings/preferences" (click)="navigate.emit()"><vc-icon name="settings" />Ustawienia</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" (click)="logout()"><vc-icon name="logout" />Wyloguj się</button>
+      </div>
+    </vc-dropdown>
+  </div>
+</aside>

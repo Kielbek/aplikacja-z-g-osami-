@@ -1,0 +1,103 @@
+<div class="page">
+  <div class="page-inner page-narrow">
+    <a class="back-link" routerLink="/voices"><vc-icon name="arrow-left" [size]="14" />Wszystkie głosy</a>
+
+    @if (error(); as e) {
+      <div class="empty"><div class="empty-icon"><vc-icon name="circle-alert" [size]="20" /></div><h3>Nie znaleziono głosu</h3><p>{{ e }}</p></div>
+    } @else if (voice(); as v) {
+      <header class="hero">
+        <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="64" />
+        <div class="hero-text">
+          @if (editing()) {
+            <input class="input name-input" [value]="draftName()" (input)="draftName.set($any($event.target).value)" aria-label="Nazwa głosu" />
+          } @else {
+            <h1 class="t-display">{{ v.name }}</h1>
+          }
+          <div class="hero-meta">
+            <span>{{ kindLabel() }}</span>
+            <span class="sep">·</span><span>{{ languageLabel(v.languages[0] ?? '') }}</span>
+            <span class="sep">·</span><span>{{ genderLabel(v.gender) }}</span>
+            @if (v.age) { <span class="sep">·</span><span>ok. {{ v.age }} lat</span> }
+          </div>
+        </div>
+        <button class="btn btn-icon fav" [class.is-fav]="v.favorite" (click)="actions.toggleFavorite(v)" [attr.aria-label]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'" [attr.aria-pressed]="v.favorite">
+          <vc-icon name="star" [filled]="v.favorite" />
+        </button>
+      </header>
+
+      <!-- Próbka -->
+      <section class="sample panel">
+        <button class="sample-play" (click)="playSample()" [attr.aria-label]="active() && player.playing() ? 'Pauza' : 'Odtwórz próbkę'">
+          @if (active() && player.status() === 'loading') { <span class="spinner"></span> }
+          @else if (active() && player.playing()) { <vc-icon name="pause" [size]="16" /> }
+          @else { <vc-icon name="play" [size]="16" style="margin-left:2px" /> }
+        </button>
+        <div class="sample-body">
+          <div class="row-between">
+            <span class="t-label">Próbka głosu</span>
+            <span class="row">
+              @if (active() && player.isDemo()) { <span class="badge badge-demo">Demo</span> }
+              @if (active()) { <span class="t-xs t-muted tabular">{{ fmt(player.currentTime()) }} / {{ fmt(player.duration()) }}</span> }
+            </span>
+          </div>
+          <vc-waveform [peaks]="active() ? player.peaks() : []" [progress]="active() ? player.progress() : 0" (seek)="active() && player.seek($event)" />
+          <p class="sample-text">„{{ v.sampleText }}”</p>
+        </div>
+      </section>
+      @if (engine.isDemo()) {
+        <p class="t-xs demo-note"><vc-icon name="flask" [size]="12" /> Silnik działa w trybie demonstracyjnym — próbka to sygnał zastępczy, nie prawdziwa barwa tego głosu.</p>
+      }
+
+      <section class="section">
+        <div class="section-head"><h2>Charakter</h2></div>
+        @if (editing()) {
+          <textarea class="textarea" rows="3" [value]="draftDescription()" (input)="draftDescription.set($any($event.target).value)" aria-label="Opis głosu"></textarea>
+        } @else {
+          <p class="desc">{{ v.description }}</p>
+        }
+        <dl class="props">
+          <div><dt>Kategorie</dt><dd class="chips">@for (c of v.categories; track c) { <span class="badge">{{ categoryLabel(c) }}</span> } @empty { — }</dd></div>
+          <div><dt>Barwa</dt><dd class="chips">@for (t of v.traits; track t) { <span class="badge">{{ t }}</span> } @empty { — }</dd></div>
+          <div><dt>Języki</dt><dd>{{ v.languages.map(languageLabel).join(', ') }}</dd></div>
+          <div><dt>Użycia</dt><dd class="tabular">{{ v.useCount }} {{ v.useCount === 1 ? 'generacja' : 'generacji' }}</dd></div>
+          @if (v.kind !== 'LIBRARY') { <div><dt>Utworzono</dt><dd>{{ formatDate(v.createdAt) }}</dd></div> }
+        </dl>
+      </section>
+
+      <section class="section">
+        <button class="disclosure" (click)="showPrompt.set(!showPrompt())" [attr.aria-expanded]="showPrompt()">
+          <vc-icon name="terminal" [size]="14" />Parametry dla silnika VoxCPM2
+          <vc-icon [name]="showPrompt() ? 'chevron-up' : 'chevron-down'" [size]="14" />
+        </button>
+        @if (showPrompt()) {
+          <div class="prompt">
+            @if (v.referenceId) {
+              <div><span class="t-label">Nagranie referencyjne</span><code>{{ v.referenceId }}</code></div>
+            } @else {
+              <div><span class="t-label">Opis głosu (voice design)</span><code>{{ v.enginePrompt }}</code></div>
+            }
+          </div>
+        }
+      </section>
+
+      <footer class="actions">
+        <button class="btn btn-primary" (click)="actions.useInNewProject(v)"><vc-icon name="plus" />Nowy projekt z tym głosem</button>
+        <button class="btn" (click)="setDefault()" [disabled]="isDefault()">
+          <vc-icon [name]="isDefault() ? 'check' : 'settings'" />{{ isDefault() ? 'Głos domyślny' : 'Ustaw jako domyślny' }}
+        </button>
+        <span class="grow"></span>
+        @if (v.kind !== 'LIBRARY') {
+          @if (editing()) {
+            <button class="btn btn-ghost" (click)="editing.set(false)">Anuluj</button>
+            <button class="btn btn-accent" (click)="saveEdit()">Zapisz</button>
+          } @else {
+            <button class="btn btn-ghost" (click)="startEdit()"><vc-icon name="pencil" />Edytuj</button>
+            <button class="btn btn-danger" (click)="remove()"><vc-icon name="trash" />Usuń</button>
+          }
+        }
+      </footer>
+    } @else {
+      <div class="empty"><span class="spinner"></span></div>
+    }
+  </div>
+</div>

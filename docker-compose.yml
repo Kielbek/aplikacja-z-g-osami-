@@ -1,0 +1,41 @@
+# VoiceCraft AI — pełny stos.
+#   docker compose up --build            → tryb demonstracyjny (bez GPU)
+#   WITH_VOXCPM=true ENGINE_MODE=voxcpm2 docker compose up --build   → VoxCPM2 (wymaga GPU, patrz README)
+services:
+  tts-engine:
+    build:
+      context: ./tts-engine
+      args:
+        WITH_VOXCPM: ${WITH_VOXCPM:-false}
+    environment:
+      ENGINE_MODE: ${ENGINE_MODE:-auto}
+      VOXCPM_MODEL_ID: ${VOXCPM_MODEL_ID:-openbmb/VoxCPM2}
+      ENGINE_CORS: http://backend:8080
+    volumes:
+      - engine-data:/data
+    # Odkomentuj na maszynie z GPU NVIDIA:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+  backend:
+    build: ./backend
+    environment:
+      ENGINE_URL: http://tts-engine:8808
+      VOICECRAFT_CORS: http://localhost:4200
+    volumes:
+      - backend-data:/data
+    depends_on:
+      - tts-engine
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+
+volumes:
+  engine-data:
+  backend-data:

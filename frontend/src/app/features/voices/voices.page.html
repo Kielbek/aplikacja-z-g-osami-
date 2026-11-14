@@ -1,0 +1,97 @@
+<div class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="page-header-text">
+        <h1 class="t-display">{{ tab() === 'favorites' ? 'Ulubione głosy' : tab() === 'mine' ? 'Moje głosy' : 'Głosy' }}</h1>
+        <p>Odsłuchaj próbki, porównaj charakter głosów i dodaj ulubione, aby mieć je pod ręką w edytorze.</p>
+      </div>
+      <div class="page-header-actions">
+        <a class="btn" routerLink="/voices/clone"><vc-icon name="mic" />Klonuj głos</a>
+        <a class="btn btn-primary" routerLink="/voices/design"><vc-icon name="wand" />Stwórz głos</a>
+      </div>
+    </header>
+
+    <vc-engine-banner class="banner" [compact]="true" />
+
+    <nav class="tabs" aria-label="Kategorie głosów">
+      <a routerLink="/voices" [class.is-active]="tab() === 'all'">Wszystkie <span class="tab-count">{{ counts().all }}</span></a>
+      <a routerLink="/voices/favorites" [class.is-active]="tab() === 'favorites'"><vc-icon name="star" [size]="13" />Ulubione <span class="tab-count">{{ counts().favorites }}</span></a>
+      <a routerLink="/voices/mine" [class.is-active]="tab() === 'mine'">Moje głosy <span class="tab-count">{{ counts().mine }}</span></a>
+    </nav>
+
+    <div class="filters">
+      <div class="input-group search">
+        <vc-icon name="search" [size]="14" />
+        <input class="input" type="search" placeholder="Szukaj po nazwie, barwie, zastosowaniu…" [value]="query()" (input)="query.set($any($event.target).value)" aria-label="Szukaj głosów" />
+      </div>
+      <select class="select-native" [value]="language()" (change)="language.set($any($event.target).value)" aria-label="Język">
+        <option value="">Wszystkie języki</option>
+        @for (l of languages(); track l) { <option [value]="l">{{ languageLabel(l) }}</option> }
+      </select>
+      <select class="select-native" [value]="gender()" (change)="gender.set($any($event.target).value)" aria-label="Płeć głosu">
+        <option value="">Każda barwa</option>
+        @for (g of GENDERS; track g[0]) { <option [value]="g[0]">{{ g[1] }}</option> }
+      </select>
+    </div>
+
+    <div class="chips cats" role="group" aria-label="Charakter głosu">
+      <button class="chip" [class.is-active]="!category()" (click)="category.set('')">Każdy charakter</button>
+      @for (c of CATEGORIES; track c.id) {
+        <button class="chip" [class.is-active]="category() === c.id" (click)="category.set(category() === c.id ? '' : c.id)">{{ c.label }}</button>
+      }
+    </div>
+
+    @if (!store.loaded()) {
+      <div class="list"><div class="empty"><span class="spinner"></span></div></div>
+    } @else {
+      <div class="list">
+        @for (v of filtered(); track v.id) {
+          <div class="list-row voice is-clickable" tabindex="0" (click)="open(v)" (keydown.enter)="open(v)">
+            <div class="who">
+              <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="40" />
+              <div class="who-text">
+                <div class="name-row">
+                  <span class="name">{{ v.name }}</span>
+                  @if (kindLabel(v); as k) { <span class="badge badge-accent">{{ k }}</span> }
+                </div>
+                <span class="desc">{{ v.description }}</span>
+              </div>
+            </div>
+            <div class="lang">
+              <span class="t-small">{{ languageLabel(v.languages[0] ?? '') }}</span>
+              <span class="cell-muted">{{ v.gender === 'female' ? 'Kobiecy' : v.gender === 'male' ? 'Męski' : 'Neutralny' }}@if (v.age) { · ~{{ v.age }} lat }</span>
+            </div>
+            <div class="cats-cell">
+              @for (c of v.categories; track c) { <span class="badge">{{ categoryLabel(c) }}</span> }
+            </div>
+            <div class="cell-actions" (click)="$event.stopPropagation()">
+              <vc-play-button [track]="actions.sampleTrack(v)" label="Odsłuchaj próbkę" />
+              <button class="btn btn-ghost btn-icon btn-sm fav" [class.is-fav]="v.favorite" (click)="actions.toggleFavorite(v)"
+                [attr.aria-label]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'" [title]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'" [attr.aria-pressed]="v.favorite">
+                <vc-icon name="star" [filled]="v.favorite" />
+              </button>
+              <button class="btn btn-sm use" (click)="actions.useInNewProject(v)" title="Utwórz nowy projekt z tym głosem">Użyj</button>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty">
+            <div class="empty-icon"><vc-icon [name]="tab() === 'favorites' ? 'star' : 'voices'" [size]="20" /></div>
+            @if (hasFilters()) {
+              <h3>Brak pasujących głosów</h3>
+              <p>Zmień kryteria wyszukiwania lub wyczyść filtry.</p>
+              <button class="btn" (click)="clearFilters()">Wyczyść filtry</button>
+            } @else if (tab() === 'favorites') {
+              <h3>Brak ulubionych głosów</h3>
+              <p>Oznacz głos gwiazdką, aby pojawił się tutaj i na górze listy w edytorze.</p>
+              <a class="btn" routerLink="/voices">Przeglądaj głosy</a>
+            } @else {
+              <h3>Nie masz jeszcze własnych głosów</h3>
+              <p>Zaprojektuj głos na podstawie opisu lub sklonuj go z nagrania.</p>
+              <div class="row"><a class="btn btn-primary" routerLink="/voices/design">Stwórz głos</a><a class="btn" routerLink="/voices/clone">Klonuj głos</a></div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>

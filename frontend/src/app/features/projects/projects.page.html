@@ -1,0 +1,89 @@
+<div class="page">
+  <div class="page-inner">
+    <header class="page-header">
+      <div class="page-header-text">
+        <h1 class="t-display">Projekty</h1>
+        <p>Wszystkie nagrania w jednym miejscu. Otwórz projekt, aby edytować tekst i ponownie wygenerować wybrane fragmenty.</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-primary" (click)="create()" [disabled]="creating()">
+          @if (creating()) { <span class="spinner"></span> } @else { <vc-icon name="plus" /> }
+          Nowy projekt
+        </button>
+      </div>
+    </header>
+
+    <div class="toolbar">
+      <div class="input-group search">
+        <vc-icon name="search" [size]="14" />
+        <input class="input" type="search" placeholder="Szukaj projektów lub głosów…" [value]="query()" (input)="query.set($any($event.target).value)" aria-label="Szukaj projektów" />
+      </div>
+      <div class="segmented">
+        <button [class.is-active]="statusFilter() === 'all'" (click)="statusFilter.set('all')">Wszystkie <span class="t-muted">{{ counts().all }}</span></button>
+        <button [class.is-active]="statusFilter() === 'ready'" (click)="statusFilter.set('ready')">Gotowe <span class="t-muted">{{ counts().ready }}</span></button>
+        <button [class.is-active]="statusFilter() === 'pending'" (click)="statusFilter.set('pending')">W toku <span class="t-muted">{{ counts().pending }}</span></button>
+      </div>
+    </div>
+
+    @if (store.error() && !store.projects().length) {
+      <div class="list"><div class="empty"><div class="empty-icon"><vc-icon name="plug" [size]="20" /></div><h3>Nie można wczytać projektów</h3><p>{{ store.error() }}</p><button class="btn" (click)="store.load()">Spróbuj ponownie</button></div></div>
+    } @else if (store.loaded() && !store.projects().length) {
+      <div class="list">
+        <div class="empty">
+          <div class="empty-icon"><vc-icon name="folder" [size]="20" /></div>
+          <h3>Nie masz jeszcze projektów</h3>
+          <p>Utwórz pierwszy projekt, wklej tekst i wygeneruj nagranie.</p>
+          <button class="btn btn-primary" (click)="create()"><vc-icon name="plus" />Nowy projekt</button>
+        </div>
+      </div>
+    } @else {
+      <div class="list" role="table" aria-label="Lista projektów">
+        <div class="list-head grid" role="row">
+          <button role="columnheader" [class.is-sorted]="sort().key === 'name'" (click)="sortBy('name')">Nazwa @if (sort().key === 'name') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
+          <span role="columnheader" class="c-voice">Głos</span>
+          <button role="columnheader" class="c-dur" [class.is-sorted]="sort().key === 'duration'" (click)="sortBy('duration')">Długość @if (sort().key === 'duration') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
+          <span role="columnheader" class="c-status">Status</span>
+          <button role="columnheader" class="c-date" [class.is-sorted]="sort().key === 'createdAt'" (click)="sortBy('createdAt')">Utworzono @if (sort().key === 'createdAt') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
+          <button role="columnheader" class="c-date" [class.is-sorted]="sort().key === 'updatedAt'" (click)="sortBy('updatedAt')">Zmieniono @if (sort().key === 'updatedAt') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
+          <span></span>
+        </div>
+
+        @for (p of rows(); track p.id) {
+          <div class="list-row grid is-clickable" role="row" tabindex="0" (click)="open(p)" (keydown.enter)="open(p)">
+            <div class="c-name" role="cell">
+              <span class="name">{{ p.name }}</span>
+              <span class="cell-muted">{{ pluralN(p.stats.segmentCount, 'fragment', 'fragmenty', 'fragmentów') }} · {{ pluralN(p.stats.characters, 'znak', 'znaki', 'znaków') }}</span>
+            </div>
+            <div class="c-voice" role="cell">{{ p.voice?.name ?? '—' }}</div>
+            <div class="c-dur tabular" role="cell">{{ p.stats.durationMs ? formatDuration(p.stats.durationMs) : '—' }}</div>
+            <div class="c-status" role="cell">
+              @if (p.stats.status === 'partial' && p.stats.readyCount === 0) {
+                <span class="badge badge-warning" title="Ustawienia lub tekst zmieniły się po wygenerowaniu">Nieaktualny</span>
+              } @else {
+                <span class="badge" [class]="'badge-' + PROJECT_STATUS[p.stats.status].tone">
+                  {{ PROJECT_STATUS[p.stats.status].label }}
+                  @if (p.stats.status === 'partial') { · {{ p.stats.readyCount }}/{{ p.stats.segmentCount }} }
+                </span>
+              }
+            </div>
+            <div class="c-date cell-muted" role="cell" [title]="p.createdAt">{{ formatDate(p.createdAt) }}</div>
+            <div class="c-date cell-muted" role="cell" [title]="p.updatedAt">{{ formatRelative(p.updatedAt) }}</div>
+            <div class="cell-actions" role="cell" (click)="$event.stopPropagation()">
+              <vc-dropdown [width]="200">
+                <button trigger class="btn btn-ghost btn-icon btn-sm" [attr.aria-label]="'Akcje projektu ' + p.name"><vc-icon name="more" /></button>
+                <div menu>
+                  <button class="menu-item" (click)="open(p)"><vc-icon name="pencil" />Otwórz w edytorze</button>
+                  <button class="menu-item" (click)="duplicate(p)"><vc-icon name="copy" />Duplikuj</button>
+                  <div class="menu-sep"></div>
+                  <button class="menu-item menu-item-danger" (click)="remove(p)"><vc-icon name="trash" />Usuń</button>
+                </div>
+              </vc-dropdown>
+            </div>
+          </div>
+        } @empty {
+          <div class="empty"><h3>Brak wyników</h3><p>Żaden projekt nie pasuje do wyszukiwania.</p></div>
+        }
+      </div>
+    }
+  </div>
+</div>

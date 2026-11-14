@@ -1,0 +1,76 @@
+:host {
+  display: block;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.bar {
+  height: var(--player-h);
+  display: grid;
+  grid-template-columns: minmax(140px, 220px) auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 0 16px 0 20px;
+}
+
+.info { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.title-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.title {
+  font-size: var(--text-sm);
+  font-weight: 550;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.subtitle {
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transport { display: flex; align-items: center; gap: 6px; }
+
+.play {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: var(--graphite);
+  color: var(--text-inverse);
+  transition: transform var(--dur-fast) var(--ease), background var(--dur-fast) var(--ease);
+  &:hover:not(:disabled) { background: var(--graphite-hover); transform: scale(1.04); }
+  &:disabled { opacity: 0.35; }
+}
+
+.timeline { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.wave { flex: 1; min-width: 0; }
+.time { font-size: var(--text-xs); color: var(--text-3); width: 36px; }
+.time.end { text-align: right; }
+
+.tools { display: flex; align-items: center; gap: 2px; }
+.volume { display: flex; align-items: center; gap: 4px; margin-right: 6px; .range { width: 84px; } }
+
+.is-empty .wave { opacity: 0.5; pointer-events: none; }
+
+@media (max-width: 1100px) {
+  .hide-md { display: none !important; }
+}
+
+@media (max-width: 720px) {
+  .bar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: auto auto;
+    height: auto;
+    padding: 10px 12px;
+    gap: 6px 12px;
+  }
+  .info { grid-column: 1; grid-row: 1; }
+  .transport { grid-column: 2; grid-row: 1; }
+  .tools { grid-column: 3; grid-row: 1; }
+  .timeline { grid-column: 1 / -1; grid-row: 2; }
+  .hide-sm { display: none !important; }
+}
