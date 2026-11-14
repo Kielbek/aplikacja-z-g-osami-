@@ -2,40 +2,47 @@ import { Injectable, signal } from '@angular/core';
 
 const KEY = 'vc.session';
 
+export interface Session {
+  email: string;
+  name?: string;
+  picture?: string;
+  provider: 'password' | 'google';
+}
+
 /**
- * Sesja użytkownika. W wersji demonstracyjnej logowanie jest lokalne —
- * miejsce na integrację z prawdziwym dostawcą (np. Spring Security + OAuth2/JWT).
+ * Sesja użytkownika. Logowanie e-mailem jest w wersji demonstracyjnej lokalne;
+ * logowanie przez Google jest weryfikowane w backendzie (POST /api/auth/google).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  readonly session = signal<{ email: string } | null>(this.read());
+  readonly session = signal<Session | null>(this.read());
 
   isLoggedIn() {
     return this.session() !== null;
   }
 
-  login(email: string) {
-    const s = { email };
+  login(session: Session, remember = true) {
     try {
-      localStorage.setItem(KEY, JSON.stringify(s));
+      (remember ? localStorage : sessionStorage).setItem(KEY, JSON.stringify(session));
     } catch {
       /* tryb prywatny */
     }
-    this.session.set(s);
+    this.session.set(session);
   }
 
   logout() {
     try {
       localStorage.removeItem(KEY);
+      sessionStorage.removeItem(KEY);
     } catch {
       /* ignoruj */
     }
     this.session.set(null);
   }
 
-  private read(): { email: string } | null {
+  private read(): Session | null {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(KEY) ?? sessionStorage.getItem(KEY);
       return raw ? JSON.parse(raw) : null;
     } catch {
       return null;

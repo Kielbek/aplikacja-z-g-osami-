@@ -9,12 +9,13 @@ import { ToastService } from '../core/services/toast.service';
 import { formatNumber } from '../core/util/format';
 import { initials, PROJECT_STATUS } from '../core/util/labels';
 import { DropdownComponent } from '../shared/dropdown.component';
+import { LogoComponent } from '../shared/brand/logo.component';
 import { IconComponent } from '../shared/icon.component';
 
 @Component({
   selector: 'vc-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, RouterLinkActive, IconComponent, DropdownComponent],
+  imports: [RouterLink, RouterLinkActive, IconComponent, DropdownComponent, LogoComponent],
   styleUrl: './sidebar.component.scss',
   templateUrl: './sidebar.component.html',
 })

@@ -125,7 +125,7 @@
   white-space: nowrap;
 }
 
-:root[data-theme='dark'] .cmd { background: var(--bg-sunken); color: var(--text); border: 1px solid var(--border); }
+:host-context([data-theme='dark']) .cmd { background: var(--bg-sunken); color: var(--text); border: 1px solid var(--border); }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; gap: 20px; }

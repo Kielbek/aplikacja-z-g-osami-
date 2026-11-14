@@ -8,7 +8,8 @@ import { PlayerService } from '../../core/services/player.service';
 import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { formatSeconds } from '../../core/util/format';
-import { languageLabel } from '../../core/util/labels';
+import { languageLabel, languageOptions } from '../../core/util/labels';
+import { SelectComponent } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
 import { WaveformComponent } from '../../shared/waveform.component';
 
@@ -18,7 +19,7 @@ const MAX_MB = 50;
 @Component({
   selector: 'vc-voice-clone-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, WaveformComponent],
+  imports: [RouterLink, IconComponent, WaveformComponent, SelectComponent],
   styleUrl: './voice-clone.page.scss',
   templateUrl: './voice-clone.page.html',
 })
@@ -46,6 +47,7 @@ export class VoiceClonePage {
   protected createError = signal<string | null>(null);
 
   protected languageLabel = languageLabel;
+  protected languageOpts = computed(() => languageOptions(this.engine.languages()));
   protected fmt = formatSeconds;
 
   protected cloningAvailable = computed(() => this.engine.caps()?.cloning === true);

@@ -24,14 +24,8 @@
         <vc-icon name="search" [size]="14" />
         <input class="input" type="search" placeholder="Szukaj po nazwie, barwie, zastosowaniu…" [value]="query()" (input)="query.set($any($event.target).value)" aria-label="Szukaj głosów" />
       </div>
-      <select class="select-native" [value]="language()" (change)="language.set($any($event.target).value)" aria-label="Język">
-        <option value="">Wszystkie języki</option>
-        @for (l of languages(); track l) { <option [value]="l">{{ languageLabel(l) }}</option> }
-      </select>
-      <select class="select-native" [value]="gender()" (change)="gender.set($any($event.target).value)" aria-label="Płeć głosu">
-        <option value="">Każda barwa</option>
-        @for (g of GENDERS; track g[0]) { <option [value]="g[0]">{{ g[1] }}</option> }
-      </select>
+      <vc-select class="filter" label="Język" [options]="languageOpts()" [value]="language()" (valueChange)="language.set($event ?? '')" />
+      <vc-select class="filter" label="Barwa głosu" [options]="genderOpts" [value]="gender()" (valueChange)="gender.set($event ?? '')" />
     </div>
 
     <div class="chips cats" role="group" aria-label="Charakter głosu">

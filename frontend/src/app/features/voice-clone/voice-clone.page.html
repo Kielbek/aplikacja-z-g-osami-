@@ -132,10 +132,8 @@
               <input id="cname" class="input" [value]="name()" (input)="name.set($any($event.target).value)" maxlength="60" placeholder="Np. Mój głos – lektor" />
             </div>
             <div class="field">
-              <label for="clang">Język nagrania</label>
-              <select id="clang" class="select-native" [value]="language()" (change)="language.set($any($event.target).value)">
-                @for (l of engine.languages(); track l) { <option [value]="l" [selected]="l === language()">{{ languageLabel(l) }}</option> }
-              </select>
+              <span class="field-label">Język nagrania</span>
+              <vc-select label="Język nagrania" [options]="languageOpts()" [value]="language()" (valueChange)="language.set($event ?? 'pl')" />
             </div>
             <div class="field span-2">
               <label for="ctrans">Transkrypcja nagrania <span class="t-muted">opcjonalnie</span></label>

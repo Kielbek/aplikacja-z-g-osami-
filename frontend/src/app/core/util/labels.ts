@@ -18,6 +18,13 @@ export const LANGUAGES: Record<string, string> = {
 
 export const languageLabel = (code: string) => LANGUAGES[code] ?? code.toUpperCase();
 
+/** Opcje listy języków dla vc-select (polski zawsze na górze). */
+export function languageOptions(codes: string[]): { value: string; label: string; hint: string }[] {
+  return [...codes]
+    .sort((a, b) => (a === 'pl' ? -1 : b === 'pl' ? 1 : languageLabel(a).localeCompare(languageLabel(b), 'pl')))
+    .map((c) => ({ value: c, label: languageLabel(c), hint: c.toUpperCase() }));
+}
+
 export const CATEGORIES: { id: string; label: string }[] = [
   { id: 'natural', label: 'Naturalny' },
   { id: 'professional', label: 'Profesjonalny' },

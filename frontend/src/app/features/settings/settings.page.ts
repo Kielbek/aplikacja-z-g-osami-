@@ -7,7 +7,8 @@ import { EngineStatusService } from '../../core/services/engine-status.service';
 import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { formatDate, formatNumber } from '../../core/util/format';
-import { initials, languageLabel } from '../../core/util/labels';
+import { categoryLabel, initials, languageLabel, languageOptions } from '../../core/util/labels';
+import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
 
 type Tab = 'profile' | 'account' | 'subscription' | 'export' | 'preferences' | 'engine';
@@ -24,7 +25,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 @Component({
   selector: 'vc-settings-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent],
+  imports: [RouterLink, IconComponent, SelectComponent],
   styleUrl: './settings.page.scss',
   templateUrl: './settings.page.html',
 })
@@ -83,7 +84,28 @@ export class SettingsPage {
     const p = this.draft()?.fileNamePattern || '{project}';
     return p.replace('{project}', 'podcast-odcinek-12').replace('{date}', new Date().toISOString().slice(0, 10)) + '.' + (this.draft()?.exportFormat ?? 'mp3');
   });
-  protected sortedVoices = computed(() => [...this.voices.voices()].sort((a, b) => a.name.localeCompare(b.name)));
+  protected languageOpts = computed(() => languageOptions(this.engine.languages()));
+  protected voiceOpts = computed<SelectOption[]>(() =>
+    [...this.voices.voices()]
+      .sort((a, b) => (a.languages[0] === 'pl' ? 0 : 1) - (b.languages[0] === 'pl' ? 0 : 1) || languageLabel(a.languages[0] ?? '').localeCompare(languageLabel(b.languages[0] ?? ''), 'pl') || a.name.localeCompare(b.name, 'pl'))
+      .map((v) => ({
+        value: v.id,
+        label: v.name,
+        hint: v.categories.map(categoryLabel).join(' · ') || v.description,
+        group: languageLabel(v.languages[0] ?? ''),
+      })),
+  );
+  protected bitrateOptions = computed<SelectOption<number>[]>(() => {
+    const max = this.store.plan()?.maxMp3Bitrate ?? 320;
+    const hints: Record<number, string> = { 128: 'Mniejszy plik, mowa', 192: 'Zalecane', 256: 'Wysoka jakość', 320: 'Maksymalna jakość' };
+    return [128, 192, 256, 320].map((b) => ({
+      value: b,
+      label: `${b} kb/s`,
+      hint: hints[b],
+      disabled: b > max,
+      badge: b > max ? (this.store.lowestPlan((p) => p.maxMp3Bitrate >= b)?.name ?? '') + '+' : undefined,
+    }));
+  });
 
   constructor() {
     effect(() => {

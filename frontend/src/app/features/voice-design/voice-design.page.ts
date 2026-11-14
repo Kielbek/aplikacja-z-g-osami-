@@ -8,7 +8,8 @@ import { PlayerService, PlayerTrack } from '../../core/services/player.service';
 import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { formatDuration } from '../../core/util/format';
-import { CATEGORIES, languageLabel } from '../../core/util/labels';
+import { CATEGORIES, languageLabel, languageOptions } from '../../core/util/labels';
+import { SelectComponent } from '../../shared/select.component';
 import { EngineBannerComponent } from '../../shared/engine-banner.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PlayButtonComponent } from '../../shared/play-button.component';
@@ -25,7 +26,7 @@ const EXAMPLE = 'Męski głos, około 35 lat, niski, spokojny, profesjonalny, na
 @Component({
   selector: 'vc-voice-design-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, PlayButtonComponent, WaveformComponent, EngineBannerComponent],
+  imports: [RouterLink, IconComponent, PlayButtonComponent, WaveformComponent, EngineBannerComponent, SelectComponent],
   styleUrl: './voice-design.page.scss',
   templateUrl: './voice-design.page.html',
 })
@@ -41,6 +42,7 @@ export class VoiceDesignPage {
   protected TIMBRES = TIMBRES;
   protected CATEGORIES = CATEGORIES;
   protected languageLabel = languageLabel;
+  protected languageOpts = computed(() => languageOptions(this.engine.languages()));
   protected fmt = formatDuration;
 
   // Opis

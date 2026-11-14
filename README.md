@@ -103,6 +103,30 @@ Po obniżeniu planu istniejące dane zostają nienaruszone. Blokowane są tylko 
 
 Zmiana planu (`PUT /api/account/plan`) działa w wersji demonstracyjnej bez płatności. Po integracji z operatorem płatności powinna być wywoływana z webhooka potwierdzającego zakup.
 
+## Logowanie
+
+- **Strona logowania** ma trzy tryby: logowanie, rejestracja (z miernikiem siły hasła) i reset hasła. Walidacja jest inline, a pole hasła ma przycisk pokaż/ukryj i opcję „Zapamiętaj mnie”.
+- **Logowanie przez Google** działa w przepływie tokenu OAuth 2.0 Google Identity Services. Frontend pobiera token, a backend (`POST /api/auth/google`) weryfikuje go w Google: sprawdza, czy został wydany dla naszego klienta (`aud`) i czy e-mail jest zweryfikowany. Konfiguracja:
+  1. W Google Cloud Console utwórz identyfikator klienta OAuth typu „Aplikacja internetowa”.
+  2. Dodaj autoryzowane źródło JavaScript, np. `http://localhost:4200`.
+  3. Uruchom backend z `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com`.
+
+  Bez tej zmiennej przycisk wyjaśnia, że logowanie przez Google nie jest skonfigurowane.
+- Logowanie e-mailem jest nadal lokalne (wersja demonstracyjna).
+
+## Logo
+
+Propozycje znaku są w `frontend/src/app/shared/brand/logo-marks.ts`, a ich pliki SVG w `frontend/public/brand/`:
+
+| | Wariant | Idea |
+|---|---|---|
+| A | **Fala V** (domyślny) | pięć pasków korektora układa się w literę V |
+| B | Kursor w głos | kursor tekstowy przechodzący w falę |
+| C | Dymek | dymek rozmowy z falą |
+| D | Sygnał | okrąg przecięty sinusoidą |
+
+Zmiana logo w całej aplikacji: ustaw `BRAND_LOGO` w `logo-marks.ts` i podmień `public/favicon.svg` na odpowiedni plik z `public/brand/`.
+
 ## Kluczowe zachowanie edytora
 
 - Każdy fragment ma odcisk: SHA-256 z tekstu, głosu, języka, stylu, emocji, tempa, ekspresji, CFG, kroków, normalizacji, odszumiania, ziarna oraz trybu silnika. Zmiana tekstu jednego zdania oznacza jako *Nieaktualny* tylko ten fragment. Zmiana parametrów projektu oznacza wszystkie.
@@ -128,7 +152,7 @@ frontend/src/app/
   core/api/            ApiService (jedyny klient HTTP), modele
   core/services/       odtwarzacz (Web Audio + waveform), stan silnika, konto, głosy, projekty, toasty, motyw
   core/util/           dzielenie tekstu, formatowanie, etykiety
-  shared/              ikony, waveform, menu, przycisk odtwarzania, awatar, banery, dialogi
+  shared/              logo (brand/), lista vc-select, menu, ikony, waveform, przycisk odtwarzania, awatar, banery, dialogi
   layout/              shell, sidebar, dolny odtwarzacz
   features/editor/     EditorStore (stan, autozapis, kolejka generowania), wiersz fragmentu, panel głosu, wybór głosu
   features/…           projects, voices (+ szczegóły), voice-design, voice-clone, history, settings, login
@@ -162,6 +186,7 @@ tts-engine/app/
 | POST | `/api/voices/clone/analyze`, `/api/voices/clone` | analiza nagrania, klonowanie |
 | GET/DELETE | `/api/history` | historia generowania |
 | GET/PATCH | `/api/account`, GET `/api/account/usage` | profil, preferencje, eksport, wykorzystanie limitów |
+| GET/POST | `/api/auth/config`, `/api/auth/google` | konfiguracja logowania, weryfikacja tokenu Google |
 | GET/PUT | `/api/account/plans`, `/api/account/plan` | plany z limitami, zmiana planu (demo) |
 
 ## Testy

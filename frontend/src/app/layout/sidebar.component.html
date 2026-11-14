@@ -1,9 +1,6 @@
 <aside class="sb">
   <div class="brand">
-    <span class="logo" aria-hidden="true">
-      <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="currentColor" /><g stroke="var(--logo-fg)" stroke-width="2.4" stroke-linecap="round"><path d="M9 13v6" /><path d="M13.5 9v14" /><path d="M18 12v8" /><path d="M22.5 14.5v3" /></g></svg>
-    </span>
-    <span class="brand-name">VoiceCraft <span>AI</span></span>
+    <vc-logo [size]="26" [wordmark]="true" />
   </div>
 
   <button class="btn btn-block new" (click)="newProject()" [disabled]="creating()">

@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { Router, RouterLink } from '@angular/router';
 import { Voice } from '../../core/api/models';
 import { VoicesStore } from '../../core/services/voices.store';
-import { CATEGORIES, GENDERS, categoryLabel, languageLabel } from '../../core/util/labels';
+import { CATEGORIES, GENDERS, categoryLabel, languageLabel, languageOptions } from '../../core/util/labels';
+import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { EngineBannerComponent } from '../../shared/engine-banner.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PlayButtonComponent } from '../../shared/play-button.component';
@@ -12,7 +13,7 @@ import { VoiceActions } from './voice-actions';
 @Component({
   selector: 'vc-voices-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, PlayButtonComponent, VoiceAvatarComponent, EngineBannerComponent],
+  imports: [RouterLink, IconComponent, PlayButtonComponent, VoiceAvatarComponent, EngineBannerComponent, SelectComponent],
   styleUrl: './voices.page.scss',
   templateUrl: './voices.page.html',
 })
@@ -53,6 +54,15 @@ export class VoicesPage {
       return true;
     });
   });
+
+  protected languageOpts = computed<SelectOption[]>(() => [
+    { value: '', label: 'Wszystkie języki' },
+    ...languageOptions(this.languages()).map((o) => ({
+      ...o,
+      hint: `${this.store.voices().filter((v) => v.languages.includes(o.value)).length} gł.`,
+    })),
+  ]);
+  protected genderOpts: SelectOption[] = [{ value: '', label: 'Każda barwa' }, ...Object.entries(GENDERS).map(([value, label]) => ({ value, label }))];
 
   protected hasFilters = computed(() => !!(this.query() || this.language() || this.gender() || this.category()));
 

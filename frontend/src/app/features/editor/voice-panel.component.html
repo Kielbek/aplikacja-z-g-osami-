@@ -9,9 +9,7 @@
     <section class="group">
       <div class="label">Silnik TTS</div>
       <div class="engine-row">
-        <select class="select-native" [value]="s.engine" (change)="set('engine', $any($event.target).value)" aria-label="Silnik TTS">
-          <option value="voxcpm2">VoxCPM2</option>
-        </select>
+        <vc-select class="grow" label="Silnik TTS" [options]="engineOptions" [value]="s.engine" (valueChange)="set('engine', $event!)" />
         <a class="engine-status" routerLink="/settings/engine" [title]="engine.status()?.message ?? ''">
           <span class="dot" [class.dot-success]="engine.isReal()" [class.dot-warning]="engine.isDemo()" [class.dot-danger]="engine.isOffline()"></span>
           {{ engine.isReal() ? 'Połączony' : engine.isDemo() ? 'Demo' : 'Offline' }}
@@ -25,11 +23,7 @@
     <!-- Język i głos -->
     <section class="group">
       <div class="label">Język</div>
-      <select class="select-native" [value]="s.language" (change)="set('language', $any($event.target).value)" aria-label="Język">
-        @for (l of engine.languages(); track l) {
-          <option [value]="l" [selected]="l === s.language">{{ languageLabel(l) }}</option>
-        }
-      </select>
+      <vc-select label="Język" [options]="languageOptions()" [value]="s.language" (valueChange)="set('language', $event!)" />
     </section>
 
     <section class="group">

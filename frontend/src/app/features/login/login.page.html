@@ -1,0 +1,167 @@
+<div class="auth">
+  <main class="form-side">
+    <header class="top">
+      <vc-logo [size]="28" [wordmark]="true" />
+    </header>
+
+    <div class="form-wrap">
+      @switch (mode()) {
+        @case ('login') {
+          <h1>Zaloguj się</h1>
+          <p class="lead">Wróć do swoich projektów i nagrań.</p>
+        }
+        @case ('register') {
+          <h1>Utwórz konto</h1>
+          <p class="lead">Zacznij od planu Free — bez karty płatniczej.</p>
+        }
+        @case ('reset') {
+          <button class="back" type="button" (click)="setMode('login')"><vc-icon name="arrow-left" [size]="14" />Wróć do logowania</button>
+          <h1>Nie pamiętasz hasła?</h1>
+          <p class="lead">Podaj adres e-mail konta, a wyślemy link do ustawienia nowego hasła.</p>
+        }
+      }
+
+      @if (mode() !== 'reset') {
+        <button type="button" class="google" (click)="signInWithGoogle()" [disabled]="googleLoading()">
+          @if (googleLoading()) {
+            <span class="spinner"></span>
+          } @else {
+            <svg class="g" viewBox="0 0 48 48" aria-hidden="true">
+              <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+              <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+              <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+              <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+            </svg>
+          }
+          {{ mode() === 'register' ? 'Zarejestruj się przez Google' : 'Zaloguj się przez Google' }}
+        </button>
+
+        <div class="or"><span>lub e-mailem</span></div>
+      }
+
+      @if (notice(); as n) {
+        <div class="callout notice" [class.callout-info]="n.tone === 'info'" [class.callout-danger]="n.tone === 'danger'" role="status">
+          <vc-icon [name]="n.tone === 'danger' ? 'circle-alert' : 'info'" />
+          <div class="callout-body">{{ n.text }}</div>
+        </div>
+      }
+
+      <form (submit)="submit($event)" novalidate>
+        @if (mode() === 'register') {
+          <div class="field">
+            <label for="name">Imię i nazwisko</label>
+            <input id="name" class="input" autocomplete="name" [class.is-invalid]="nameError()" [value]="name()" (input)="name.set($any($event.target).value)" />
+            @if (nameError(); as e) { <span class="field-error">{{ e }}</span> }
+          </div>
+        }
+
+        <div class="field">
+          <label for="email">Adres e-mail</label>
+          <input id="email" class="input" type="email" autocomplete="email" inputmode="email" placeholder="ty@firma.pl"
+            [class.is-invalid]="emailError()" [attr.aria-invalid]="!!emailError()" [attr.aria-describedby]="emailError() ? 'email-err' : null"
+            [value]="email()" (input)="email.set($any($event.target).value)" />
+          @if (emailError(); as e) { <span class="field-error" id="email-err">{{ e }}</span> }
+        </div>
+
+        @if (mode() !== 'reset') {
+          <div class="field">
+            <div class="label-row">
+              <label for="password">Hasło</label>
+              @if (mode() === 'login') { <button type="button" class="link" (click)="setMode('reset')">Nie pamiętasz hasła?</button> }
+            </div>
+            <div class="password">
+              <input id="password" class="input" [type]="showPassword() ? 'text' : 'password'"
+                [autocomplete]="mode() === 'register' ? 'new-password' : 'current-password'"
+                [class.is-invalid]="passwordError()" [attr.aria-invalid]="!!passwordError()"
+                [value]="password()" (input)="password.set($any($event.target).value)" />
+              <button type="button" class="eye" (click)="showPassword.set(!showPassword())" [attr.aria-label]="showPassword() ? 'Ukryj hasło' : 'Pokaż hasło'" [attr.aria-pressed]="showPassword()">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                  @if (showPassword()) {
+                    <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.53 13.53 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/><path d="m2 2 20 20"/>
+                  } @else {
+                    <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>
+                  }
+                </svg>
+              </button>
+            </div>
+            @if (passwordError(); as e) { <span class="field-error">{{ e }}</span> }
+            @if (mode() === 'register' && password()) {
+              <div class="strength" [attr.data-level]="passwordStrength()">
+                <div class="bars"><span></span><span></span><span></span><span></span></div>
+                <span class="t-xs">{{ strengthLabel() }}</span>
+              </div>
+            }
+          </div>
+        }
+
+        @if (mode() === 'login') {
+          <label class="checkbox"><input type="checkbox" [checked]="remember()" (change)="remember.set($any($event.target).checked)" />Zapamiętaj mnie na tym urządzeniu</label>
+        }
+        @if (mode() === 'register') {
+          <label class="checkbox">
+            <input type="checkbox" [checked]="acceptTerms()" (change)="acceptTerms.set($any($event.target).checked)" />
+            <span>Akceptuję <a href="#" (click)="$event.preventDefault()">regulamin</a> i <a href="#" (click)="$event.preventDefault()">politykę prywatności</a>.</span>
+          </label>
+          @if (termsError(); as e) { <span class="field-error">{{ e }}</span> }
+        }
+
+        <button class="btn btn-primary btn-lg btn-block submit" type="submit" [disabled]="loading()">
+          @if (loading()) { <span class="spinner"></span> }
+          @switch (mode()) {
+            @case ('login') { Zaloguj się }
+            @case ('register') { Utwórz konto }
+            @case ('reset') { Wyślij link }
+          }
+        </button>
+      </form>
+
+      @if (mode() === 'login') {
+        <p class="alt">Nie masz konta? <button type="button" class="link" (click)="setMode('register')">Utwórz konto</button></p>
+      } @else if (mode() === 'register') {
+        <p class="alt">Masz już konto? <button type="button" class="link" (click)="setMode('login')">Zaloguj się</button></p>
+      }
+
+      <p class="demo-note"><vc-icon name="info" [size]="12" />Wersja demonstracyjna: logowanie e-mailem działa lokalnie, bez serwera uwierzytelniania.</p>
+    </div>
+
+    <footer class="foot">
+      <span>© {{ year }} VoiceCraft AI</span>
+      <a href="#" (click)="$event.preventDefault()">Prywatność</a>
+      <a href="#" (click)="$event.preventDefault()">Regulamin</a>
+      <a href="#" (click)="$event.preventDefault()">Pomoc</a>
+    </footer>
+  </main>
+
+  <aside class="art" aria-hidden="true">
+    <div class="art-inner">
+      <div class="doc">
+        <div class="doc-title">Podcast „Miasto po zmroku” – odc. 12</div>
+        <div class="seg ready">
+          <span class="n">1</span>
+          <div><p>Witajcie w dwunastym odcinku podcastu.</p><span class="st"><i></i>Gotowy · 0:04</span></div>
+        </div>
+        <div class="seg active">
+          <span class="n">2</span>
+          <div><p>Dziś zabiorę was tam, gdzie miasto cichnie.</p><span class="st gen"><i></i>Generowanie…</span></div>
+        </div>
+        <div class="seg">
+          <span class="n">3</span>
+          <div><p>Noc daje im coś, czego dzień nie potrafi.</p><span class="st draft"><i></i>Do wygenerowania</span></div>
+        </div>
+        <div class="player">
+          <span class="play"><svg viewBox="0 0 24 24" width="12" height="12"><path d="M7 4.5v15a1 1 0 0 0 1.52.85l12-7.5a1 1 0 0 0 0-1.7l-12-7.5A1 1 0 0 0 7 4.5Z" fill="currentColor"/></svg></span>
+          <div class="wave">
+            @for (h of [30,55,40,75,60,90,45,70,35,80,55,65,40,85,50,30,60,45,70,40,55,35,65,50,75,45,30,55,40,60]; track $index) {
+              <span [style.height.%]="h" [class.on]="$index < 11"></span>
+            }
+          </div>
+          <span class="time">0:11</span>
+        </div>
+      </div>
+      <div class="caption">
+        <p class="claim">Popraw jedno zdanie —<br />wygeneruj tylko jedno zdanie.</p>
+        <p class="sub">Edytor oparty na fragmentach, głosy VoxCPM2 i eksport do MP3 lub WAV.</p>
+      </div>
+    </div>
+  </aside>
+</div>

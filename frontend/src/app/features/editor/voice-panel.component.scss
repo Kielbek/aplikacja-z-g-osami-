@@ -48,7 +48,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  select { flex: 1; }
+  .grow { flex: 1; min-width: 0; }
 }
 
 .engine-status {

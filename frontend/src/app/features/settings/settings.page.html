@@ -167,12 +167,8 @@
                   </div>
                   @if (!allows('wav')) { <span class="field-hint">Eksport WAV jest dostępny od planu {{ lowestName('wav') }}. <a routerLink="/settings/subscription">Zobacz plany</a></span> }
                   <div class="field narrow">
-                    <label for="br">Jakość MP3</label>
-                    <select id="br" class="select-native" [value]="d.mp3Bitrate" (change)="setNow('mp3Bitrate', +$any($event.target).value)" [disabled]="d.exportFormat !== 'mp3'">
-                      @for (b of [128, 192, 256, 320]; track b) {
-                        <option [value]="b" [selected]="b === d.mp3Bitrate" [disabled]="b > (store.plan()?.maxMp3Bitrate ?? 320)">{{ b }} kb/s{{ b > (store.plan()?.maxMp3Bitrate ?? 320) ? ' — wyższy plan' : b === 192 ? ' — zalecane' : '' }}</option>
-                      }
-                    </select>
+                    <span class="field-label">Jakość MP3</span>
+                    <vc-select label="Jakość MP3" [options]="bitrateOptions()" [value]="d.mp3Bitrate" [disabled]="d.exportFormat !== 'mp3'" (valueChange)="setNow('mp3Bitrate', $event!)" />
                     <span class="field-hint">Plan {{ store.plan()?.name }}: do {{ store.plan()?.maxMp3Bitrate }} kb/s.</span>
                   </div>
                 </div>
@@ -208,16 +204,12 @@
                 <div class="section-head"><div><h2>Nowe projekty</h2><p>Ustawienia początkowe każdego nowego projektu.</p></div></div>
                 <div class="form-grid">
                   <div class="field">
-                    <label for="dl">Domyślny język</label>
-                    <select id="dl" class="select-native" [value]="d.defaultLanguage" (change)="setNow('defaultLanguage', $any($event.target).value)">
-                      @for (l of engine.languages(); track l) { <option [value]="l" [selected]="l === d.defaultLanguage">{{ languageLabel(l) }}</option> }
-                    </select>
+                    <span class="field-label">Domyślny język</span>
+                    <vc-select label="Domyślny język" [options]="languageOpts()" [value]="d.defaultLanguage" (valueChange)="setNow('defaultLanguage', $event!)" />
                   </div>
                   <div class="field">
-                    <label for="dv">Domyślny głos</label>
-                    <select id="dv" class="select-native" [value]="d.defaultVoiceId" (change)="setNow('defaultVoiceId', $any($event.target).value)">
-                      @for (v of sortedVoices(); track v.id) { <option [value]="v.id" [selected]="v.id === d.defaultVoiceId">{{ v.name }} · {{ languageLabel(v.languages[0] ?? '') }}</option> }
-                    </select>
+                    <span class="field-label">Domyślny głos</span>
+                    <vc-select label="Domyślny głos" [options]="voiceOpts()" [value]="d.defaultVoiceId" (valueChange)="setNow('defaultVoiceId', $event!)" />
                   </div>
                 </div>
               </section>

@@ -1,62 +1,112 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
+import { GoogleAuthError, GoogleAuthService } from '../../core/services/google-auth.service';
+import { LogoComponent } from '../../shared/brand/logo.component';
 import { IconComponent } from '../../shared/icon.component';
+
+type Mode = 'login' | 'register' | 'reset';
 
 @Component({
   selector: 'vc-login-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
-  styles: `
-    :host { display: grid; place-items: center; min-height: 100dvh; padding: 24px; background: var(--bg); }
-    .box { width: min(380px, 100%); animation: vc-fade-in 240ms var(--ease); }
-    .logo { width: 36px; height: 36px; color: var(--graphite); margin-bottom: 28px; --logo-fg: var(--bg); }
-    .logo svg { width: 100%; height: 100%; display: block; }
-    h1 { font-family: var(--font-serif); font-weight: 500; font-size: 28px; letter-spacing: -0.02em; margin-bottom: 6px; }
-    .lead { color: var(--text-3); font-size: var(--text-sm); margin-bottom: 28px; }
-    form { display: flex; flex-direction: column; gap: 14px; }
-    .input { height: 40px; font-size: var(--text-base); }
-    .btn-lg { margin-top: 6px; }
-    .note { margin-top: 20px; }
-  `,
-  template: `
-    <div class="box">
-      <div class="logo" aria-hidden="true">
-        <svg viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="currentColor" /><g stroke="var(--logo-fg)" stroke-width="2.4" stroke-linecap="round"><path d="M9 13v6" /><path d="M13.5 9v14" /><path d="M18 12v8" /><path d="M22.5 14.5v3" /></g></svg>
-      </div>
-      <h1>Zaloguj się</h1>
-      <p class="lead">VoiceCraft AI — generowanie naturalnego głosu z tekstu.</p>
-      <form (submit)="submit($event)">
-        <div class="field">
-          <label for="email">Adres e-mail</label>
-          <input id="email" class="input" type="email" autocomplete="email" required [value]="email()" (input)="email.set($any($event.target).value)" />
-        </div>
-        <div class="field">
-          <label for="password">Hasło</label>
-          <input id="password" class="input" type="password" autocomplete="current-password" required [value]="password()" (input)="password.set($any($event.target).value)" />
-        </div>
-        @if (error()) { <span class="field-error">{{ error() }}</span> }
-        <button class="btn btn-primary btn-lg btn-block" type="submit"><vc-icon name="login" />Zaloguj się</button>
-      </form>
-      <div class="callout note">
-        <vc-icon name="info" />
-        <div class="callout-body t-xs">Wersja demonstracyjna: logowanie działa lokalnie i nie jest jeszcze połączone z usługą uwierzytelniania. Dane konta są wypełnione przykładowo.</div>
-      </div>
-    </div>
-  `,
+  imports: [IconComponent, LogoComponent],
+  styleUrl: './login.page.scss',
+  templateUrl: './login.page.html',
 })
 export class LoginPage {
   private auth = inject(AuthService);
+  private google = inject(GoogleAuthService);
   private router = inject(Router);
+
+  protected mode = signal<Mode>('login');
+  protected name = signal('');
   protected email = signal('marta@studio-glos.pl');
   protected password = signal('demo-haslo');
-  protected error = signal<string | null>(null);
+  protected showPassword = signal(false);
+  protected remember = signal(true);
+  protected acceptTerms = signal(false);
+  protected submitted = signal(false);
+  protected loading = signal(false);
+  protected googleLoading = signal(false);
+  protected notice = signal<{ tone: 'info' | 'danger' | 'success'; text: string } | null>(null);
+  protected year = new Date().getFullYear();
 
-  submit(e: Event) {
+  protected emailError = computed(() => {
+    if (!this.submitted()) return null;
+    if (!this.email().trim()) return 'Podaj adres e-mail.';
+    return /^\S+@\S+\.\S+$/.test(this.email().trim()) ? null : 'Adres e-mail ma niepoprawny format.';
+  });
+  protected passwordError = computed(() => {
+    if (!this.submitted() || this.mode() === 'reset') return null;
+    if (!this.password()) return 'Podaj hasło.';
+    if (this.mode() === 'register' && this.password().length < 8) return 'Hasło musi mieć co najmniej 8 znaków.';
+    return null;
+  });
+  protected nameError = computed(() => (this.submitted() && this.mode() === 'register' && !this.name().trim() ? 'Podaj imię i nazwisko.' : null));
+  protected termsError = computed(() =>
+    this.submitted() && this.mode() === 'register' && !this.acceptTerms() ? 'Zaakceptuj regulamin, aby utworzyć konto.' : null,
+  );
+  protected passwordStrength = computed(() => {
+    const p = this.password();
+    let score = 0;
+    if (p.length >= 8) score++;
+    if (p.length >= 12) score++;
+    if (/[A-Z]/.test(p) && /[a-z]/.test(p)) score++;
+    if (/\d/.test(p) || /[^A-Za-z0-9]/.test(p)) score++;
+    return Math.min(score, 4);
+  });
+  protected strengthLabel = computed(() => ['Bardzo słabe', 'Słabe', 'Średnie', 'Dobre', 'Silne'][this.passwordStrength()]);
+
+  constructor() {
+    void this.google.loadConfig();
+  }
+
+  setMode(m: Mode) {
+    this.mode.set(m);
+    this.submitted.set(false);
+    this.notice.set(null);
+    if (m === 'register') {
+      this.password.set('');
+      this.email.set('');
+    }
+  }
+
+  async submit(e: Event) {
     e.preventDefault();
-    if (!/^\S+@\S+\.\S+$/.test(this.email())) return this.error.set('Podaj poprawny adres e-mail.');
-    if (this.password().length < 4) return this.error.set('Hasło jest za krótkie.');
-    this.auth.login(this.email());
+    this.submitted.set(true);
+    this.notice.set(null);
+    if (this.emailError() || this.passwordError() || this.nameError() || this.termsError()) return;
+    this.loading.set(true);
+    await new Promise((r) => setTimeout(r, 450));
+    this.loading.set(false);
+    if (this.mode() === 'reset') {
+      this.notice.set({
+        tone: 'info',
+        text: `Jeśli konto ${this.email().trim()} istnieje, wyślemy na nie link do zmiany hasła. W wersji demonstracyjnej wiadomości e-mail nie są wysyłane.`,
+      });
+      return;
+    }
+    this.auth.login(
+      { email: this.email().trim(), name: this.mode() === 'register' ? this.name().trim() : undefined, provider: 'password' },
+      this.remember(),
+    );
     void this.router.navigate(['/']);
+  }
+
+  async signInWithGoogle() {
+    if (this.googleLoading()) return;
+    this.notice.set(null);
+    this.googleLoading.set(true);
+    try {
+      const session = await this.google.signIn();
+      this.auth.login(session, this.remember());
+      void this.router.navigate(['/']);
+    } catch (e) {
+      const err = e as GoogleAuthError;
+      if (err.kind !== 'cancelled') this.notice.set({ tone: err.kind === 'not-configured' ? 'info' : 'danger', text: err.message });
+    } finally {
+      this.googleLoading.set(false);
+    }
   }
 }

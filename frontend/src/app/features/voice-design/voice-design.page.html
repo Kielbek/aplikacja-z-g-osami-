@@ -79,10 +79,8 @@
             <textarea class="textarea" rows="3" [value]="sampleText()" (input)="sampleText.set($any($event.target).value)" aria-label="Tekst próbki" maxlength="1000"></textarea>
             <div class="stack-sm">
               <div class="field">
-                <label for="lang">Język</label>
-                <select id="lang" class="select-native" [value]="language()" (change)="language.set($any($event.target).value)">
-                  @for (l of engine.languages(); track l) { <option [value]="l" [selected]="l === language()">{{ languageLabel(l) }}</option> }
-                </select>
+                <span class="field-label">Język</span>
+                <vc-select label="Język próbki" [options]="languageOpts()" [value]="language()" (valueChange)="language.set($event ?? 'pl')" />
               </div>
               <div class="field">
                 <div class="row-between"><label for="expr">Ekspresja</label><span class="t-xs tabular">{{ (expressiveness() * 100).toFixed(0) }}%</span></div>

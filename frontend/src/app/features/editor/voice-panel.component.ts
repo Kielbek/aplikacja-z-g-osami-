@@ -4,7 +4,8 @@ import { VoiceSettings } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { VoicesStore } from '../../core/services/voices.store';
-import { EMOTIONS, STYLE_PRESETS, languageLabel } from '../../core/util/labels';
+import { EMOTIONS, STYLE_PRESETS, languageLabel, languageOptions } from '../../core/util/labels';
+import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
 import { EditorStore } from './editor.store';
 import { VoicePickerComponent } from './voice-picker.component';
@@ -13,7 +14,7 @@ import { VoicePickerComponent } from './voice-picker.component';
 @Component({
   selector: 'vc-voice-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, VoicePickerComponent, RouterLink],
+  imports: [IconComponent, VoicePickerComponent, RouterLink, SelectComponent],
   styleUrl: './voice-panel.component.scss',
   templateUrl: './voice-panel.component.html',
 })
@@ -30,6 +31,8 @@ export class VoicePanelComponent {
   protected EMOTIONS = EMOTIONS;
   protected STYLE_PRESETS = STYLE_PRESETS;
   protected languageLabel = languageLabel;
+  protected languageOptions = computed(() => languageOptions(this.engine.languages()));
+  protected engineOptions: SelectOption[] = [{ value: 'voxcpm2', label: 'VoxCPM2', hint: 'OpenBMB · synteza, projektowanie i klonowanie głosu' }];
 
   protected s = computed(() => this.store.settings());
   protected caps = computed(() => this.engine.caps());
