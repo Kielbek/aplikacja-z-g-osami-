@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { PlayerService } from '../../core/services/player.service';
 import { formatDuration, pluralN } from '../../core/util/format';
@@ -22,6 +23,10 @@ export class EditorPage {
   protected store = inject(EditorStore);
   protected engine = inject(EngineStatusService);
   protected player = inject(PlayerService);
+  protected account = inject(AccountStore);
+  protected wavAllowed = computed(() => this.account.plan()?.exportFormats.includes('wav') ?? true);
+  protected wavPlan = computed(() => this.account.lowestPlan((p) => p.exportFormats.includes('wav'))?.name ?? '');
+  protected charPct = computed(() => (this.store.characters() / this.store.projectCharLimit()) * 100);
 
   /** Parametr trasy /editor/:id */
   readonly id = input.required<string>();

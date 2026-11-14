@@ -18,6 +18,10 @@
       </div>
     }
 
+    @if (account.plan(); as plan) {
+      <p class="retention"><vc-icon name="clock" [size]="13" />Plan {{ plan.name }} przechowuje historię przez {{ plan.historyRetentionDays }} dni. <a routerLink="/settings/subscription">Plany</a></p>
+    }
+
     <div class="toolbar">
       <div class="segmented">
         <button [class.is-active]="filter() === 'all'" (click)="filter.set('all')">Wszystko</button>

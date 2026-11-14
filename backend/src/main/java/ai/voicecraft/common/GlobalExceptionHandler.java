@@ -16,7 +16,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     ResponseEntity<Map<String, Object>> api(ApiException e) {
-        return body(e.status(), e.getMessage());
+        var res = body(e.status(), e.getMessage());
+        if (e.code() == null) return res;
+        var map = new java.util.LinkedHashMap<>(res.getBody());
+        map.put("code", e.code());
+        return ResponseEntity.status(e.status()).body(map);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -250,3 +250,8 @@
   .shortcuts { display: none; }
   .batch { padding: 10px 14px; }
 }
+
+.limit-warn { color: var(--warning); }
+.limit-over { color: var(--danger); font-weight: 550; }
+.plan-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; align-self: center; }
+.banner + .banner { margin-top: -12px; }

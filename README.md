@@ -73,6 +73,36 @@ Następnie wskaż adres backendowi: `ENGINE_URL=http://gpu-host:8808`.
 - **Klonowanie** w trybie demo jest zablokowane: endpoint zwraca 503, a interfejs wyjaśnia dlaczego. Analiza nagrania (długość, SNR, clipping, głośność, cisza) działa naprawdę.
 - Logowanie i płatności nie są podłączone. Widoki mówią o tym wprost, a odpowiednie przyciski są nieaktywne.
 
+## Plany subskrypcji i limity
+
+Limity zależą od planu. Są zdefiniowane w jednym miejscu, `backend/.../account/SubscriptionPlan.java`, i **egzekwowane w backendzie** (`AccountService`). Interfejs pobiera je z `GET /api/account/plans`, pokazuje wykorzystanie i z góry blokuje niedostępne opcje. Przekroczenie limitu zwraca HTTP 402 z `code: "PLAN_LIMIT"`, a interfejs pokazuje wtedy komunikat z przejściem do *Ustawienia → Subskrypcja*.
+
+| Limit | Free | Starter | Pro | Business |
+|---|---|---|---|---|
+| Znaki miesięcznie | 10 000 | 50 000 | 200 000 | 1 000 000 |
+| Minuty audio miesięcznie | 10 | 60 | 240 | 1 200 |
+| Projekty | 3 | 20 | 100 | bez limitu |
+| Znaki w jednym projekcie | 5 000 | 20 000 | 100 000 | 500 000 |
+| Własne głosy (zaprojektowane + sklonowane) | 1 | 5 | 20 | 100 |
+| Klonowanie głosu | — | — | ✓ | ✓ |
+| Ustawienia zaawansowane (CFG, kroki, ziarno…) | — | ✓ | ✓ | ✓ |
+| Eksport | MP3 | MP3 + WAV | MP3 + WAV | MP3 + WAV |
+| Maks. jakość MP3 | 128 kb/s | 192 kb/s | 320 kb/s | 320 kb/s |
+| Historia generowania | 7 dni | 30 dni | 90 dni | 365 dni |
+
+Gdzie limity są sprawdzane:
+
+- **Generowanie fragmentu i próbki głosu:** miesięczne znaki i minuty, a także limit znaków w projekcie.
+- **Tworzenie i duplikowanie projektu:** liczba projektów.
+- **Zapis głosu zaprojektowanego lub sklonowanego:** liczba własnych głosów. Klonowanie wymaga planu Pro lub wyższego.
+- **Eksport i ustawienia eksportu:** dozwolone formaty i maksymalny bitrate.
+- **Zmiana ustawień zaawansowanych projektu:** odrzucana w planie Free. Generowanie w tym planie używa wartości domyślnych.
+- **Lista historii:** pokazuje tylko wpisy z okresu przechowywania danego planu.
+
+Po obniżeniu planu istniejące dane zostają nienaruszone. Blokowane są tylko nowe działania ponad limit, a ustawienia eksportu są automatycznie dopasowywane do nowego planu.
+
+Zmiana planu (`PUT /api/account/plan`) działa w wersji demonstracyjnej bez płatności. Po integracji z operatorem płatności powinna być wywoływana z webhooka potwierdzającego zakup.
+
 ## Kluczowe zachowanie edytora
 
 - Każdy fragment ma odcisk: SHA-256 z tekstu, głosu, języka, stylu, emocji, tempa, ekspresji, CFG, kroków, normalizacji, odszumiania, ziarna oraz trybu silnika. Zmiana tekstu jednego zdania oznacza jako *Nieaktualny* tylko ten fragment. Zmiana parametrów projektu oznacza wszystkie.
@@ -131,7 +161,8 @@ tts-engine/app/
 | POST | `/api/voices/design/preview`, `/api/voices/design` | projektowanie głosu |
 | POST | `/api/voices/clone/analyze`, `/api/voices/clone` | analiza nagrania, klonowanie |
 | GET/DELETE | `/api/history` | historia generowania |
-| GET/PATCH | `/api/account`, GET `/api/account/usage` | profil, preferencje, eksport, limity |
+| GET/PATCH | `/api/account`, GET `/api/account/usage` | profil, preferencje, eksport, wykorzystanie limitów |
+| GET/PUT | `/api/account/plans`, `/api/account/plan` | plany z limitami, zmiana planu (demo) |
 
 ## Testy
 
@@ -152,4 +183,4 @@ cd frontend && npx ng build
 - Uwierzytelnianie: Spring Security + OAuth2/JWT. Teraz jest jeden lokalny użytkownik.
 - PostgreSQL zamiast H2 i magazyn obiektów (S3) dla plików audio.
 - Kolejka zadań (np. Redis) i strumieniowanie postępu przez SSE przy długich projektach.
-- Integracja płatności dla zarządzania subskrypcją.
+- Integracja płatności (np. Stripe) wywołująca zmianę planu z webhooka.

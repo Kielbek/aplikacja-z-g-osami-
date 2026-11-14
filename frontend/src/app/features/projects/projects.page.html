@@ -4,9 +4,19 @@
       <div class="page-header-text">
         <h1 class="t-display">Projekty</h1>
         <p>Wszystkie nagrania w jednym miejscu. Otwórz projekt, aby edytować tekst i ponownie wygenerować wybrane fragmenty.</p>
+        @if (account.usage(); as u) {
+          @if (u.projectLimit >= 0) {
+            <p class="limit" [class.is-full]="account.projectLimitReached()">
+              <vc-icon [name]="account.projectLimitReached() ? 'lock' : 'folder'" [size]="13" />
+              {{ u.projectsUsed }} z {{ u.projectLimit }} projektów w planie {{ u.plan.name }}
+              @if (account.projectLimitReached()) { · <a routerLink="/settings/subscription">zmień plan</a> }
+            </p>
+          }
+        }
       </div>
       <div class="page-header-actions">
-        <button class="btn btn-primary" (click)="create()" [disabled]="creating()">
+        <button class="btn btn-primary" (click)="create()" [disabled]="creating() || account.projectLimitReached()"
+          [title]="account.projectLimitReached() ? 'Osiągnięto limit projektów w bieżącym planie' : ''">
           @if (creating()) { <span class="spinner"></span> } @else { <vc-icon name="plus" /> }
           Nowy projekt
         </button>

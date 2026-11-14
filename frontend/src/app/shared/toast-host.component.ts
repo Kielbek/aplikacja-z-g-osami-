@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { ToastService } from '../core/services/toast.service';
 import { IconComponent } from './icon.component';
 
 @Component({
   selector: 'vc-toast-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [IconComponent, RouterLink],
   styles: `
     :host {
       position: fixed; right: 20px; bottom: calc(var(--player-h) + 16px); z-index: 100;
@@ -24,16 +25,19 @@ import { IconComponent } from './icon.component';
     .success vc-icon.lead { color: #7fd1a8; }
     .danger vc-icon.lead { color: #f0938b; }
     .demo vc-icon.lead { color: #e7c27a; }
+    .plan vc-icon.lead { color: #9fb4f0; }
+    .action { display: inline-block; margin-top: 8px; color: #b9c8f5; font-weight: 600; font-size: var(--text-xs); }
     .x { all: unset; cursor: pointer; opacity: .6; padding: 2px; border-radius: 4px; }
     .x:hover { opacity: 1; }
   `,
   template: `
     @for (t of toasts.toasts(); track t.id) {
       <div class="toast" [class]="t.tone" role="status">
-        <vc-icon class="lead" [name]="t.tone === 'danger' ? 'circle-alert' : t.tone === 'demo' ? 'flask' : t.tone === 'success' ? 'circle-check' : 'info'" />
+        <vc-icon class="lead" [name]="t.tone === 'danger' ? 'circle-alert' : t.tone === 'demo' ? 'flask' : t.tone === 'success' ? 'circle-check' : t.tone === 'plan' ? 'lock' : 'info'" />
         <div class="body">
           <div>{{ t.message }}</div>
           @if (t.detail) { <div class="detail">{{ t.detail }}</div> }
+          @if (t.action) { <a class="action" [routerLink]="t.action.link" (click)="toasts.dismiss(t.id)">{{ t.action.label }} →</a> }
         </div>
         <button class="x" aria-label="Zamknij" (click)="toasts.dismiss(t.id)"><vc-icon name="x" [size]="14" /></button>
       </div>

@@ -1,5 +1,6 @@
 package ai.voicecraft.voice;
 
+import ai.voicecraft.account.AccountService;
 import ai.voicecraft.audio.AudioStorage;
 import ai.voicecraft.common.ApiException;
 import ai.voicecraft.engine.EngineClient;
@@ -20,9 +21,11 @@ public class VoiceService {
     private final EngineClient engine;
     private final AudioStorage storage;
     private final HistoryRepository history;
+    private final AccountService account;
 
     public VoiceService(VoiceRepository repo, GenerationService generation, EngineClient engine, AudioStorage storage,
-                        HistoryRepository history) {
+                        HistoryRepository history, AccountService account) {
+        this.account = account;
         this.repo = repo;
         this.generation = generation;
         this.engine = engine;
@@ -100,6 +103,7 @@ public class VoiceService {
             throw new IllegalArgumentException("Opis głosu musi mieć co najmniej 10 znaków.");
         }
         if (req.text() == null || req.text().isBlank()) throw new IllegalArgumentException("Podaj tekst próbki.");
+        account.requireGenerationQuota(req.text().trim().length());
         var s = new VoiceSettings();
         if (req.expressiveness() != null) s.expressiveness = req.expressiveness();
         s.seed = req.seed();
@@ -130,6 +134,7 @@ public class VoiceService {
     public Voice saveDesigned(SaveDesigned req) {
         if (req.name() == null || req.name().isBlank()) throw new IllegalArgumentException("Podaj nazwę głosu.");
         if (req.description() == null || req.description().isBlank()) throw new IllegalArgumentException("Podaj opis głosu.");
+        account.requireCustomVoiceSlot();
         var v = new Voice();
         v.id = "custom-" + UUID.randomUUID().toString().substring(0, 8);
         v.kind = VoiceKind.DESIGNED;
@@ -159,6 +164,8 @@ public class VoiceService {
     public Voice createClone(byte[] file, String filename, String name, String transcript, String language, boolean consent) {
         if (!consent) throw new ApiException(HttpStatus.BAD_REQUEST, "Potwierdź, że masz zgodę właściciela głosu.");
         if (name == null || name.isBlank()) throw new IllegalArgumentException("Podaj nazwę głosu.");
+        account.requireCloning();
+        account.requireCustomVoiceSlot();
         Health h = engine.requireOnline();
         if (h.capabilities() == null || !h.capabilities().cloning()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,

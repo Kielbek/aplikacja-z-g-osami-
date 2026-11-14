@@ -4,6 +4,8 @@ import { Observable, catchError, firstValueFrom, throwError } from 'rxjs';
 import {
   Account,
   ApiError,
+  Plan,
+  PlanId,
   AudioAnalysis,
   DesignPreview,
   EngineStatus,
@@ -23,7 +25,8 @@ export function toApiError(err: unknown): ApiError {
     if (err.status === 0) return { status: 0, message: 'Brak połączenia z serwerem aplikacji (backend).' };
     const body = err.error;
     const message = body && typeof body === 'object' && 'message' in body ? String(body.message) : err.message;
-    return { status: err.status, message };
+    const code = body && typeof body === 'object' && 'code' in body ? String(body.code) : undefined;
+    return { status: err.status, message, code };
   }
   return { status: -1, message: err instanceof Error ? err.message : 'Nieznany błąd.' };
 }
@@ -161,6 +164,12 @@ export class ApiService {
   usage() {
     return this.p(this.http.get<Usage>(`${API}/account/usage`));
   }
+  plans() {
+    return this.p(this.http.get<Plan[]>(`${API}/account/plans`));
+  }
+  changePlan(planId: PlanId) {
+    return this.p(this.http.put<Account>(`${API}/account/plan`, { planId }));
+  }
 
   // --- Audio ---------------------------------------------------------------
   /** Pobiera plik audio wraz z informacją, który tryb silnika go wygenerował. */
@@ -175,13 +184,13 @@ export class ApiService {
     } catch (e) {
       // Przy responseType=blob treść błędu jest Blobem — odczytaj komunikat backendu
       if (e instanceof HttpErrorResponse && e.error instanceof Blob) {
-        let message: string | null = null;
+        let body: { message?: string; code?: string } | null = null;
         try {
-          message = String(JSON.parse(await e.error.text()).message ?? '');
+          body = JSON.parse(await e.error.text());
         } catch {
-          message = null;
+          body = null;
         }
-        if (message) throw { status: e.status, message } satisfies ApiError;
+        if (body?.message) throw { status: e.status, message: body.message, code: body.code } satisfies ApiError;
       }
       throw toApiError(e);
     }

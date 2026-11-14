@@ -62,6 +62,22 @@ export class EditorStore {
   );
   readonly estimatedDurationMs = computed(() => estimateDurationMs(this.characters(), this.settings()?.speed ?? 1));
   readonly isGenerating = computed(() => this.batch() !== null || this.segments().some((s) => s.generating));
+  /** Limit znaków w projekcie wg planu. */
+  readonly projectCharLimit = computed(() => this.accountStore.plan()?.maxCharactersPerProject ?? Infinity);
+  readonly overProjectLimit = computed(() => this.characters() > this.projectCharLimit());
+  /** Powód blokady generowania wynikający z planu (null = można generować). */
+  readonly planBlock = computed<string | null>(() => {
+    const plan = this.accountStore.plan();
+    if (!plan) return null;
+    if (this.accountStore.quotaExhausted()) {
+      return `Wykorzystano miesięczny limit planu ${plan.name}. Generowanie będzie możliwe po odnowieniu limitów lub zmianie planu.`;
+    }
+    if (this.overProjectLimit()) {
+      return `Projekt przekracza limit planu ${plan.name}: ${this.projectCharLimit().toLocaleString('pl-PL')} znaków w jednym projekcie. Skróć tekst, podziel go na kilka projektów lub zmień plan.`;
+    }
+    return null;
+  });
+
   readonly selectedIds = computed(() => this.segments().filter((s) => this.selection().has(s.id)).map((s) => s.id));
 
   /** Klucz wersji połączonego nagrania — zmienia się po każdej generacji. */
@@ -308,7 +324,7 @@ export class EditorStore {
       if (!this.segDirty && !this.settingsDirty) this.saveState.set('saved');
     } catch (e) {
       this.saveState.set('error');
-      this.toast.error('Nie zapisano nazwy projektu', (e as ApiError).message);
+      this.toast.apiError('Nie zapisano nazwy projektu', e);
     }
   }
 
@@ -350,7 +366,7 @@ export class EditorStore {
       this.saveState.set(this.segDirty || this.settingsDirty ? 'dirty' : 'saved');
     } catch (e) {
       this.saveState.set('error');
-      this.toast.error('Nie udało się zapisać zmian', (e as ApiError).message);
+      this.toast.apiError('Nie udało się zapisać zmian', e);
       throw e;
     }
   }
@@ -440,7 +456,7 @@ export class EditorStore {
     try {
       await this.generate(id);
     } catch (e) {
-      this.toast.error('Generowanie nie powiodło się', (e as ApiError).message);
+      this.toast.apiError('Generowanie nie powiodło się', e);
     }
   }
 
@@ -450,13 +466,13 @@ export class EditorStore {
     if (!todo.length || this.batch()) return;
     this.segments.update((list) => list.map((s) => (todo.includes(s.id) ? { ...s, queued: true } : s)));
     this.batch.set({ total: todo.length, done: 0, failed: 0, cancelRequested: false });
-    let lastError: string | null = null;
+    let lastError: ApiError | null = null;
     for (const id of todo) {
       if (this.batch()?.cancelRequested) break;
       try {
         await this.generate(id, { play: false });
       } catch (e) {
-        lastError = (e as ApiError).message;
+        lastError = e as ApiError;
         this.batch.update((b) => (b ? { ...b, failed: b.failed + 1 } : b));
         if ((e as ApiError).status === 503 || (e as ApiError).status === 402 || (e as ApiError).status === 0) break;
       }
@@ -467,7 +483,7 @@ export class EditorStore {
     this.batch.set(null);
     this.clearSelection();
     if (b?.cancelRequested) this.toast.show(`Zatrzymano generowanie (${b.done - b.failed} z ${b.total}).`);
-    else if (b && b.failed) this.toast.error(`Nie wygenerowano ${b.failed} z ${b.total} fragmentów`, lastError ?? undefined);
+    else if (b && b.failed) this.toast.apiError(`Nie wygenerowano ${b.failed} z ${b.total} fragmentów`, lastError);
     else if (b) {
       this.toast.success(`Wygenerowano ${b.total} ${b.total === 1 ? 'fragment' : 'fragmentów'}`);
       if (this.allReady() && (this.accountStore.account()?.playAfterGenerate ?? true)) {
@@ -499,7 +515,7 @@ export class EditorStore {
         this.toast.success(`Pobrano ${format.toUpperCase()}`);
       }
     } catch (e) {
-      this.toast.error('Eksport nie powiódł się', (e as ApiError).message);
+      this.toast.apiError('Eksport nie powiódł się', e);
     }
   }
 

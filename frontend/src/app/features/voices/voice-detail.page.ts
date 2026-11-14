@@ -85,7 +85,7 @@ export class VoiceDetailPage {
       await this.account.update({ defaultVoiceId: v.id, defaultLanguage: v.languages[0] ?? 'pl' });
       this.toast.success(`„${v.name}” będzie domyślnym głosem nowych projektów`);
     } catch (e) {
-      this.toast.error('Nie zapisano ustawienia', (e as ApiError).message);
+      this.toast.apiError('Nie zapisano ustawienia', e);
     }
   }
 
@@ -104,7 +104,7 @@ export class VoiceDetailPage {
       this.editing.set(false);
       this.toast.success('Zapisano zmiany');
     } catch (e) {
-      this.toast.error('Nie zapisano zmian', (e as ApiError).message);
+      this.toast.apiError('Nie zapisano zmian', e);
     }
   }
 
@@ -121,10 +121,11 @@ export class VoiceDetailPage {
     try {
       await this.api.deleteVoice(v.id);
       this.store.remove(v.id);
+      void this.account.refreshUsage();
       this.toast.show('Głos został usunięty.');
       void this.router.navigate(['/voices/mine']);
     } catch (e) {
-      this.toast.error('Nie udało się usunąć głosu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się usunąć głosu', e);
     }
   }
 }

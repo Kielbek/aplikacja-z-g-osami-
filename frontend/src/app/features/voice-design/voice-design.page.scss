@@ -81,3 +81,5 @@
   .sample-grid { grid-template-columns: 1fr; }
   .segmented { display: flex; width: 100%; overflow-x: auto; }
 }
+
+.limit-text { color: var(--warning); line-height: 1.45; a { color: inherit; text-decoration: underline; } }

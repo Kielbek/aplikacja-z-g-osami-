@@ -58,6 +58,7 @@ public class ProjectService {
 
     @Transactional
     public ProjectDto create(CreateProject req) {
+        account.requireProjectSlot();
         Account a = account.get();
         var p = new Project();
         p.id = UUID.randomUUID().toString();
@@ -66,6 +67,7 @@ public class ProjectService {
         p.settings.voiceId = voices.existsById(a.defaultVoiceId) ? a.defaultVoiceId : null;
         List<String> parts = req.text() == null ? List.of() : TextSplitter.paragraphs(req.text());
         if (parts.isEmpty()) parts = List.of("");
+        account.requireProjectCharacters(parts.stream().mapToInt(String::length).sum());
         for (String t : parts) addSegment(p, t);
         return dto(projects.save(p));
     }
@@ -77,6 +79,7 @@ public class ProjectService {
         if (req.settings() != null) {
             VoiceSettings s = req.settings();
             if (s.voiceId != null && !voices.existsById(s.voiceId)) throw ApiException.notFound("Głos");
+            account.requireAdvancedAllowed(p.settings, s);
             s.speed = clamp(s.speed, 0.5, 2.0);
             s.expressiveness = clamp(s.expressiveness, 0, 1);
             s.cfgValue = clamp(s.cfgValue, 0.5, 5);
@@ -119,6 +122,7 @@ public class ProjectService {
     @Transactional
     public ProjectDto duplicate(String id) {
         Project src = find(id);
+        account.requireProjectSlot();
         var p = new Project();
         p.id = UUID.randomUUID().toString();
         p.name = src.name + " (kopia)";
@@ -144,7 +148,8 @@ public class ProjectService {
                 .orElseThrow(() -> ApiException.notFound("Fragment"));
         String text = s.text.trim();
         if (text.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "Fragment jest pusty.");
-        account.assertWithinLimit(text.length());
+        account.requireProjectCharacters(p.segments.stream().mapToInt(x -> x.text.trim().length()).sum());
+        account.requireGenerationQuota(text.length());
         Voice voice = p.settings.voiceId == null ? null : voices.findById(p.settings.voiceId).orElse(null);
 
         var rec = new GenerationRecord();
@@ -157,7 +162,7 @@ public class ProjectService {
         rec.textPreview = text.length() > 380 ? text.substring(0, 380) + "…" : text;
         rec.characters = text.length();
         try {
-            Audio audio = generation.synthesize(text, p.settings, voice);
+            Audio audio = generation.synthesize(text, account.effectiveSettings(p.settings), voice);
             String file = storage.save("seg", audio.wav());
             s.audioFile = file;
             s.durationMs = audio.durationMs();
@@ -200,6 +205,7 @@ public class ProjectService {
 
     /** Łączy gotowe fragmenty w jedno nagranie (bez ponownej syntezy). */
     public Rendered render(String id, String format, boolean recordExport) {
+        if (recordExport && format != null) account.requireExportFormat(format);
         Project p = find(id);
         ProjectDto dto = dto(p);
         List<SegmentDto> nonEmpty = dto.segments().stream().filter(s -> !"empty".equals(s.status())).toList();
@@ -215,7 +221,8 @@ public class ProjectService {
         byte[] wav = WavUtils.concat(wavs, a.pauseBetweenSegmentsMs);
         String mode = nonEmpty.stream().anyMatch(s -> "demo".equals(s.engineMode())) ? "demo" : "voxcpm2";
         String fmt = format == null ? a.exportFormat : format;
-        byte[] out = "mp3".equals(fmt) ? engine.toMp3(wav, a.mp3Bitrate) : wav;
+        if (recordExport) account.requireExportFormat(fmt);
+        byte[] out = "mp3".equals(fmt) ? engine.toMp3(wav, account.effectiveBitrate()) : wav;
         String filename = fileName(a.fileNamePattern, p.name) + ("demo".equals(mode) ? "_DEMO" : "") + "." + fmt;
         if (recordExport) {
             var rec = new GenerationRecord();

@@ -1,5 +1,6 @@
 package ai.voicecraft.history;
 
+import ai.voicecraft.account.AccountService;
 import ai.voicecraft.audio.AudioStorage;
 import ai.voicecraft.common.ApiException;
 import java.util.List;
@@ -14,17 +15,22 @@ import org.springframework.web.bind.annotation.*;
 public class HistoryController {
     private final HistoryRepository repo;
     private final AudioStorage storage;
+    private final AccountService account;
 
-    public HistoryController(HistoryRepository repo, AudioStorage storage) {
+    public HistoryController(HistoryRepository repo, AudioStorage storage, AccountService account) {
         this.repo = repo;
         this.storage = storage;
+        this.account = account;
     }
 
     public record HistoryItem(GenerationRecord record, boolean audioAvailable) {}
 
     @GetMapping
     public List<HistoryItem> list(@RequestParam(defaultValue = "200") int limit) {
+        // Okres przechowywania historii zależy od planu
+        var cutoff = account.historyCutoff();
         return repo.findAllByOrderByCreatedAtDesc(PageRequest.of(0, Math.min(limit, 500))).stream()
+                .filter(r -> r.createdAt.isAfter(cutoff))
                 .map(r -> new HistoryItem(r, storage.exists(r.audioFile)))
                 .toList();
     }

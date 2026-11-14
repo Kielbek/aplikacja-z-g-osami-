@@ -36,11 +36,13 @@
               <div class="menu-note demo">Nagranie demonstracyjne — plik otrzyma oznaczenie _DEMO.</div>
             }
             <button class="menu-item" [disabled]="!store.allReady()" (click)="store.export('mp3')"><vc-icon name="file-audio" />Pobierz MP3<span class="menu-hint">kompresja</span></button>
-            <button class="menu-item" [disabled]="!store.allReady()" (click)="store.export('wav')"><vc-icon name="file-audio" />Pobierz WAV<span class="menu-hint">bezstratnie</span></button>
+            <button class="menu-item" [disabled]="!store.allReady() || !wavAllowed()" (click)="store.export('wav')">
+              <vc-icon [name]="wavAllowed() ? 'file-audio' : 'lock'" />Pobierz WAV<span class="menu-hint">{{ wavAllowed() ? 'bezstratnie' : 'od planu ' + wavPlan() }}</span>
+            </button>
           </div>
         </vc-dropdown>
 
-        <button class="btn btn-sm btn-primary gen-all" [disabled]="!store.pendingIds().length || store.isGenerating() || engine.isOffline()"
+        <button class="btn btn-sm btn-primary gen-all" [disabled]="!store.pendingIds().length || store.isGenerating() || engine.isOffline() || !!store.planBlock()"
           (click)="store.generateMany()" title="Generuje tylko nowe i zmienione fragmenty (Ctrl+Shift+Enter)">
           @if (store.batch()) { <span class="spinner"></span> }
           @else { <vc-icon [name]="store.pendingIds().length ? 'voices' : 'check'" [size]="14" /> }
@@ -65,6 +67,13 @@
       } @else {
         <div class="doc-inner">
           <vc-engine-banner class="banner" />
+          @if (store.planBlock(); as reason) {
+            <div class="callout callout-warning banner" role="alert">
+              <vc-icon name="lock" />
+              <div class="callout-body">{{ reason }}</div>
+              <a class="plan-link" routerLink="/settings/subscription">Zobacz plany</a>
+            </div>
+          }
 
           <input
             class="title-input"
@@ -78,7 +87,14 @@
           <div class="doc-meta">
             <span>{{ pluralN(store.segments().length, 'fragment', 'fragmenty', 'fragmentów') }}</span>
             <span class="sep">·</span>
-            <span class="tabular">{{ pluralN(store.characters(), 'znak', 'znaki', 'znaków') }}</span>
+            @if (charPct() >= 80) {
+              <span class="tabular" [class.limit-warn]="charPct() < 100" [class.limit-over]="charPct() >= 100"
+                [title]="'Limit znaków w projekcie w planie ' + (account.plan()?.name ?? '')">
+                {{ store.characters().toLocaleString('pl-PL') }} / {{ store.projectCharLimit().toLocaleString('pl-PL') }} znaków
+              </span>
+            } @else {
+              <span class="tabular">{{ pluralN(store.characters(), 'znak', 'znaki', 'znaków') }}</span>
+            }
             <span class="sep">·</span>
             @if (store.allReady()) {
               <span class="tabular">{{ fmt(store.readyDurationMs()) }} nagrania</span>
@@ -95,7 +111,7 @@
             @if (store.selectedIds().length) {
               <div class="selection-bar">
                 <span class="tabular">Zaznaczono: {{ store.selectedIds().length }}</span>
-                <button class="btn btn-sm btn-accent" [disabled]="store.isGenerating() || engine.isOffline()" (click)="generateSelected()">
+                <button class="btn btn-sm btn-accent" [disabled]="store.isGenerating() || engine.isOffline() || !!store.planBlock()" (click)="generateSelected()">
                   <vc-icon name="refresh" [size]="13" />Generuj zaznaczone
                 </button>
                 <button class="btn btn-sm btn-ghost" (click)="store.clearSelection()">Odznacz</button>

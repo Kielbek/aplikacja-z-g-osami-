@@ -133,7 +133,8 @@ export class SegmentRowComponent {
   protected isPlaying = computed(() => this.player.isPlaying(this.trackId()));
   protected isLoading = computed(() => this.player.isLoading(this.trackId()));
   protected canGenerate = computed(
-    () => !!this.seg().text.trim() && !this.seg().generating && !this.store.batch() && !this.engine.isOffline(),
+    () =>
+      !!this.seg().text.trim() && !this.seg().generating && !this.store.batch() && !this.engine.isOffline() && !this.store.planBlock(),
   );
 
   constructor() {

@@ -98,7 +98,7 @@ export class HistoryPage {
       void this.account.refreshUsage();
       this.toast.show('Historia została wyczyszczona.');
     } catch (e) {
-      this.toast.error('Nie udało się wyczyścić historii', (e as ApiError).message);
+      this.toast.apiError('Nie udało się wyczyścić historii', e);
     }
   }
 }

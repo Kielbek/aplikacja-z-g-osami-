@@ -8,7 +8,23 @@
       </div>
     </header>
 
-    @if (!cloningAvailable()) {
+    @if (!planAllows()) {
+      <div class="callout callout-info" role="note">
+        <vc-icon name="lock" />
+        <div class="callout-body">
+          <strong>Klonowanie głosu jest dostępne od planu {{ cloningPlan() }}.</strong>
+          <span>Twój plan {{ account.plan()?.name }} obejmuje bibliotekę głosów i projektowanie głosu z opisu. Możesz przygotować i przeanalizować nagranie już teraz. <a routerLink="/settings/subscription">Zobacz plany</a></span>
+        </div>
+      </div>
+    } @else if (account.customVoiceLimitReached()) {
+      <div class="callout callout-warning" role="note">
+        <vc-icon name="lock" />
+        <div class="callout-body">
+          <strong>Osiągnięto limit własnych głosów ({{ account.usage()?.customVoiceLimit }}).</strong>
+          <span>Usuń nieużywany głos w sekcji <a routerLink="/voices/mine">Moje głosy</a> lub <a routerLink="/settings/subscription">zmień plan</a>.</span>
+        </div>
+      </div>
+    } @else if (!cloningAvailable()) {
       <div class="callout" [class.callout-demo]="engine.isDemo()" [class.callout-danger]="engine.isOffline()" role="note">
         <vc-icon [name]="engine.isDemo() ? 'flask' : 'plug'" />
         <div class="callout-body">

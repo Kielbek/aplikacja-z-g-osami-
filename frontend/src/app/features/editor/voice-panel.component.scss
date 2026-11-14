@@ -128,3 +128,17 @@
   .close { display: inline-flex; }
 }
 .chips .chip.cap { text-transform: capitalize; }
+
+.adv-locked {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 10px;
+  font-size: var(--text-xs);
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+.adv-toggle .grow { white-space: nowrap; }
+.adv-toggle .badge { gap: 3px; height: 18px; padding: 0 6px; }

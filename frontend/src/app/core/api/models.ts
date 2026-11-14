@@ -144,9 +144,7 @@ export interface Account {
   email: string;
   company: string;
   role: string;
-  plan: string;
-  monthlyCharacterLimit: number;
-  monthlyMinuteLimit: number;
+  planId: PlanId;
   billingPeriodStart: string;
   renewsOn: string;
   exportFormat: 'mp3' | 'wav';
@@ -162,8 +160,26 @@ export interface Account {
   emailNotifications: boolean;
 }
 
+export type PlanId = 'FREE' | 'STARTER' | 'PRO' | 'BUSINESS';
+
+/** Limity planu subskrypcji (-1 = bez limitu). Źródło: GET /api/account/plans */
+export interface Plan {
+  id: PlanId;
+  name: string;
+  monthlyCharacters: number;
+  monthlyMinutes: number;
+  maxProjects: number;
+  maxCharactersPerProject: number;
+  maxCustomVoices: number;
+  voiceCloning: boolean;
+  exportFormats: ('mp3' | 'wav')[];
+  maxMp3Bitrate: number;
+  advancedControls: boolean;
+  historyRetentionDays: number;
+}
+
 export interface Usage {
-  plan: string;
+  plan: Plan;
   periodStart: string;
   renewsOn: string;
   charactersUsed: number;
@@ -171,9 +187,15 @@ export interface Usage {
   minutesUsed: number;
   minuteLimit: number;
   generations: number;
+  projectsUsed: number;
+  projectLimit: number;
+  customVoicesUsed: number;
+  customVoiceLimit: number;
 }
 
 export interface ApiError {
   status: number;
   message: string;
+  /** "PLAN_LIMIT" — akcja niedostępna w bieżącym planie. */
+  code?: string;
 }

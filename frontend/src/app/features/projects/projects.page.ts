@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from "@angular/router";
+import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, ProjectDto } from '../../core/api/models';
+import { ProjectDto } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ProjectsStore } from '../../core/services/projects.store';
@@ -16,7 +16,7 @@ type SortKey = 'name' | 'createdAt' | 'updatedAt' | 'duration';
 @Component({
   selector: 'vc-projects-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, DropdownComponent],
+  imports: [IconComponent, DropdownComponent, RouterLink],
   styleUrl: './projects.page.scss',
   templateUrl: './projects.page.html',
 })
@@ -25,7 +25,7 @@ export class ProjectsPage {
   private router = inject(Router);
   private toast = inject(ToastService);
   private confirm = inject(ConfirmService);
-  private account = inject(AccountStore);
+  protected account = inject(AccountStore);
   protected store = inject(ProjectsStore);
 
   protected query = signal('');
@@ -76,9 +76,10 @@ export class ProjectsPage {
     try {
       const p = await this.api.createProject({});
       this.store.touch(p);
+      void this.account.refreshUsage();
       await this.router.navigate(['/editor', p.id]);
     } catch (e) {
-      this.toast.error('Nie udało się utworzyć projektu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się utworzyć projektu', e);
     } finally {
       this.creating.set(false);
     }
@@ -88,9 +89,10 @@ export class ProjectsPage {
     try {
       const copy = await this.api.duplicateProject(p.id);
       this.store.touch(copy);
+      void this.account.refreshUsage();
       this.toast.success('Utworzono kopię projektu', copy.name);
     } catch (e) {
-      this.toast.error('Nie udało się zduplikować projektu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się zduplikować projektu', e);
     }
   }
 
@@ -107,9 +109,10 @@ export class ProjectsPage {
     try {
       await this.api.deleteProject(p.id);
       this.store.remove(p.id);
+      void this.account.refreshUsage();
       this.toast.show('Projekt został usunięty.');
     } catch (e) {
-      this.toast.error('Nie udało się usunąć projektu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się usunąć projektu', e);
     }
   }
 }

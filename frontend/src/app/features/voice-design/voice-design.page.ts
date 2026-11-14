@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, WritableSignal, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, DesignPreview, Gender } from '../../core/api/models';
+import { DesignPreview, Gender } from '../../core/api/models';
+import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { PlayerService, PlayerTrack } from '../../core/services/player.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -35,6 +36,7 @@ export class VoiceDesignPage {
   private voices = inject(VoicesStore);
   protected engine = inject(EngineStatusService);
   protected player = inject(PlayerService);
+  protected account = inject(AccountStore);
 
   protected TIMBRES = TIMBRES;
   protected CATEGORIES = CATEGORIES;
@@ -81,7 +83,9 @@ export class VoiceDesignPage {
     () => this.description().length >= 10 && this.sampleText().trim().length > 0 && !this.generating() && !this.engine.isOffline(),
   );
   protected selectedVariant = computed(() => this.variants().find((v) => v.previewId === this.selected()) ?? null);
-  protected canSave = computed(() => !!this.selectedVariant() && this.name().trim().length > 0 && !this.saving());
+  protected canSave = computed(
+    () => !!this.selectedVariant() && this.name().trim().length > 0 && !this.saving() && !this.account.customVoiceLimitReached(),
+  );
 
   useExample() {
     this.freeText.set(EXAMPLE);
@@ -114,9 +118,10 @@ export class VoiceDesignPage {
       const v: Variant = { ...res, n: this.variants().length + 1, description: desc };
       this.variants.update((list) => [v, ...list]);
       this.selected.set(v.previewId);
+      void this.account.refreshUsage();
       void this.player.play(this.track(v));
     } catch (e) {
-      this.toast.error('Nie udało się wygenerować próbki', (e as ApiError).message);
+      this.toast.apiError('Nie udało się wygenerować próbki', e);
     } finally {
       this.generating.set(false);
     }
@@ -140,10 +145,11 @@ export class VoiceDesignPage {
         engineMode: v.engineMode,
       });
       this.voices.upsert(voice);
+      void this.account.refreshUsage();
       this.toast.success(`Zapisano głos „${voice.name}”`, 'Znajdziesz go w sekcji „Moje głosy” i w edytorze.');
       void this.router.navigate(['/voices', voice.id]);
     } catch (e) {
-      this.toast.error('Nie udało się zapisać głosu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się zapisać głosu', e);
     } finally {
       this.saving.set(false);
     }

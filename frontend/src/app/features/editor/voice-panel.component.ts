@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { VoiceSettings } from '../../core/api/models';
+import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { EMOTIONS, STYLE_PRESETS, languageLabel } from '../../core/util/labels';
@@ -20,6 +21,9 @@ export class VoicePanelComponent {
   protected store = inject(EditorStore);
   protected engine = inject(EngineStatusService);
   private voices = inject(VoicesStore);
+  protected account = inject(AccountStore);
+  protected advancedAllowed = computed(() => this.account.plan()?.advancedControls ?? true);
+  protected advancedPlan = computed(() => this.account.lowestPlan((p) => p.advancedControls)?.name ?? '');
   readonly close = output<void>();
 
   protected advancedOpen = signal(false);

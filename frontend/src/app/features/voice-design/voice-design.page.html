@@ -129,7 +129,13 @@
           </div>
 
           <div class="side-section">
-            <span class="t-overline">Zapisz głos</span>
+            <div class="row-between">
+              <span class="t-overline">Zapisz głos</span>
+              @if (account.usage(); as u) { <span class="t-xs t-muted tabular" title="Własne głosy w bieżącym planie">{{ u.customVoicesUsed }} / {{ u.customVoiceLimit }}</span> }
+            </div>
+            @if (account.customVoiceLimitReached()) {
+              <span class="t-xs limit-text">Osiągnięto limit własnych głosów w planie {{ account.plan()?.name }}. Usuń nieużywany głos lub <a routerLink="/settings/subscription">zmień plan</a>.</span>
+            }
             <div class="field">
               <label for="vname">Nazwa</label>
               <input id="vname" class="input" placeholder="Np. Lektor dokumentalny" [value]="name()" (input)="name.set($any($event.target).value)" maxlength="60" />

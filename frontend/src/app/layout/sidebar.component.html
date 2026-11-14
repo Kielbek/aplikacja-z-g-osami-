@@ -52,7 +52,7 @@
         <span class="pavatar">{{ initials() }}</span>
         <span class="pinfo">
           <span class="pname">{{ account.account()?.fullName ?? 'Użytkownik' }}</span>
-          <span class="pplan">Plan {{ account.account()?.plan ?? '—' }}</span>
+          <span class="pplan">Plan {{ account.plan()?.name ?? '—' }}</span>
         </span>
         <vc-icon name="chevron-up" [size]="14" />
       </button>

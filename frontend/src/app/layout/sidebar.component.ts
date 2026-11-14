@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, output, signal } from '@angular/core';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { ApiService } from '../core/api/api.service';
-import { ApiError } from '../core/api/models';
 import { AccountStore } from '../core/services/account.store';
 import { AuthService } from '../core/services/auth.service';
 import { EngineStatusService } from '../core/services/engine-status.service';
@@ -49,10 +48,11 @@ export class SidebarComponent {
     try {
       const p = await this.api.createProject({});
       this.projects.touch(p);
+      void this.account.refreshUsage();
       this.navigate.emit();
       await this.router.navigate(['/editor', p.id]);
     } catch (e) {
-      this.toast.error('Nie udało się utworzyć projektu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się utworzyć projektu', e);
     } finally {
       this.creating.set(false);
     }

@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, Voice } from '../../core/api/models';
+import { Voice } from '../../core/api/models';
 import { PlayerTrack } from '../../core/services/player.service';
 import { ProjectsStore } from '../../core/services/projects.store';
 import { ToastService } from '../../core/services/toast.service';
@@ -32,7 +32,7 @@ export class VoiceActions {
       const u = await this.voices.toggleFavorite(v);
       this.toast.show(u.favorite ? `Dodano „${v.name}” do ulubionych` : `Usunięto „${v.name}” z ulubionych`);
     } catch (e) {
-      this.toast.error('Nie udało się zmienić ulubionych', (e as ApiError).message);
+      this.toast.apiError('Nie udało się zmienić ulubionych', e);
     }
   }
 
@@ -46,7 +46,7 @@ export class VoiceActions {
       this.projects.touch(updated);
       await this.router.navigate(['/editor', p.id]);
     } catch (e) {
-      this.toast.error('Nie udało się utworzyć projektu', (e as ApiError).message);
+      this.toast.apiError('Nie udało się utworzyć projektu', e);
     }
   }
 }

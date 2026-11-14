@@ -97,9 +97,15 @@
       <button class="adv-toggle" (click)="advancedOpen.set(!advancedOpen())" [attr.aria-expanded]="advancedOpen()">
         <vc-icon name="sliders" [size]="14" />
         <span class="grow">Ustawienia zaawansowane</span>
+        @if (!advancedAllowed()) { <span class="badge"><vc-icon name="lock" [size]="10" />{{ advancedPlan() }}+</span> }
         <vc-icon [name]="advancedOpen() ? 'chevron-up' : 'chevron-down'" [size]="14" />
       </button>
-      @if (advancedOpen()) {
+      @if (advancedOpen() && !advancedAllowed()) {
+        <div class="adv-locked">
+          <p>Kontrola CFG, liczby kroków, normalizacji i ziarna losowości jest dostępna od planu {{ advancedPlan() }}. W bieżącym planie używane są wartości domyślne.</p>
+          <a class="btn btn-sm" routerLink="/settings/subscription">Zobacz plany</a>
+        </div>
+      } @else if (advancedOpen()) {
         <div class="adv-body">
           <div class="field">
             <div class="row-between"><label for="cfg">Zgodność z opisem (CFG)</label><span class="value tabular">{{ s.cfgValue.toFixed(1) }}</span></div>

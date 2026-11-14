@@ -18,9 +18,8 @@ public class Account {
     public String role = "Producentka audio";
 
     // Subskrypcja
-    public String plan = "Pro";
-    public long monthlyCharacterLimit = 200_000;
-    public int monthlyMinuteLimit = 240;
+    @Enumerated(EnumType.STRING)
+    public SubscriptionPlan planId = SubscriptionPlan.PRO;
     public LocalDate billingPeriodStart = LocalDate.now().withDayOfMonth(1);
     public LocalDate renewsOn = LocalDate.now().withDayOfMonth(1).plusMonths(1);
 

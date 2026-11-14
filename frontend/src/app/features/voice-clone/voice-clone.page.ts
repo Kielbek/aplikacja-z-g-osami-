@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@a
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
 import { ApiError, AudioAnalysis } from '../../core/api/models';
+import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { PlayerService } from '../../core/services/player.service';
 import { ToastService } from '../../core/services/toast.service';
@@ -28,6 +29,9 @@ export class VoiceClonePage {
   private voices = inject(VoicesStore);
   protected engine = inject(EngineStatusService);
   protected player = inject(PlayerService);
+  protected account = inject(AccountStore);
+  protected planAllows = computed(() => this.account.plan()?.voiceCloning ?? true);
+  protected cloningPlan = computed(() => this.account.lowestPlan((p) => p.voiceCloning)?.name ?? 'Pro');
 
   protected file = signal<File | null>(null);
   protected dragOver = signal(false);
@@ -52,9 +56,11 @@ export class VoiceClonePage {
     return 4;
   });
   protected canCreate = computed(
-    () => this.cloningAvailable() && !!this.analysis()?.suitable && this.consent() && this.name().trim().length > 0 && !this.creating(),
+    () => this.planAllows() && !this.account.customVoiceLimitReached() && this.cloningAvailable() && !!this.analysis()?.suitable && this.consent() && this.name().trim().length > 0 && !this.creating(),
   );
   protected blockReason = computed(() => {
+    if (!this.planAllows()) return `Klonowanie jest dostępne od planu ${this.cloningPlan()}.`;
+    if (this.account.customVoiceLimitReached()) return `Osiągnięto limit własnych głosów w planie ${this.account.plan()?.name}.`;
     if (!this.cloningAvailable()) {
       return this.engine.isOffline()
         ? 'Silnik TTS jest niedostępny.'
@@ -141,6 +147,7 @@ export class VoiceClonePage {
         consent: this.consent(),
       });
       this.voices.upsert(voice);
+      void this.account.refreshUsage();
       this.toast.success(`Utworzono profil głosu „${voice.name}”`);
       void this.router.navigate(['/voices', voice.id]);
     } catch (e) {
