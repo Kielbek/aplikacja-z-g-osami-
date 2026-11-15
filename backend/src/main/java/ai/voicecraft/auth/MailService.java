@@ -17,19 +17,23 @@ public class MailService {
     private static final Logger log = LoggerFactory.getLogger(MailService.class);
     private final ObjectProvider<JavaMailSender> sender;
     private final AppProperties props;
+    private final String host;
 
-    public MailService(ObjectProvider<JavaMailSender> sender, AppProperties props) {
+    public MailService(ObjectProvider<JavaMailSender> sender, AppProperties props,
+                       @org.springframework.beans.factory.annotation.Value("${spring.mail.host:}") String host) {
         this.sender = sender;
         this.props = props;
+        this.host = host;
     }
 
+    /** Pusty SPRING_MAIL_HOST (np. z docker-compose) = brak SMTP. */
     public boolean configured() {
-        return sender.getIfAvailable() != null;
+        return host != null && !host.isBlank() && sender.getIfAvailable() != null;
     }
 
     /** Błąd wysyłki jest logowany, ale nie przerywa operacji (np. resetu hasła). */
     public void send(String to, String subject, String body) {
-        JavaMailSender mail = sender.getIfAvailable();
+        JavaMailSender mail = configured() ? sender.getIfAvailable() : null;
         if (mail == null) {
             log.warn("[DEV] SMTP nie jest skonfigurowany — e-mail do {} nie został wysłany.\nTemat: {}\n{}", to, subject, body);
             return;
