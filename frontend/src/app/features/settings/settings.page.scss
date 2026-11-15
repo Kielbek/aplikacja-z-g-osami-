@@ -15,12 +15,12 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    height: 34px;
+    height: 36px;
     padding: 0 10px;
     border-radius: var(--radius-md);
-    font-size: var(--text-sm);
-    color: var(--text-2);
-    vc-icon { color: var(--text-3); }
+    font-size: var(--text-base);
+    color: var(--text);
+    vc-icon { color: var(--text-2); }
     &:hover { background: var(--surface-hover); color: var(--text); text-decoration: none; }
     &.is-active { background: var(--surface); color: var(--text); font-weight: 550; box-shadow: var(--shadow-sm); vc-icon { color: var(--text); } }
   }

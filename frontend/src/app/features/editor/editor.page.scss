@@ -290,38 +290,7 @@
 
 /* ---------- Widok: jeden lektor / dialog ---------- */
 
-.view-switch {
-  display: inline-flex;
-  padding: 3px;
-  gap: 2px;
-  border-radius: 10px;
-  background: var(--bg-sunken);
-  border: 1px solid var(--border-subtle);
-
-  button {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 28px;
-    padding: 0 12px;
-    border: 0;
-    border-radius: 8px;
-    background: transparent;
-    color: var(--text-2);
-    font: inherit;
-    font-size: var(--text-sm);
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 120ms, color 120ms, box-shadow 120ms;
-    &:hover { color: var(--text); }
-    &.on {
-      background: var(--surface);
-      color: var(--text);
-      font-weight: 600;
-      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
-    }
-  }
-}
+.view-switch button { flex: none; }
 
 .tools-sep {
   width: 1px;

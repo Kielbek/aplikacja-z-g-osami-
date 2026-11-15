@@ -117,7 +117,7 @@
           </div>
 
           <div class="doc-tools">
-            <div class="view-switch" role="tablist" aria-label="Widok edytora">
+            <div class="segmented view-switch" role="tablist" aria-label="Widok edytora">
               <button role="tab" [attr.aria-selected]="store.viewMode() === 'narrator'" [class.on]="store.viewMode() === 'narrator'"
                 (click)="store.setViewMode('narrator')" title="Cały tekst czyta jeden głos">
                 <vc-icon name="type" [size]="14" />Jeden lektor

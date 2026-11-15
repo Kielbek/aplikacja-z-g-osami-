@@ -14,7 +14,8 @@
   margin: 0 auto;
   padding: var(--space-10) var(--space-8) var(--space-16);
   animation: vc-fade-in 220ms var(--ease);
-  &.page-narrow { max-width: 820px; }
+  /* Wąskie strony mają tę samą lewą krawędź co pozostałe — ograniczona jest tylko szerokość treści */
+  &.page-narrow > * { max-width: 820px; }
 }
 
 .page-header {
@@ -25,7 +26,7 @@
   margin-bottom: var(--space-8);
 
   .page-header-text { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-  .page-header-text p { color: var(--text-3); font-size: var(--text-sm); max-width: 560px; }
+  .page-header-text p { color: var(--text-3); font-size: var(--text-base); max-width: 600px; }
   .page-header-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
 }
 
@@ -35,7 +36,8 @@
   gap: 4px;
   margin-bottom: var(--space-4);
   font-size: var(--text-sm);
-  color: var(--text-3);
+  font-weight: 500;
+  color: var(--text-2);
   &:hover { color: var(--text); text-decoration: none; }
 }
 
@@ -62,7 +64,7 @@
   justify-content: space-between;
   gap: var(--space-4);
   margin-bottom: var(--space-4);
-  h2, h3 { font-size: var(--text-md); font-weight: 600; }
+  h2, h3 { font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; }
   p { color: var(--text-3); font-size: var(--text-sm); margin-top: 3px; }
 }
 
