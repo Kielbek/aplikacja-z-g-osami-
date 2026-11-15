@@ -15,7 +15,10 @@ export class EngineStatusService {
   readonly mode = computed(() => (this.backendDown() ? 'offline' : (this.status()?.mode ?? 'offline')));
   readonly isDemo = computed(() => this.mode() === 'demo');
   readonly isOffline = computed(() => this.mode() === 'offline');
-  readonly isReal = computed(() => this.mode() === 'voxcpm2');
+  /** Prawdziwa synteza mowy: VoxCPM2 (GPU) lub Piper (CPU). */
+  readonly isReal = computed(() => this.mode() === 'voxcpm2' || this.mode() === 'piper');
+  /** Lekki silnik na CPU — gotowe głosy, bez projektowania i klonowania. */
+  readonly isPiper = computed(() => this.mode() === 'piper');
   readonly caps = computed(() => this.status()?.capabilities ?? null);
   readonly languages = computed(() => this.caps()?.languages ?? ['pl', 'en', 'de', 'fr', 'es', 'it', 'uk']);
 
@@ -23,6 +26,8 @@ export class EngineStatusService {
     switch (this.mode()) {
       case 'voxcpm2':
         return 'VoxCPM2 połączony';
+      case 'piper':
+        return 'Piper (CPU) połączony';
       case 'demo':
         return 'Tryb demonstracyjny';
       default:

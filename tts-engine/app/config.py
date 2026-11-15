@@ -17,7 +17,9 @@ def _bool(name: str, default: bool) -> bool:
 class Settings:
     # "auto"   – spróbuj załadować VoxCPM2, w razie niepowodzenia przejdź w tryb demo
     # "voxcpm2" – wymagaj modelu (błąd startu, jeśli nie da się go załadować)
+    # "piper"  – lekki silnik Piper na CPU (prawdziwa mowa, gotowe głosy, bez projektowania i klonowania)
     # "demo"   – nie ładuj modelu, generuj sygnał zastępczy (wyraźnie oznaczony)
+    # W trybie "auto" kolejność to: VoxCPM2 → Piper (jeśli zainstalowany) → demo.
     engine_mode: str = os.getenv("ENGINE_MODE", "auto").lower()
     model_id: str = os.getenv("VOXCPM_MODEL_ID", "openbmb/VoxCPM2")
     # "auto" — biblioteka wybierze CUDA, potem MPS, potem CPU
@@ -34,6 +36,10 @@ class Settings:
         default_factory=lambda: os.getenv("ENGINE_CORS", "http://localhost:8080").split(",")
     )
     load_on_start: bool = _bool("VOXCPM_LOAD_ON_START", True)
+    # Głosy Piper pobierane przy starcie (po przecinku), np. "pl_PL-gosia-medium,pl_PL-darkman-medium"
+    piper_preload: list[str] = field(
+        default_factory=lambda: [v.strip() for v in os.getenv("PIPER_PRELOAD", "").split(",") if v.strip()]
+    )
 
 
 settings = Settings()

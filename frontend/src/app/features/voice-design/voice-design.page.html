@@ -9,6 +9,12 @@
     </header>
 
     <vc-engine-banner class="banner" [compact]="true" />
+    @if (!designAvailable()) {
+      <div class="callout design-lock" role="note">
+        <vc-icon name="lock" />
+        <div class="callout-body"><span><strong>Projektowanie głosu jest niedostępne.</strong> Bieżący silnik ma tylko gotowe głosy — tworzenie głosu z opisu wymaga modelu VoxCPM2 na GPU.</span></div>
+      </div>
+    }
 
     <div class="layout">
       <div class="form">

@@ -12,11 +12,13 @@
         <vc-select class="grow" label="Silnik TTS" [options]="engineOptions" [value]="s.engine" (valueChange)="set('engine', $event!)" />
         <a class="engine-status" routerLink="/settings/engine" [title]="engine.status()?.message ?? ''">
           <span class="dot" [class.dot-success]="engine.isReal()" [class.dot-warning]="engine.isDemo()" [class.dot-danger]="engine.isOffline()"></span>
-          {{ engine.isReal() ? 'Połączony' : engine.isDemo() ? 'Demo' : 'Offline' }}
+          {{ engine.isPiper() ? 'Piper' : engine.isReal() ? 'Połączony' : engine.isDemo() ? 'Demo' : 'Offline' }}
         </a>
       </div>
       @if (engine.isDemo()) {
         <p class="hint demo">Model nie jest załadowany — generowany jest sygnał zastępczy.</p>
+      } @else if (engine.isPiper()) {
+        <p class="hint">Działa lekki silnik Piper (CPU): gotowe głosy, barwa przybliżona do głosu z biblioteki.</p>
       }
     </section>
 

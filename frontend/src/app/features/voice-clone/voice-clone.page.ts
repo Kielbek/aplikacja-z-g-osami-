@@ -72,7 +72,9 @@ export class VoiceClonePage {
     if (!this.cloningAvailable()) {
       return this.engine.isOffline()
         ? 'Silnik TTS jest niedostępny.'
-        : 'Klonowanie wymaga załadowanego modelu VoxCPM2 — silnik działa w trybie demonstracyjnym.';
+        : this.engine.isPiper()
+          ? 'Klonowanie wymaga modelu VoxCPM2 — działa silnik Piper (CPU) z gotowymi głosami.'
+          : 'Klonowanie wymaga załadowanego modelu VoxCPM2 — silnik działa w trybie demonstracyjnym.';
     }
     if (!this.file()) return 'Dodaj nagranie referencyjne.';
     if (!this.analysis()) return 'Poczekaj na analizę nagrania.';

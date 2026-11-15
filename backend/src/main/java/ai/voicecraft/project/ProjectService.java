@@ -326,7 +326,9 @@ public class ProjectService {
             wav = WavUtils.encode(result.samples(), pcm.format().getSampleRate());
             loudness = Double.isInfinite(result.outputLufs()) ? null : Math.round(result.outputLufs() * 10) / 10.0;
         }
-        String mode = nonEmpty.stream().anyMatch(s -> "demo".equals(s.engineMode())) ? "demo" : "voxcpm2";
+        // Tryb całości: demo, jeśli choć jeden fragment jest demonstracyjny; inaczej silnik fragmentów (voxcpm2 / piper)
+        String mode = nonEmpty.stream().anyMatch(s -> "demo".equals(s.engineMode())) ? "demo"
+                : nonEmpty.stream().map(SegmentDto::engineMode).filter(Objects::nonNull).findFirst().orElse("voxcpm2");
         String fmt = format == null ? a.exportFormat : format;
         if (recordExport) account.requireExportFormat(fmt);
         byte[] out = "mp3".equals(fmt) ? engine.toMp3(wav, account.effectiveBitrate()) : wav;

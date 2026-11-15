@@ -30,6 +30,10 @@ public class GenerationService {
     public Audio synthesize(String text, VoiceSettings s, Voice voice) {
         Health h = engine.requireOnline();
         if (voice == null) throw new ApiException(HttpStatus.BAD_REQUEST, "Wybierz głos przed generowaniem.");
+        if (voice.kind == ai.voicecraft.voice.VoiceKind.CLONED && !anchors.supported(h) && !"demo".equals(h.mode())) {
+            throw new ApiException(HttpStatus.CONFLICT, "Głos sklonowany „" + voice.name
+                    + "” wymaga modelu VoxCPM2. Bieżący silnik (" + h.mode() + ") ma tylko gotowe głosy — wybierz głos z biblioteki.");
+        }
         String ref = anchors.ensure(voice, h);
         try {
             return engine.synthesize(request(text, s, voice, ref));

@@ -30,7 +30,9 @@
         <div class="callout-body">
           <strong>Klonowanie jest obecnie niedostępne.</strong>
           <span>
-            @if (engine.isDemo()) {
+            @if (engine.isPiper()) {
+              Działa lekki silnik Piper (CPU), który ma tylko gotowe głosy. Możesz przesłać i przeanalizować nagranie, ale utworzenie klonu wymaga modelu VoxCPM2 na GPU.
+            } @else if (engine.isDemo()) {
               Silnik działa w trybie demonstracyjnym, bez modelu VoxCPM2. Możesz przesłać i przeanalizować nagranie (analiza jest prawdziwa), ale utworzenie profilu głosu wymaga podłączonego modelu.
             } @else {
               Serwis silnika TTS nie odpowiada. Analiza i klonowanie będą dostępne po jego uruchomieniu.

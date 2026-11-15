@@ -5,7 +5,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-EngineMode = Literal["voxcpm2", "demo"]
+EngineMode = Literal["voxcpm2", "piper", "demo"]
 
 
 class Capabilities(BaseModel):

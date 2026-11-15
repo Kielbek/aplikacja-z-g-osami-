@@ -60,6 +60,7 @@
               <div class="flags">
                 @if (it.record.status === 'error') { <span class="badge badge-danger">Błąd</span> }
                 @else if (it.record.engineMode === 'demo') { <span class="badge badge-demo">Demo</span> }
+                @else if (it.record.engineMode === 'piper') { <span class="badge">Piper</span> }
                 @else { <span class="badge badge-success">VoxCPM2</span> }
               </div>
               <div class="cell-actions">

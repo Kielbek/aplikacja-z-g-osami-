@@ -5,6 +5,7 @@
 #   docker compose up --build   # http://localhost:4200
 #
 # Silnik VoxCPM2 na GPU: WITH_VOXCPM=true ENGINE_MODE=voxcpm2 + odkomentuj sekcję "deploy" (wymaga NVIDIA Container Toolkit).
+# Bez GPU: ENGINE_MODE=piper — lekki silnik na CPU (prawdziwa mowa z gotowych głosów, bez projektowania i klonowania).
 services:
   postgres:
     image: postgres:16-alpine

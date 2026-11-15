@@ -364,6 +364,13 @@
                 </ol>
                 <p class="t-xs t-muted">Kliknij polecenie, aby je skopiować. Po uruchomieniu modelu fragmenty wygenerowane w trybie demo zostaną oznaczone jako nieaktualne.</p>
               </section>
+              <section class="section">
+                <div class="section-head"><div><h2>Bez GPU: silnik Piper</h2><p>Lekki silnik na zwykłym procesorze. Generuje prawdziwą mowę z gotowych głosów (po polsku: kobiecy i męski), ale nie projektuje ani nie klonuje głosów. Głosy pobierają się przy pierwszym użyciu (~60 MB każdy).</p></div></div>
+                <ol class="howto">
+                  <li><span>W pliku .env (Docker)</span><code class="cmd" (click)="copy('ENGINE_MODE=piper')">ENGINE_MODE=piper</code></li>
+                  <li><span>Przebuduj i uruchom silnik</span><code class="cmd" (click)="copy('docker compose up -d --build tts-engine')">docker compose up -d --build tts-engine</code></li>
+                </ol>
+              </section>
             }
           }
         } @else {

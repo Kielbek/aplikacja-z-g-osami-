@@ -1,6 +1,6 @@
 /** Modele zgodne z API backendu Spring Boot (/api). */
 
-export type EngineMode = 'voxcpm2' | 'demo' | 'offline';
+export type EngineMode = 'voxcpm2' | 'piper' | 'demo' | 'offline';
 
 export interface EngineCapabilities {
   voice_design: boolean;

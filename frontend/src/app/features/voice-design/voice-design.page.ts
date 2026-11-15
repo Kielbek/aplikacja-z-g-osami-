@@ -81,8 +81,10 @@ export class VoiceDesignPage {
     return free ? `${head}. ${free}` : `${head}.`;
   });
 
+  /** Piper ma tylko gotowe głosy — projektowanie z opisu wymaga VoxCPM2 (tryb demo pozwala przetestować przepływ). */
+  protected designAvailable = computed(() => this.engine.caps()?.voice_design !== false);
   protected canGenerate = computed(
-    () => this.description().length >= 10 && this.sampleText().trim().length > 0 && !this.generating() && !this.engine.isOffline(),
+    () => this.description().length >= 10 && this.sampleText().trim().length > 0 && !this.generating() && !this.engine.isOffline() && this.designAvailable(),
   );
   protected selectedVariant = computed(() => this.variants().find((v) => v.previewId === this.selected()) ?? null);
   protected canSave = computed(

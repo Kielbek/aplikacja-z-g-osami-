@@ -93,6 +93,23 @@ Projektowanie głosu z samego opisu daje przy każdym wywołaniu nieco inną bar
 - W trybie demo głos opisuje wyłącznie opis — tryb demo nie obsługuje nagrań referencyjnych.
 - **Nie zostało to odsłuchane na prawdziwych wagach** (brak GPU w środowisku deweloperskim). Przetestowano przepływ z atrapą silnika i adapter z atrapą biblioteki o identycznej sygnaturze.
 
+## Bez GPU: silnik Piper
+
+Do testów na komputerze bez karty graficznej służy lekki silnik [Piper](https://github.com/OHF-Voice/piper1-gpl). Działa na zwykłym procesorze i generuje **prawdziwą mowę**.
+
+```bash
+# .env
+ENGINE_MODE=piper
+docker compose up -d --build tts-engine
+```
+
+- Głosy (~60 MB każdy) pobierają się przy pierwszym użyciu z `huggingface.co/rhasspy/piper-voices` do wolumenu silnika i dalej działają offline. Można je pobrać przy starcie: `PIPER_PRELOAD=pl_PL-gosia-medium,pl_PL-darkman-medium`.
+- Głosy z biblioteki VoiceCraft są mapowane na głos Piper według języka i płci (`tts-engine/app/engines/piper.py`). Po polsku są dwie barwy — kobieca i męska — więc np. Anna, Julia i Zofia brzmią tak samo.
+- Piper **nie projektuje głosu z opisu i nie klonuje** — te funkcje są w interfejsie zablokowane z wyjaśnieniem. Działa tempo i ekspresja.
+- W trybie `auto` kolejność to VoxCPM2 → Piper → demo.
+- Licencja pakietu `piper-tts` to GPL-3.0 (działa jako osobny serwis). Głosy mają własne licencje — sprawdź je przed użyciem komercyjnym.
+- Adapter jest zweryfikowany z API `piper-tts` 1.8 i ma testy na atrapie; w środowisku deweloperskim nie dało się pobrać modeli głosów.
+
 ## Uczciwość trybu demonstracyjnego
 
 - Syntezator demo **nie generuje mowy**. Tworzy sygnał zastępczy o rytmie mowy (sylaby, pauzy, intonacja), żeby dało się przetestować cały przepływ.

@@ -32,7 +32,11 @@ public final class AiContentLabel {
     }
 
     public static Label of(String title, String engineMode) {
-        String gen = "demo".equals(engineMode) ? "tryb demonstracyjny (sygnał zastępczy)" : "VoxCPM2";
+        String gen = switch (engineMode == null ? "" : engineMode) {
+            case "demo" -> "tryb demonstracyjny (sygnał zastępczy)";
+            case "piper" -> "Piper TTS";
+            default -> "VoxCPM2";
+        };
         return new Label(title, gen, LocalDate.now());
     }
 
