@@ -157,3 +157,14 @@
   .actions-row td, .actions-row th { border-bottom: 0; padding: 12px; }
   tr:last-child td { border-bottom: 0; }
 }
+
+.method { grid-template-columns: auto 1fr auto; }
+.danger-zone {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--danger-soft) 50%, transparent);
+}

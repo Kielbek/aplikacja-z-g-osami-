@@ -1,5 +1,5 @@
 # Silnik VoxCPM2 — instaluj na maszynie z GPU (CUDA).
-# Wersję pakietu dopasuj do wydania modelu: https://github.com/OpenBMB/VoxCPM
+# Wymaga Pythona 3.10–3.12 i CUDA >= 12. Adapter zweryfikowany z voxcpm 2.0.3.
 -r requirements.txt
-voxcpm
+voxcpm>=2.0.3
 torch

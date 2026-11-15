@@ -1,6 +1,6 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, ProjectDto, SegmentDto, SegmentStatus, VoiceSettings } from '../../core/api/models';
+import { ApiError, GenerationJob, ProjectDto, SegmentDto, SegmentStatus, VoiceSettings } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { PlayerService, PlayerTrack } from '../../core/services/player.service';
 import { ProjectsStore } from '../../core/services/projects.store';
@@ -14,6 +14,7 @@ export interface EditorSegment extends SegmentDto {
 }
 
 export interface BatchState {
+  jobId: string;
   total: number;
   done: number;
   failed: number;
@@ -27,7 +28,7 @@ const PENDING: SegmentStatus[] = ['draft', 'stale', 'error'];
  * Komponenty widoku tylko wywołują jego metody — nie rozmawiają z API bezpośrednio.
  */
 @Injectable()
-export class EditorStore {
+export class EditorStore implements OnDestroy {
   private api = inject(ApiService);
   private toast = inject(ToastService);
   private player = inject(PlayerService);
@@ -50,6 +51,8 @@ export class EditorStore {
   private saving: Promise<void> | null = null;
   private segDirty = false;
   private settingsDirty = false;
+  private events: EventSource | null = null;
+  private jobIds: string[] = [];
 
   // ------------------------------------------------------------ wartości pochodne
 
@@ -98,8 +101,84 @@ export class EditorStore {
       this.settings.set({ ...p.settings });
       this.segments.set(p.segments.map((s) => ({ ...s, generating: false, queued: false })));
       if (!p.segments.length) this.addSegment();
+      this.connectEvents(id);
+      // Podłączenie do zadania, które trwa w tle (np. po odświeżeniu strony)
+      const job = await this.api.activeJob(id).catch(() => null);
+      if (job) this.applyJob(job);
     } catch (e) {
       this.loadError.set((e as ApiError).message);
+    }
+  }
+
+  ngOnDestroy() {
+    this.events?.close();
+  }
+
+  // ------------------------------------------------------------ zdarzenia z backendu (SSE)
+
+  private connectEvents(projectId: string) {
+    this.events?.close();
+    const es = new EventSource(this.api.projectEventsUrl(projectId), { withCredentials: true });
+    es.addEventListener('job', (e) => this.applyJob(JSON.parse((e as MessageEvent).data)));
+    es.addEventListener('segment', (e) => this.applySegment(JSON.parse((e as MessageEvent).data)));
+    es.addEventListener('segment-error', (e) => {
+      const { segmentId, message } = JSON.parse((e as MessageEvent).data) as { segmentId: string; message: string };
+      this.patchSeg(segmentId, { generating: false, queued: false, status: 'error', error: message });
+    });
+    // Po zerwaniu połączenia przeglądarka łączy się ponownie — dociągamy aktualny stan zadania
+    let dropped = false;
+    es.onerror = () => (dropped = true);
+    es.onopen = () => {
+      if (!dropped) return;
+      dropped = false;
+      void this.api.activeJob(projectId).then((job) => (job ? this.applyJob(job) : this.batch.set(null))).catch(() => null);
+    };
+    this.events = es;
+  }
+
+  private applySegment(seg: SegmentDto) {
+    const current = this.segments().find((s) => s.id === seg.id);
+    if (!current) return;
+    // Tekst zmieniony w trakcie generowania — zachowaj tekst użytkownika, nagranie oznacz jako nieaktualne
+    const patch = current.text !== seg.text ? { ...seg, text: current.text, status: 'stale' as const } : seg;
+    this.patchSeg(seg.id, { ...patch, generating: false, queued: false });
+    void this.accountStore.refreshUsage();
+  }
+
+  private applyJob(job: GenerationJob) {
+    if (job.status === 'QUEUED' || job.status === 'RUNNING') {
+      this.batch.set({ jobId: job.id, total: job.total, done: job.done, failed: job.failed, cancelRequested: this.batch()?.cancelRequested ?? false });
+      this.segments.update((list) =>
+        list.map((s) => {
+          const generating = s.id === job.currentSegmentId;
+          const queued = !generating && (s.queued || this.jobIds.includes(s.id));
+          return s.generating !== generating || s.queued !== queued ? { ...s, generating, queued } : s;
+        }),
+      );
+      return;
+    }
+    // Zadanie zakończone
+    const wasRunning = this.batch()?.jobId === job.id;
+    this.batch.set(null);
+    this.jobIds = [];
+    this.segments.update((list) => list.map((s) => (s.queued || s.generating ? { ...s, queued: false, generating: false } : s)));
+    if (!wasRunning) return;
+    this.clearSelection();
+    void this.accountStore.refreshUsage();
+    const ok = job.done - job.failed;
+    if (job.status === 'CANCELLED') this.toast.show(`Zatrzymano generowanie (${ok} z ${job.total}).`);
+    else if (job.failed) {
+      this.toast.apiError(`Nie wygenerowano ${job.failed} z ${job.total} fragmentów`, {
+        status: 0,
+        message: job.lastError ?? '',
+        code: job.lastErrorCode ?? undefined,
+      });
+    } else {
+      this.toast.success(`Wygenerowano ${job.total} ${job.total === 1 ? 'fragment' : 'fragmentów'}`);
+      if (this.allReady() && (this.accountStore.account()?.playAfterGenerate ?? true)) {
+        const t = this.projectTrack();
+        if (t) void this.player.play(t, { force: true });
+      }
     }
   }
 
@@ -460,41 +539,41 @@ export class EditorStore {
     }
   }
 
-  /** Generuje kolejno wskazane fragmenty (domyślnie: tylko nowe i zmienione). */
+  /**
+   * Generuje wskazane fragmenty (domyślnie: tylko nowe i zmienione) w kolejce backendu.
+   * Postęp przychodzi przez SSE; zamknięcie karty nie przerywa generowania.
+   */
   async generateMany(ids: string[] = this.pendingIds()) {
+    const p = this.project();
     const todo = ids.filter((id) => this.segments().some((s) => s.id === id && s.text.trim()));
-    if (!todo.length || this.batch()) return;
-    this.segments.update((list) => list.map((s) => (todo.includes(s.id) ? { ...s, queued: true } : s)));
-    this.batch.set({ total: todo.length, done: 0, failed: 0, cancelRequested: false });
-    let lastError: ApiError | null = null;
-    for (const id of todo) {
-      if (this.batch()?.cancelRequested) break;
-      try {
-        await this.generate(id, { play: false });
-      } catch (e) {
-        lastError = e as ApiError;
-        this.batch.update((b) => (b ? { ...b, failed: b.failed + 1 } : b));
-        if ((e as ApiError).status === 503 || (e as ApiError).status === 402 || (e as ApiError).status === 0) break;
-      }
-      this.batch.update((b) => (b ? { ...b, done: b.done + 1 } : b));
+    if (!p || !todo.length || this.batch()) return;
+    try {
+      await this.flush();
+    } catch {
+      return;
     }
-    const b = this.batch();
-    this.segments.update((list) => list.map((s) => (s.queued ? { ...s, queued: false } : s)));
-    this.batch.set(null);
-    this.clearSelection();
-    if (b?.cancelRequested) this.toast.show(`Zatrzymano generowanie (${b.done - b.failed} z ${b.total}).`);
-    else if (b && b.failed) this.toast.apiError(`Nie wygenerowano ${b.failed} z ${b.total} fragmentów`, lastError);
-    else if (b) {
-      this.toast.success(`Wygenerowano ${b.total} ${b.total === 1 ? 'fragment' : 'fragmentów'}`);
-      if (this.allReady() && (this.accountStore.account()?.playAfterGenerate ?? true)) {
-        const t = this.projectTrack();
-        if (t) void this.player.play(t, { force: true });
-      }
+    this.jobIds = todo;
+    this.segments.update((list) => list.map((s) => (todo.includes(s.id) ? { ...s, queued: true, error: null } : s)));
+    try {
+      const job = await this.api.startJob(p.id, todo);
+      this.jobIds = todo;
+      this.applyJob(job);
+    } catch (e) {
+      this.jobIds = [];
+      this.segments.update((list) => list.map((s) => (s.queued ? { ...s, queued: false } : s)));
+      this.toast.apiError('Nie udało się uruchomić generowania', e);
     }
   }
 
-  cancelBatch() {
-    this.batch.update((b) => (b ? { ...b, cancelRequested: true } : b));
+  async cancelBatch() {
+    const b = this.batch();
+    if (!b) return;
+    this.batch.set({ ...b, cancelRequested: true });
+    try {
+      await this.api.cancelJob(b.jobId);
+    } catch (e) {
+      this.toast.apiError('Nie udało się zatrzymać generowania', e);
+    }
   }
 
   async export(format: 'mp3' | 'wav') {

@@ -9,6 +9,7 @@ import ai.voicecraft.history.GenerationRecord;
 import ai.voicecraft.history.HistoryRepository;
 import ai.voicecraft.project.GenerationService;
 import ai.voicecraft.project.VoiceSettings;
+import ai.voicecraft.security.CurrentUser;
 import java.util.*;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -22,10 +23,12 @@ public class VoiceService {
     private final AudioStorage storage;
     private final HistoryRepository history;
     private final AccountService account;
+    private final VoiceFavoriteRepository favorites;
 
     public VoiceService(VoiceRepository repo, GenerationService generation, EngineClient engine, AudioStorage storage,
-                        HistoryRepository history, AccountService account) {
+                        HistoryRepository history, AccountService account, VoiceFavoriteRepository favorites) {
         this.account = account;
+        this.favorites = favorites;
         this.repo = repo;
         this.generation = generation;
         this.engine = engine;
@@ -33,9 +36,19 @@ public class VoiceService {
         this.history = history;
     }
 
+    /** Usuwa głosy własne i ulubione użytkownika (np. przy usuwaniu konta). */
+    @Transactional
+    public void deleteAllOf(String userId) {
+        favorites.deleteByUserId(userId);
+        repo.deleteAll(repo.findAllByOwnerId(userId));
+    }
+
     public List<Voice> list(String q, String language, String category, String gender, String kind, Boolean favorite) {
         String query = q == null ? "" : q.trim().toLowerCase(Locale.ROOT);
-        return repo.findAll().stream()
+        String uid = CurrentUser.id();
+        var favs = favorites.findAllByUserId(uid).stream().map(f -> f.voiceId).collect(java.util.stream.Collectors.toSet());
+        return repo.findVisible(uid).stream()
+                .peek(v -> v.favorite = favs.contains(v.id))
                 .filter(v -> query.isEmpty() || (v.name + " " + v.description + " " + String.join(" ", v.traits))
                         .toLowerCase(Locale.ROOT).contains(query))
                 .filter(v -> language == null || v.languages.contains(language))
@@ -48,13 +61,21 @@ public class VoiceService {
                 .toList();
     }
 
+    /** Głos widoczny dla bieżącego użytkownika (biblioteka lub własny). */
     public Voice get(String id) {
-        return repo.findById(id).orElseThrow(() -> ApiException.notFound("Głos"));
+        String uid = CurrentUser.id();
+        Voice v = repo.findById(id).filter(x -> x.ownerId == null || x.ownerId.equals(uid))
+                .orElseThrow(() -> ApiException.notFound("Głos"));
+        v.favorite = favorites.existsByUserIdAndVoiceId(uid, v.id);
+        return v;
     }
 
     @Transactional
     public Voice setFavorite(String id, boolean favorite) {
         Voice v = get(id);
+        String uid = CurrentUser.id();
+        if (favorite && !v.favorite) favorites.save(new VoiceFavorite(uid, v.id));
+        if (!favorite) favorites.deleteByUserIdAndVoiceId(uid, v.id);
         v.favorite = favorite;
         return v;
     }
@@ -72,6 +93,7 @@ public class VoiceService {
     public void delete(String id) {
         Voice v = get(id);
         if (v.kind == VoiceKind.LIBRARY) throw new ApiException(HttpStatus.FORBIDDEN, "Głosów z biblioteki nie można usunąć.");
+        favorites.deleteByVoiceId(v.id);
         repo.delete(v);
     }
 
@@ -86,9 +108,10 @@ public class VoiceService {
         s.language = v.languages.isEmpty() ? "pl" : v.languages.getFirst();
         s.voiceId = v.id;
         Audio a = generation.synthesize(v.sampleText == null ? v.description : v.sampleText, s, v);
-        v.sampleFile = storage.save("sample", a.wav());
-        v.sampleEngineMode = a.engineMode();
-        repo.save(v);
+        Voice stored = repo.findById(v.id).orElseThrow();
+        stored.sampleFile = storage.save("sample", a.wav());
+        stored.sampleEngineMode = a.engineMode();
+        repo.save(stored);
         return a;
     }
 
@@ -111,6 +134,7 @@ public class VoiceService {
         Audio a = generation.design(req.description().trim(), req.text().trim(), lang, s);
         String file = storage.save("design", a.wav());
         var rec = new GenerationRecord();
+        rec.userId = CurrentUser.id();
         rec.type = "voice_design";
         rec.textPreview = req.description().trim();
         rec.characters = req.text().trim().length();
@@ -122,8 +146,12 @@ public class VoiceService {
         return new DesignPreview(file, a.durationMs(), a.engineMode());
     }
 
+    /** Podgląd projektu głosu — tylko dla autora (zapisany w jego historii). */
     public byte[] previewAudio(String previewId) {
-        if (!previewId.matches("design_[a-f0-9]{16}\\.wav") || !storage.exists(previewId)) throw ApiException.notFound("Próbka");
+        if (!previewId.matches("design_[a-f0-9]{16}\\.wav") || !history.existsByUserIdAndAudioFile(CurrentUser.id(), previewId)
+                || !storage.exists(previewId)) {
+            throw ApiException.notFound("Próbka");
+        }
         return storage.read(previewId);
     }
 
@@ -137,6 +165,7 @@ public class VoiceService {
         account.requireCustomVoiceSlot();
         var v = new Voice();
         v.id = "custom-" + UUID.randomUUID().toString().substring(0, 8);
+        v.ownerId = CurrentUser.id();
         v.kind = VoiceKind.DESIGNED;
         v.name = req.name().trim();
         v.gender = req.gender();
@@ -147,7 +176,7 @@ public class VoiceService {
         v.description = req.description().trim();
         v.enginePrompt = req.description().trim();
         v.sampleText = req.sampleText();
-        if (req.previewId() != null && storage.exists(req.previewId())) {
+        if (req.previewId() != null && history.existsByUserIdAndAudioFile(v.ownerId, req.previewId()) && storage.exists(req.previewId())) {
             v.sampleFile = req.previewId();
             v.sampleEngineMode = req.engineMode();
         }
@@ -174,6 +203,7 @@ public class VoiceService {
         CloneReference ref = engine.createReference(file, filename, transcript, true);
         var v = new Voice();
         v.id = "clone-" + UUID.randomUUID().toString().substring(0, 8);
+        v.ownerId = CurrentUser.id();
         v.kind = VoiceKind.CLONED;
         v.name = name.trim();
         v.languages = List.of(language == null ? "pl" : language);

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
-import { AuthService } from '../../core/services/auth.service';
+import { ActivatedRoute } from '@angular/router';
+import { ApiError } from '../../core/api/models';
+import { AuthConfig, AuthService } from '../../core/services/auth.service';
 import { GoogleAuthError, GoogleAuthService } from '../../core/services/google-auth.service';
 import { LogoComponent } from '../../shared/brand/logo.component';
 import { IconComponent } from '../../shared/icon.component';
@@ -17,12 +18,13 @@ type Mode = 'login' | 'register' | 'reset';
 export class LoginPage {
   private auth = inject(AuthService);
   private google = inject(GoogleAuthService);
-  private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  protected config = signal<AuthConfig | null>(null);
 
   protected mode = signal<Mode>('login');
   protected name = signal('');
-  protected email = signal('marta@studio-glos.pl');
-  protected password = signal('demo-haslo');
+  protected email = signal('');
+  protected password = signal('');
   protected showPassword = signal(false);
   protected remember = signal(true);
   protected acceptTerms = signal(false);
@@ -59,17 +61,31 @@ export class LoginPage {
   protected strengthLabel = computed(() => ['Bardzo słabe', 'Słabe', 'Średnie', 'Dobre', 'Silne'][this.passwordStrength()]);
 
   constructor() {
-    void this.google.loadConfig();
+    void this.auth.loadConfig().then((c) => this.config.set(c));
+    if (this.route.snapshot.queryParamMap.get('expired')) {
+      this.notice.set({ tone: 'info', text: 'Sesja wygasła. Zaloguj się ponownie.' });
+    }
+  }
+
+  useDemoAccount() {
+    const demo = this.config()?.demoAccount;
+    if (!demo) return;
+    this.setMode('login');
+    this.email.set(demo.email);
+    this.password.set(demo.password);
+  }
+
+  /** Pełne przeładowanie po zalogowaniu — aplikacja startuje z danymi nowego użytkownika. */
+  private enterApp() {
+    const target = this.route.snapshot.queryParamMap.get('returnUrl');
+    window.location.assign(target && target.startsWith('/') && !target.startsWith('//') ? target : '/');
   }
 
   setMode(m: Mode) {
     this.mode.set(m);
     this.submitted.set(false);
     this.notice.set(null);
-    if (m === 'register') {
-      this.password.set('');
-      this.email.set('');
-    }
+    if (m === 'register') this.password.set('');
   }
 
   async submit(e: Event) {
@@ -78,20 +94,24 @@ export class LoginPage {
     this.notice.set(null);
     if (this.emailError() || this.passwordError() || this.nameError() || this.termsError()) return;
     this.loading.set(true);
-    await new Promise((r) => setTimeout(r, 450));
-    this.loading.set(false);
-    if (this.mode() === 'reset') {
-      this.notice.set({
-        tone: 'info',
-        text: `Jeśli konto ${this.email().trim()} istnieje, wyślemy na nie link do zmiany hasła. W wersji demonstracyjnej wiadomości e-mail nie są wysyłane.`,
-      });
-      return;
+    try {
+      const email = this.email().trim();
+      if (this.mode() === 'reset') {
+        await this.auth.requestPasswordReset(email);
+        this.notice.set({
+          tone: 'success',
+          text: `Jeśli konto ${email} istnieje, wysłaliśmy na nie link do ustawienia nowego hasła. Link jest ważny przez godzinę.`,
+        });
+        return;
+      }
+      if (this.mode() === 'register') await this.auth.register(this.name().trim(), email, this.password());
+      else await this.auth.login(email, this.password(), this.remember());
+      this.enterApp();
+    } catch (e) {
+      this.notice.set({ tone: 'danger', text: (e as ApiError).message });
+    } finally {
+      this.loading.set(false);
     }
-    this.auth.login(
-      { email: this.email().trim(), name: this.mode() === 'register' ? this.name().trim() : undefined, provider: 'password' },
-      this.remember(),
-    );
-    void this.router.navigate(['/']);
   }
 
   async signInWithGoogle() {
@@ -99,9 +119,8 @@ export class LoginPage {
     this.notice.set(null);
     this.googleLoading.set(true);
     try {
-      const session = await this.google.signIn();
-      this.auth.login(session, this.remember());
-      void this.router.navigate(['/']);
+      await this.google.signIn(this.remember());
+      this.enterApp();
     } catch (e) {
       const err = e as GoogleAuthError;
       if (err.kind !== 'cancelled') this.notice.set({ tone: err.kind === 'not-configured' ? 'info' : 'danger', text: err.message });

@@ -4,6 +4,8 @@ import { Observable, catchError, firstValueFrom, throwError } from 'rxjs';
 import {
   Account,
   ApiError,
+  BillingConfig,
+  GenerationJob,
   Plan,
   PlanId,
   AudioAnalysis,
@@ -85,6 +87,31 @@ export class ApiService {
   projectAudioUrl(projectId: string, version: string) {
     return `${API}/projects/${projectId}/audio?v=${encodeURIComponent(version)}`;
   }
+  // --- Kolejka generowania (zadania w tle + SSE) -----------------------------
+  startJob(projectId: string, segmentIds?: string[]) {
+    return this.p(this.http.post<GenerationJob>(`${API}/projects/${projectId}/jobs`, segmentIds ? { segmentIds } : {}));
+  }
+  activeJob(projectId: string) {
+    return this.p(this.http.get<GenerationJob | null>(`${API}/projects/${projectId}/jobs/active`));
+  }
+  cancelJob(jobId: string) {
+    return this.p(this.http.post<GenerationJob>(`${API}/jobs/${jobId}/cancel`, {}));
+  }
+  projectEventsUrl(projectId: string) {
+    return `${API}/projects/${projectId}/events`;
+  }
+
+  // --- Płatności ---------------------------------------------------------------
+  billingConfig() {
+    return this.p(this.http.get<BillingConfig>(`${API}/billing/config`));
+  }
+  billingCheckout(planId: string) {
+    return this.p(this.http.post<{ url: string }>(`${API}/billing/checkout`, { planId }));
+  }
+  billingPortal() {
+    return this.p(this.http.post<{ url: string }>(`${API}/billing/portal`, {}));
+  }
+
   exportProject(id: string, format: 'mp3' | 'wav') {
     return this.audio(`${API}/projects/${id}/export?format=${format}`);
   }

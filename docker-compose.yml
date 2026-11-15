@@ -1,7 +1,32 @@
-# VoiceCraft AI — pełny stos.
-#   docker compose up --build            → tryb demonstracyjny (bez GPU)
-#   WITH_VOXCPM=true ENGINE_MODE=voxcpm2 docker compose up --build   → VoxCPM2 (wymaga GPU, patrz README)
+# VoiceCraft AI — pełny stos: PostgreSQL, magazyn S3 (MinIO), silnik TTS, backend, frontend.
+#
+#   cp .env.example .env        # uzupełnij sekrety
+#   docker compose up --build   # http://localhost:4200
+#
+# Silnik VoxCPM2 na GPU: WITH_VOXCPM=true ENGINE_MODE=voxcpm2 + odkomentuj sekcję "deploy" (wymaga NVIDIA Container Toolkit).
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: voicecraft
+      POSTGRES_USER: voicecraft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ustaw POSTGRES_PASSWORD w .env}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voicecraft"]
+      interval: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY:?Ustaw S3_ACCESS_KEY w .env}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY:?Ustaw S3_SECRET_KEY w .env}
+    volumes:
+      - minio-data:/data
+
   tts-engine:
     build:
       context: ./tts-engine
@@ -13,7 +38,6 @@ services:
       ENGINE_CORS: http://backend:8080
     volumes:
       - engine-data:/data
-    # Odkomentuj na maszynie z GPU NVIDIA:
     # deploy:
     #   resources:
     #     reservations:
@@ -22,12 +46,45 @@ services:
   backend:
     build: ./backend
     environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/voicecraft
+      DATABASE_USER: voicecraft
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET (min. 32 znaki) w .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:4200}
+      VOICECRAFT_CORS: ${PUBLIC_URL:-http://localhost:4200}
       ENGINE_URL: http://tts-engine:8808
-      VOICECRAFT_CORS: http://localhost:4200
+      STORAGE_TYPE: s3
+      S3_ENDPOINT: http://minio:9000
+      S3_PATH_STYLE: "true"
+      S3_REGION: us-east-1
+      S3_BUCKET: voicecraft-audio
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRICE_STARTER: ${STRIPE_PRICE_STARTER:-}
+      STRIPE_PRICE_PRO: ${STRIPE_PRICE_PRO:-}
+      STRIPE_PRICE_BUSINESS: ${STRIPE_PRICE_BUSINESS:-}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:-}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-VoiceCraft AI <no-reply@example.com>}
+      # Konto demo i darmowa zmiana planu — tylko do lokalnych testów (w prod domyślnie wyłączone)
+      SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
+      DEMO_PLAN_SWITCH: ${DEMO_PLAN_SWITCH:-false}
     volumes:
       - backend-data:/data
     depends_on:
-      - tts-engine
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      tts-engine:
+        condition: service_started
 
   frontend:
     build: ./frontend
@@ -37,5 +94,7 @@ services:
       - backend
 
 volumes:
+  pg-data:
+  minio-data:
   engine-data:
   backend-data:

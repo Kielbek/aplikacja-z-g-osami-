@@ -40,11 +40,11 @@ def _load_engine() -> TTSEngine:
     global load_error
     if settings.engine_mode == "demo":
         log.warning("ENGINE_MODE=demo — model VoxCPM2 nie będzie ładowany.")
-        return DemoEngine(settings.demo_sample_rate)
+        return DemoEngine(settings.demo_sample_rate, settings.demo_latency_ms)
     try:
         from .engines.voxcpm2 import VoxCPM2Engine
 
-        eng = VoxCPM2Engine(settings.model_id, settings.device, settings.description_format)
+        eng = VoxCPM2Engine(settings.model_id, settings.device, settings.description_format, settings.load_denoiser)
         refs = settings.data_dir / "references"
         for wav in refs.glob("*.wav"):
             txt = wav.with_suffix(".txt")
@@ -55,7 +55,7 @@ def _load_engine() -> TTSEngine:
         if settings.engine_mode == "voxcpm2":
             raise
         log.warning("Nie udało się załadować VoxCPM2 (%s). Przechodzę w tryb DEMO.", load_error)
-        return DemoEngine(settings.demo_sample_rate)
+        return DemoEngine(settings.demo_sample_rate, settings.demo_latency_ms)
 
 
 engine = _load_engine()

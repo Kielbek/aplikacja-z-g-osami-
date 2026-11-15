@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
-import { Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ApiService } from '../../core/api/api.service';
+import { ApiError, BillingConfig } from '../../core/api/models';
+import { ConfirmService } from '../../core/services/confirm.service';
 import { Account, Plan } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { AuthService } from '../../core/services/auth.service';
@@ -34,8 +37,21 @@ export class SettingsPage {
   protected engine = inject(EngineStatusService);
   protected voices = inject(VoicesStore);
   private toast = inject(ToastService);
-  private auth = inject(AuthService);
+  protected auth = inject(AuthService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
+  private api = inject(ApiService);
+  private confirm = inject(ConfirmService);
+
+  protected billing = signal<BillingConfig | null>(null);
+  protected pwCurrent = signal('');
+  protected pwNew = signal('');
+  protected pwRepeat = signal('');
+  protected pwSaving = signal(false);
+  protected pwError = signal<string | null>(null);
+  protected deletePw = signal('');
+  protected deleteConfirm = signal(false);
+  protected deleting = signal(false);
 
   readonly tab = input<Tab>('profile');
   protected TABS = TABS;
@@ -114,6 +130,105 @@ export class SettingsPage {
     });
     void this.store.refreshUsage();
     void this.voices.load();
+    void this.api.billingConfig().then((b) => this.billing.set(b)).catch(() => null);
+    this.handleCheckoutReturn();
+  }
+
+  /** Powrót ze Stripe Checkout: plan aktywuje webhook, więc odświeżamy kilka razy. */
+  private handleCheckoutReturn() {
+    const status = this.route.snapshot.queryParamMap.get('checkout');
+    if (status === 'success') {
+      this.toast.success('Płatność przyjęta', 'Nowy plan zostanie aktywowany w ciągu kilku sekund.');
+      [2000, 5000, 10000].forEach((ms) => setTimeout(() => void this.store.load(), ms));
+    } else if (status === 'cancelled') {
+      this.toast.show('Płatność anulowana — plan nie został zmieniony.');
+    }
+    if (status) void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+  }
+
+  canChoose(p: Plan) {
+    const b = this.billing();
+    if (!b) return false;
+    if (b.stripeEnabled) return p.id !== 'FREE' || !!b.hasSubscription;
+    return b.demoPlanSwitch;
+  }
+
+  async choosePlan(p: Plan) {
+    const b = this.billing();
+    if (b?.stripeEnabled) {
+      this.changing.set(true);
+      try {
+        // Obniżenie do Free = anulowanie subskrypcji w panelu Stripe
+        const { url } = p.id === 'FREE' ? await this.api.billingPortal() : await this.api.billingCheckout(p.id);
+        window.location.assign(url);
+      } catch (e) {
+        this.toast.apiError('Nie udało się otworzyć płatności', e);
+        this.changing.set(false);
+      }
+      return;
+    }
+    await this.changePlan(p);
+  }
+
+  async openPortal() {
+    this.changing.set(true);
+    try {
+      window.location.assign((await this.api.billingPortal()).url);
+    } catch (e) {
+      this.toast.apiError('Nie udało się otworzyć panelu płatności', e);
+      this.changing.set(false);
+    }
+  }
+
+  async changePassword(e: Event) {
+    e.preventDefault();
+    this.pwError.set(null);
+    if (this.pwNew().length < 8) return this.pwError.set('Nowe hasło musi mieć co najmniej 8 znaków.');
+    if (this.pwNew() !== this.pwRepeat()) return this.pwError.set('Hasła nie są identyczne.');
+    this.pwSaving.set(true);
+    try {
+      await this.auth.changePassword(this.pwCurrent(), this.pwNew());
+      this.pwCurrent.set('');
+      this.pwNew.set('');
+      this.pwRepeat.set('');
+      this.toast.success('Hasło zostało zmienione', 'Pozostałe urządzenia zostały wylogowane.');
+    } catch (err) {
+      this.pwError.set((err as ApiError).message);
+    } finally {
+      this.pwSaving.set(false);
+    }
+  }
+
+  async logoutEverywhere() {
+    const ok = await this.confirm.ask({
+      title: 'Wylogować z innych urządzeń?',
+      message: 'Wszystkie inne sesje zostaną natychmiast zakończone. Ta przeglądarka pozostanie zalogowana.',
+      confirmLabel: 'Wyloguj z innych urządzeń',
+    });
+    if (!ok) return;
+    try {
+      await this.auth.logoutEverywhere();
+      this.toast.success('Wylogowano z pozostałych urządzeń');
+    } catch (e) {
+      this.toast.apiError('Nie udało się zakończyć sesji', e);
+    }
+  }
+
+  async deleteAccount() {
+    const ok = await this.confirm.ask({
+      title: 'Usunąć konto na zawsze?',
+      message: 'Projekty, nagrania, własne głosy i historia zostaną trwale usunięte.',
+      confirmLabel: 'Usuń konto',
+      danger: true,
+    });
+    if (!ok) return;
+    this.deleting.set(true);
+    try {
+      await this.auth.deleteAccount(this.deletePw());
+    } catch (e) {
+      this.toast.apiError('Nie udało się usunąć konta', e);
+      this.deleting.set(false);
+    }
   }
 
   set<K extends keyof Account>(key: K, value: Account[K]) {
@@ -179,8 +294,7 @@ export class SettingsPage {
   }
 
   logout() {
-    this.auth.logout();
-    void this.router.navigate(['/login']);
+    void this.auth.logout();
   }
 
   copy(text: string) {

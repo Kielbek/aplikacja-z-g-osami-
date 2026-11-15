@@ -1,51 +1,124 @@
-import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
+import { API, toApiError } from '../api/api.service';
 
-const KEY = 'vc.session';
-
-export interface Session {
+export interface SessionUser {
+  id: string;
   email: string;
-  name?: string;
-  picture?: string;
-  provider: 'password' | 'google';
+  name: string;
+  picture: string | null;
+  hasPassword: boolean;
+  google: boolean;
+}
+
+export interface AuthConfig {
+  googleEnabled: boolean;
+  googleClientId: string | null;
+  emailDelivery: boolean;
+  demoAccount?: { email: string; password: string };
 }
 
 /**
- * Sesja użytkownika. Logowanie e-mailem jest w wersji demonstracyjnej lokalne;
- * logowanie przez Google jest weryfikowane w backendzie (POST /api/auth/google).
+ * Sesja użytkownika. Token sesji jest w ciasteczku httpOnly ustawianym przez backend —
+ * JavaScript nie ma do niego dostępu (ochrona przed kradzieżą przez XSS).
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  readonly session = signal<Session | null>(this.read());
+  private http = inject(HttpClient);
+  private loaded: Promise<SessionUser | null> | null = null;
+  private config: Promise<AuthConfig> | null = null;
 
-  isLoggedIn() {
-    return this.session() !== null;
+  readonly user = signal<SessionUser | null>(null);
+
+  /** Sprawdza sesję w backendzie (raz na uruchomienie aplikacji). */
+  ensureLoaded(): Promise<SessionUser | null> {
+    this.loaded ??= firstValueFrom(this.http.get<SessionUser>(`${API}/auth/me`))
+      .then((u) => {
+        this.user.set(u);
+        return u;
+      })
+      .catch(() => {
+        this.user.set(null);
+        return null;
+      });
+    return this.loaded;
   }
 
-  login(session: Session, remember = true) {
+  loadConfig(): Promise<AuthConfig> {
+    this.config ??= firstValueFrom(this.http.get<AuthConfig>(`${API}/auth/config`)).catch(() => ({
+      googleEnabled: false,
+      googleClientId: null,
+      emailDelivery: false,
+    }));
+    return this.config;
+  }
+
+  login(email: string, password: string, remember: boolean) {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/login`, { email, password, remember }));
+  }
+
+  register(name: string, email: string, password: string) {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/register`, { name, email, password, remember: true }));
+  }
+
+  loginWithGoogleToken(accessToken: string, remember: boolean) {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/google`, { accessToken, remember }));
+  }
+
+  requestPasswordReset(email: string) {
+    return this.call(this.http.post<{ sent: boolean }>(`${API}/auth/password-reset`, { email }));
+  }
+
+  confirmPasswordReset(token: string, password: string) {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/password-reset/confirm`, { token, password }));
+  }
+
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/password`, { currentPassword, newPassword }));
+  }
+
+  logoutEverywhere() {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/logout-all`, {}));
+  }
+
+  async deleteAccount(password: string) {
+    await this.call(this.http.post<void>(`${API}/auth/delete-account`, { password }));
+    this.hardReset('/login');
+  }
+
+  async logout() {
     try {
-      (remember ? localStorage : sessionStorage).setItem(KEY, JSON.stringify(session));
-    } catch {
-      /* tryb prywatny */
+      await firstValueFrom(this.http.post<void>(`${API}/auth/logout`, {}));
+    } finally {
+      this.hardReset('/login');
     }
-    this.session.set(session);
   }
 
-  logout() {
-    try {
-      localStorage.removeItem(KEY);
-      sessionStorage.removeItem(KEY);
-    } catch {
-      /* ignoruj */
-    }
-    this.session.set(null);
+  /** Wywoływane po 401 — sesja wygasła lub została unieważniona. */
+  markLoggedOut() {
+    this.user.set(null);
+    this.loaded = Promise.resolve(null);
   }
 
-  private read(): Session | null {
+  /** Pełne przeładowanie czyści stan poprzedniego użytkownika (projekty, głosy, bufor audio). */
+  private hardReset(path: string) {
+    this.markLoggedOut();
+    window.location.assign(path);
+  }
+
+  private async session(obs: ReturnType<HttpClient['post']>): Promise<SessionUser> {
+    const u = (await this.call(obs)) as SessionUser;
+    this.user.set(u);
+    this.loaded = Promise.resolve(u);
+    return u;
+  }
+
+  private async call<T>(obs: import('rxjs').Observable<T>): Promise<T> {
     try {
-      const raw = localStorage.getItem(KEY) ?? sessionStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
+      return await firstValueFrom(obs);
+    } catch (e) {
+      throw toApiError(e);
     }
   }
 }

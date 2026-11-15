@@ -12,6 +12,9 @@ public class Project {
     public String id;
 
     @Column(nullable = false)
+    public String ownerId;
+
+    @Column(nullable = false)
     public String name;
 
     public Instant createdAt = Instant.now();

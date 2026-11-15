@@ -199,3 +199,26 @@ export interface ApiError {
   /** "PLAN_LIMIT" — akcja niedostępna w bieżącym planie. */
   code?: string;
 }
+
+export interface BillingConfig {
+  stripeEnabled: boolean;
+  demoPlanSwitch: boolean;
+  hasSubscription: boolean;
+  subscriptionStatus: string;
+}
+
+export type JobStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'CANCELLED' | 'FAILED';
+
+/** Zadanie generowania w tle (kolejka w backendzie). */
+export interface GenerationJob {
+  id: string;
+  projectId: string;
+  status: JobStatus;
+  total: number;
+  done: number;
+  failed: number;
+  currentSegmentId: string | null;
+  lastError: string | null;
+  lastErrorCode: string | null;
+  createdAt: string;
+}

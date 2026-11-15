@@ -1,0 +1,14 @@
+# Profil produkcyjny: SPRING_PROFILES_ACTIVE=prod
+# — wymaga JWT_SECRET, bazy PostgreSQL; konto demo i darmowa zmiana planu domyślnie wyłączone.
+spring:
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USER}
+    password: ${DATABASE_PASSWORD}
+
+voicecraft:
+  seed-demo-data: ${SEED_DEMO_DATA:false}
+  auth:
+    cookie-secure: ${COOKIE_SECURE:true}
+  billing:
+    demo-plan-switch: ${DEMO_PLAN_SWITCH:false}

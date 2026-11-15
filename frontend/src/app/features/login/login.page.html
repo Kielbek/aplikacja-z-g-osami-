@@ -37,8 +37,9 @@
       }
 
       @if (notice(); as n) {
-        <div class="callout notice" [class.callout-info]="n.tone === 'info'" [class.callout-danger]="n.tone === 'danger'" role="status">
-          <vc-icon [name]="n.tone === 'danger' ? 'circle-alert' : 'info'" />
+        <div class="callout notice" [class.callout-info]="n.tone === 'info'" [class.callout-danger]="n.tone === 'danger'"
+          [class.callout-success]="n.tone === 'success'" role="status">
+          <vc-icon [name]="n.tone === 'danger' ? 'circle-alert' : n.tone === 'success' ? 'circle-check' : 'info'" />
           <div class="callout-body">{{ n.text }}</div>
         </div>
       }
@@ -118,7 +119,13 @@
         <p class="alt">Masz już konto? <button type="button" class="link" (click)="setMode('login')">Zaloguj się</button></p>
       }
 
-      <p class="demo-note"><vc-icon name="info" [size]="12" />Wersja demonstracyjna: logowanie e-mailem działa lokalnie, bez serwera uwierzytelniania.</p>
+      @if (config()?.demoAccount; as demo) {
+        <button type="button" class="demo-account" (click)="useDemoAccount()">
+          <vc-icon name="user" [size]="13" />
+          <span>Konto demonstracyjne: <strong>{{ demo.email }}</strong></span>
+          <span class="fill">Wypełnij</span>
+        </button>
+      }
     </div>
 
     <footer class="foot">

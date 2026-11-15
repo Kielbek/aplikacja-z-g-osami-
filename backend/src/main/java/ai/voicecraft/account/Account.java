@@ -4,22 +4,26 @@ import jakarta.persistence.*;
 import java.time.Instant;
 import java.time.LocalDate;
 
-/** Konto użytkownika (w wersji demo — pojedynczy użytkownik). */
+/** Profil, ustawienia i subskrypcja użytkownika (relacja 1:1 z User). */
 @Entity
-@Table(name = "account")
+@Table(name = "accounts")
 public class Account {
     @Id
-    public Long id = 1L;
+    public String userId;
 
     // Profil
-    public String fullName = "Marta Nowak";
-    public String email = "marta@studio-glos.pl";
-    public String company = "Studio Głos";
-    public String role = "Producentka audio";
+    public String fullName;
+    public String email;
+    public String company;
+    public String role;
 
     // Subskrypcja
     @Enumerated(EnumType.STRING)
-    public SubscriptionPlan planId = SubscriptionPlan.PRO;
+    public SubscriptionPlan planId = SubscriptionPlan.FREE;
+    /** Stripe: identyfikatory klienta i subskrypcji oraz jej status. */
+    public String stripeCustomerId;
+    public String stripeSubscriptionId;
+    public String subscriptionStatus;
     public LocalDate billingPeriodStart = LocalDate.now().withDayOfMonth(1);
     public LocalDate renewsOn = LocalDate.now().withDayOfMonth(1).plusMonths(1);
 

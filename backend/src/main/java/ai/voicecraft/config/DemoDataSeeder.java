@@ -1,6 +1,14 @@
 package ai.voicecraft.config;
 
+import ai.voicecraft.account.AccountRepository;
 import ai.voicecraft.account.AccountService;
+import ai.voicecraft.account.SubscriptionPlan;
+import ai.voicecraft.auth.DemoAccount;
+import ai.voicecraft.user.User;
+import ai.voicecraft.user.UserRepository;
+import ai.voicecraft.voice.VoiceFavorite;
+import ai.voicecraft.voice.VoiceFavoriteRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import ai.voicecraft.project.Project;
 import ai.voicecraft.project.ProjectRepository;
 import ai.voicecraft.project.Segment;
@@ -16,28 +24,51 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Dane demonstracyjne: biblioteka głosów i kilka projektów (bez wygenerowanego audio). */
+/**
+ * Biblioteka głosów (zawsze) oraz — przy SEED_DEMO_DATA=true — konto demonstracyjne z przykładowymi
+ * projektami (bez wygenerowanego audio). W profilu prod konto demo nie jest tworzone.
+ */
 @Component
 public class DemoDataSeeder implements ApplicationRunner {
     private final VoiceRepository voices;
     private final ProjectRepository projects;
-    private final AccountService account;
+    private final AccountRepository accounts;
+    private final UserRepository users;
+    private final VoiceFavoriteRepository favorites;
+    private final PasswordEncoder encoder;
     private final AppProperties props;
+    private String demoUserId;
 
-    public DemoDataSeeder(VoiceRepository voices, ProjectRepository projects, AccountService account, AppProperties props) {
+    public DemoDataSeeder(VoiceRepository voices, ProjectRepository projects, AccountRepository accounts, UserRepository users,
+                          VoiceFavoriteRepository favorites, PasswordEncoder encoder, AppProperties props) {
         this.voices = voices;
         this.projects = projects;
-        this.account = account;
+        this.accounts = accounts;
+        this.users = users;
+        this.favorites = favorites;
+        this.encoder = encoder;
         this.props = props;
     }
 
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
-        account.get();
-        if (!props.seedDemoData()) return;
         if (voices.count() == 0) seedVoices();
-        if (projects.count() == 0) seedProjects();
+        if (!props.seedDemoData() || users.existsByEmailIgnoreCase(DemoAccount.EMAIL)) return;
+        var u = new User();
+        u.id = java.util.UUID.randomUUID().toString();
+        u.email = DemoAccount.EMAIL;
+        u.fullName = "Marta Nowak";
+        u.passwordHash = encoder.encode(DemoAccount.PASSWORD);
+        users.save(u);
+        var a = AccountService.create(u, SubscriptionPlan.PRO);
+        a.company = "Studio Głos";
+        a.role = "Producentka audio";
+        accounts.save(a);
+        demoUserId = u.id;
+        favorites.save(new VoiceFavorite(u.id, "pl-anna"));
+        favorites.save(new VoiceFavorite(u.id, "pl-tomasz"));
+        seedProjects();
     }
 
     private static final String PL = "Dzień dobry. Nazywam się %s i chętnie przeczytam Twój tekst — spokojnie, wyraźnie i z odpowiednią intonacją.";
@@ -88,9 +119,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         voice("it-giulia", "Giulia", "female", 35, "it", List.of("narrative"), List.of("melodyjny", "ciepły"),
                 "Melodyjny głos włoski, świetny do opowieści i przewodników.",
                 "Italian female voice, mid thirties, melodic warm storytelling voice, expressive", false);
-        voice("uk-oksana", "Oksana", "female", 31, "uk", List.of("natural", "professional"), List.of("klarowny", "spokojny"),
-                "Klarowny, spokojny głos ukraiński do komunikatów i materiałów informacyjnych.",
-                "Ukrainian female voice, early thirties, clear calm and natural informative delivery", false);
+        voice("pt-ines", "Inês", "female", 31, "pt", List.of("natural", "professional"), List.of("klarowny", "spokojny"),
+                "Klarowny, spokojny głos portugalski do komunikatów i materiałów informacyjnych.",
+                "European Portuguese female voice, early thirties, clear calm and natural informative delivery", false);
     }
 
     private void voice(String id, String name, String gender, int age, String lang, List<String> categories,
@@ -106,7 +137,6 @@ public class DemoDataSeeder implements ApplicationRunner {
         v.traits = traits;
         v.description = description;
         v.enginePrompt = prompt;
-        v.favorite = favorite;
         v.sampleText = switch (lang) {
             case "pl" -> PL.formatted(name);
             case "en" -> "Hello, I'm " + name + ". Give me your script and I'll bring it to life — clearly, naturally and with the right tone.";
@@ -114,7 +144,7 @@ public class DemoDataSeeder implements ApplicationRunner {
             case "fr" -> "Bonjour, je m'appelle " + name + ". Je lirai votre texte avec clarté, naturel et le ton juste.";
             case "es" -> "Hola, soy " + name + ". Leeré tu texto con claridad, naturalidad y el tono adecuado.";
             case "it" -> "Ciao, sono " + name + ". Leggerò il tuo testo con chiarezza, naturalezza e il tono giusto.";
-            case "uk" -> "Добрий день, мене звати " + name + ". Я прочитаю ваш текст чітко, природно і з правильною інтонацією.";
+            case "pt" -> "Olá, chamo-me " + name + ". Vou ler o seu texto com clareza, naturalidade e o tom certo.";
             default -> "Hello, I'm " + name + ".";
         };
         voices.save(v);
@@ -144,6 +174,7 @@ public class DemoDataSeeder implements ApplicationRunner {
     private void project(String name, String voiceId, int daysAgo, List<String> paragraphs) {
         var p = new Project();
         p.id = UUID.randomUUID().toString();
+        p.ownerId = demoUserId;
         p.name = name;
         p.createdAt = Instant.now().minus(Duration.ofDays(daysAgo)).minus(Duration.ofHours(daysAgo * 3L));
         p.updatedAt = p.createdAt.plus(Duration.ofHours(2));

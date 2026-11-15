@@ -4,7 +4,9 @@ import ai.voicecraft.common.ApiException;
 import ai.voicecraft.history.HistoryRepository;
 import ai.voicecraft.project.ProjectRepository;
 import ai.voicecraft.project.VoiceSettings;
-import ai.voicecraft.voice.VoiceKind;
+import ai.voicecraft.security.CurrentUser;
+import ai.voicecraft.user.User;
+import ai.voicecraft.user.UserRepository;
 import ai.voicecraft.voice.VoiceRepository;
 import java.text.NumberFormat;
 import java.time.Instant;
@@ -21,18 +23,40 @@ public class AccountService {
     private final HistoryRepository history;
     private final ProjectRepository projects;
     private final VoiceRepository voices;
+    private final UserRepository users;
 
-    public AccountService(AccountRepository repo, HistoryRepository history, ProjectRepository projects, VoiceRepository voices) {
+    public AccountService(AccountRepository repo, HistoryRepository history, ProjectRepository projects,
+                          VoiceRepository voices, UserRepository users) {
         this.repo = repo;
         this.history = history;
         this.projects = projects;
         this.voices = voices;
+        this.users = users;
+    }
+
+    /** Konto zalogowanego użytkownika. */
+    @Transactional
+    public Account get() {
+        return get(CurrentUser.id());
     }
 
     @Transactional
-    public Account get() {
-        Account a = repo.findById(1L).orElseGet(() -> repo.save(new Account()));
-        if (a.planId == null) a.planId = SubscriptionPlan.PRO;
+    public Account get(String userId) {
+        return repo.findById(userId).orElseGet(() -> {
+            User u = users.findById(userId).orElseThrow(() -> ApiException.notFound("Konto"));
+            return repo.save(create(u, SubscriptionPlan.FREE));
+        });
+    }
+
+    /** Nowe konto z ustawieniami domyślnymi. */
+    public static Account create(User u, SubscriptionPlan plan) {
+        var a = new Account();
+        a.userId = u.id;
+        a.email = u.email;
+        a.fullName = u.fullName;
+        a.planId = plan;
+        if (!plan.exportFormats.contains(a.exportFormat)) a.exportFormat = plan.exportFormats.getFirst();
+        a.mp3Bitrate = Math.min(a.mp3Bitrate, plan.maxMp3Bitrate);
         return a;
     }
 
@@ -46,8 +70,11 @@ public class AccountService {
         SubscriptionPlan plan = a.planId;
         patch.forEach((k, v) -> {
             switch (k) {
-                case "fullName" -> a.fullName = str(v);
-                case "email" -> a.email = str(v);
+                case "fullName" -> {
+                    a.fullName = str(v);
+                    users.findById(a.userId).ifPresent(u -> u.fullName = a.fullName);
+                }
+                case "email" -> changeEmail(a, str(v));
                 case "company" -> a.company = str(v);
                 case "role" -> a.role = str(v);
                 case "exportFormat" -> {
@@ -78,13 +105,14 @@ public class AccountService {
         return a;
     }
 
-    /**
-     * Zmiana planu. W wersji demonstracyjnej bez płatności — po integracji z operatorem płatności
-     * wywoływana z webhooka potwierdzającego zakup.
-     */
+    /** Zmiana planu: z webhooka Stripe lub (tylko dev) przełącznikiem demonstracyjnym. */
     @Transactional
-    public Account changePlan(SubscriptionPlan plan) {
-        Account a = get();
+    public Account changePlan(String userId, SubscriptionPlan plan) {
+        Account a = get(userId);
+        if (a.planId != plan) {
+            a.billingPeriodStart = java.time.LocalDate.now();
+            a.renewsOn = a.billingPeriodStart.plusMonths(1);
+        }
         a.planId = plan;
         // Dopasuj ustawienia eksportu do możliwości nowego planu
         if (!plan.exportFormats.contains(a.exportFormat)) a.exportFormat = plan.exportFormats.getFirst();
@@ -97,18 +125,19 @@ public class AccountService {
         Account a = get();
         SubscriptionPlan p = a.planId;
         Instant since = periodStart(a);
+        String uid = a.userId;
         var out = new LinkedHashMap<String, Object>();
         out.put("plan", p.dto());
         out.put("periodStart", a.billingPeriodStart.toString());
         out.put("renewsOn", a.renewsOn.toString());
-        out.put("charactersUsed", history.sumCharactersSince(since));
+        out.put("charactersUsed", history.sumCharactersSince(uid, since));
         out.put("characterLimit", p.monthlyCharacters);
-        out.put("minutesUsed", Math.round(history.sumDurationSince(since) / 600.0) / 100.0);
+        out.put("minutesUsed", Math.round(history.sumDurationSince(uid, since) / 600.0) / 100.0);
         out.put("minuteLimit", p.monthlyMinutes);
-        out.put("generations", history.countSince(since));
-        out.put("projectsUsed", projects.count());
+        out.put("generations", history.countSince(uid, since));
+        out.put("projectsUsed", projects.countByOwnerId(uid));
         out.put("projectLimit", p.maxProjects);
-        out.put("customVoicesUsed", customVoiceCount());
+        out.put("customVoicesUsed", voices.countByOwnerId(uid));
         out.put("customVoiceLimit", p.maxCustomVoices);
         return out;
     }
@@ -120,13 +149,13 @@ public class AccountService {
         Account a = get();
         SubscriptionPlan p = a.planId;
         Instant since = periodStart(a);
-        long used = history.sumCharactersSince(since);
+        long used = history.sumCharactersSince(a.userId, since);
         if (used + characters > p.monthlyCharacters) {
             long left = Math.max(0, p.monthlyCharacters - used);
             throw ApiException.plan("Wykorzystano miesięczny limit znaków planu " + p.displayName + " ("
                     + fmt(p.monthlyCharacters) + "). Pozostało " + fmt(left) + " znaków, fragment ma " + fmt(characters) + ".");
         }
-        if (history.sumDurationSince(since) >= p.monthlyMinutes * 60_000L) {
+        if (history.sumDurationSince(a.userId, since) >= p.monthlyMinutes * 60_000L) {
             throw ApiException.plan("Wykorzystano miesięczny limit " + p.monthlyMinutes + " minut audio planu " + p.displayName + ".");
         }
     }
@@ -141,7 +170,7 @@ public class AccountService {
 
     public void requireProjectSlot() {
         SubscriptionPlan p = plan();
-        if (p.maxProjects >= 0 && projects.count() >= p.maxProjects) {
+        if (p.maxProjects >= 0 && projects.countByOwnerId(CurrentUser.id()) >= p.maxProjects) {
             throw ApiException.plan("Plan " + p.displayName + " pozwala na " + p.maxProjects + " "
                     + plural(p.maxProjects, "projekt", "projekty", "projektów") + ". Usuń nieużywany projekt lub zmień plan.");
         }
@@ -149,7 +178,7 @@ public class AccountService {
 
     public void requireCustomVoiceSlot() {
         SubscriptionPlan p = plan();
-        if (customVoiceCount() >= p.maxCustomVoices) {
+        if (voices.countByOwnerId(CurrentUser.id()) >= p.maxCustomVoices) {
             throw ApiException.plan("Plan " + p.displayName + " pozwala na " + p.maxCustomVoices
                     + " " + plural(p.maxCustomVoices, "własny głos", "własne głosy", "własnych głosów") + ". Usuń nieużywany głos lub zmień plan.");
         }
@@ -211,8 +240,17 @@ public class AccountService {
         }
     }
 
-    private long customVoiceCount() {
-        return voices.findAll().stream().filter(v -> v.kind != VoiceKind.LIBRARY).count();
+    private void changeEmail(Account a, String email) {
+        if (email == null || !email.matches("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")) {
+            throw new IllegalArgumentException("Niepoprawny adres e-mail.");
+        }
+        String normalized = email.trim().toLowerCase(Locale.ROOT);
+        User u = users.findById(a.userId).orElseThrow();
+        if (!u.email.equals(normalized) && users.existsByEmailIgnoreCase(normalized)) {
+            throw new ApiException(org.springframework.http.HttpStatus.CONFLICT, "Ten adres e-mail jest już używany.");
+        }
+        u.email = normalized;
+        a.email = normalized;
     }
 
     private static Instant periodStart(Account a) {

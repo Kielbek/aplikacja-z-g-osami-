@@ -1,52 +1,28 @@
 package ai.voicecraft.audio;
 
-import ai.voicecraft.config.AppProperties;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.UUID;
-import org.springframework.stereotype.Component;
 
-/** Pliki audio na dysku. Każda generacja tworzy nowy, niezmienny plik (historia może go odtworzyć). */
-@Component
-public class AudioStorage {
-    private final Path root;
+/**
+ * Magazyn plików audio. Każda generacja zapisuje nowy, niezmienny obiekt — klucze są losowe,
+ * więc historia może odtworzyć wcześniejsze wersje. Implementacje: lokalny dysk lub S3.
+ */
+public interface AudioStorage {
+    /** Zapisuje dane i zwraca klucz obiektu. */
+    String save(String prefix, byte[] data);
 
-    public AudioStorage(AppProperties props) {
-        this.root = props.dataDir().resolve("audio").toAbsolutePath();
-        try {
-            Files.createDirectories(root);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
+    byte[] read(String key);
+
+    boolean exists(String key);
+
+    void delete(String key);
+
+    static String newKey(String prefix) {
+        if (!prefix.matches("[a-z]+")) throw new IllegalArgumentException("Niepoprawny prefiks pliku.");
+        return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16) + ".wav";
     }
 
-    public String save(String prefix, byte[] data) {
-        String name = prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16) + ".wav";
-        try {
-            Files.write(root.resolve(name), data);
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-        return name;
-    }
-
-    public byte[] read(String name) {
-        try {
-            return Files.readAllBytes(resolve(name));
-        } catch (IOException e) {
-            throw new UncheckedIOException(e);
-        }
-    }
-
-    public boolean exists(String name) {
-        return name != null && Files.exists(resolve(name));
-    }
-
-    private Path resolve(String name) {
-        Path p = root.resolve(name).normalize();
-        if (!p.startsWith(root)) throw new IllegalArgumentException("Niepoprawna ścieżka pliku.");
-        return p;
+    /** Klucze mają stały format — blokuje dostęp do dowolnych ścieżek. */
+    static boolean validKey(String key) {
+        return key != null && key.matches("[a-z]+_[a-f0-9]{16}\\.wav");
     }
 }

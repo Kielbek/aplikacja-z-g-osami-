@@ -1,13 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { firstValueFrom } from 'rxjs';
-import { API, toApiError } from '../api/api.service';
-import { Session } from './auth.service';
-
-interface AuthConfig {
-  googleEnabled: boolean;
-  googleClientId: string | null;
-}
+import { ApiError } from '../api/models';
+import { AuthService, SessionUser } from './auth.service';
 
 interface TokenResponse {
   access_token?: string;
@@ -36,23 +29,14 @@ export class GoogleAuthError extends Error {
   }
 }
 
-/** Logowanie przez Google Identity Services (przepływ tokenu, własny przycisk). */
+/** Logowanie przez Google Identity Services; token jest weryfikowany i wymieniany na sesję w backendzie. */
 @Injectable({ providedIn: 'root' })
 export class GoogleAuthService {
-  private http = inject(HttpClient);
-  private config: Promise<AuthConfig> | null = null;
+  private auth = inject(AuthService);
   private script: Promise<void> | null = null;
 
-  loadConfig(): Promise<AuthConfig> {
-    this.config ??= firstValueFrom(this.http.get<AuthConfig>(`${API}/auth/config`)).catch(() => ({
-      googleEnabled: false,
-      googleClientId: null,
-    }));
-    return this.config;
-  }
-
-  async signIn(): Promise<Session> {
-    const cfg = await this.loadConfig();
+  async signIn(remember: boolean): Promise<SessionUser> {
+    const cfg = await this.auth.loadConfig();
     if (!cfg.googleEnabled || !cfg.googleClientId) {
       throw new GoogleAuthError(
         'Logowanie przez Google nie jest jeszcze skonfigurowane. Administrator musi ustawić GOOGLE_CLIENT_ID w backendzie.',
@@ -72,12 +56,9 @@ export class GoogleAuthService {
       client.requestAccessToken({ prompt: 'select_account' });
     });
     try {
-      const user = await firstValueFrom(
-        this.http.post<{ email: string; name: string; picture?: string }>(`${API}/auth/google`, { accessToken: token }),
-      );
-      return { email: user.email, name: user.name, picture: user.picture, provider: 'google' };
+      return await this.auth.loginWithGoogleToken(token, remember);
     } catch (e) {
-      throw new GoogleAuthError(toApiError(e).message, 'failed');
+      throw new GoogleAuthError((e as ApiError).message, 'failed');
     }
   }
 

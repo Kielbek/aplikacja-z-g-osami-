@@ -18,6 +18,9 @@ public class Voice {
     @Enumerated(EnumType.STRING)
     public VoiceKind kind = VoiceKind.LIBRARY;
 
+    /** Właściciel głosu własnego; null = głos z biblioteki (wspólny). */
+    public String ownerId;
+
     /** female | male | neutral */
     public String gender;
 
@@ -51,6 +54,8 @@ public class Voice {
     public String sampleFile;
     public String sampleEngineMode;
 
+    /** Wyliczane dla bieżącego użytkownika (tabela voice_favorites). */
+    @Transient
     public boolean favorite;
     public int useCount;
     public Instant createdAt = Instant.now();

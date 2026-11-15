@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:test-${random.uuid};MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH;DB_CLOSE_DELAY=-1
+voicecraft:
+  data-dir: ${java.io.tmpdir}/voicecraft-test-${random.uuid}
+  engine:
+    url: http://127.0.0.1:9
+  auth:
+    jwt-secret: test-secret-test-secret-test-secret-0123456789
+  billing:
+    stripe-webhook-secret: whsec_test
+    prices:
+      PRO: price_pro
+      BUSINESS: price_business

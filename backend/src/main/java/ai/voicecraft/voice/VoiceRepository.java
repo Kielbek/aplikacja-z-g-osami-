@@ -1,5 +1,15 @@
 package ai.voicecraft.voice;
 
+import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
-public interface VoiceRepository extends JpaRepository<Voice, String> {}
+public interface VoiceRepository extends JpaRepository<Voice, String> {
+    /** Biblioteka (wspólna) + głosy własne użytkownika. */
+    @Query("select v from Voice v where v.ownerId is null or v.ownerId = ?1")
+    List<Voice> findVisible(String userId);
+
+    long countByOwnerId(String ownerId);
+
+    List<Voice> findAllByOwnerId(String ownerId);
+}

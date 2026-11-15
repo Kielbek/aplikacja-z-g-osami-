@@ -1,9 +1,10 @@
 import { Routes } from '@angular/router';
-import { authGuard } from './core/services/auth.guard';
+import { authGuard, guestGuard } from './core/services/auth.guard';
 import { ShellComponent } from './layout/shell.component';
 
 export const routes: Routes = [
-  { path: 'login', loadComponent: () => import('./features/login/login.page').then((m) => m.LoginPage), title: 'Logowanie · VoiceCraft AI' },
+  { path: 'login', canActivate: [guestGuard], loadComponent: () => import('./features/login/login.page').then((m) => m.LoginPage), title: 'Logowanie · VoiceCraft AI' },
+  { path: 'reset-password', loadComponent: () => import('./features/login/reset-password.page').then((m) => m.ResetPasswordPage), title: 'Nowe hasło · VoiceCraft AI' },
   {
     path: '',
     component: ShellComponent,

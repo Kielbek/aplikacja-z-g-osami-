@@ -1,5 +1,8 @@
 package ai.voicecraft.account;
 
+import java.util.Optional;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface AccountRepository extends JpaRepository<Account, Long> {}
+public interface AccountRepository extends JpaRepository<Account, String> {
+    Optional<Account> findByStripeCustomerId(String customerId);
+}

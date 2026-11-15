@@ -10,6 +10,9 @@ public class GenerationRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     public Long id;
 
+    @Column(nullable = false)
+    public String userId;
+
     /** segment | voice_design | voice_sample | export */
     public String type;
     public String projectId;

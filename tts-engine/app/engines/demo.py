@@ -15,7 +15,10 @@ import numpy as np
 from ..schemas import Capabilities, GenerationParams, VoiceSpec
 from .base import TTSEngine
 
-LANGUAGES = ["pl", "en", "de", "fr", "es", "it", "pt", "nl", "cs", "uk", "ja", "zh", "ko"]
+from ..languages import VOXCPM2_LANGUAGES
+
+# Tryb demo deklaruje te same języki co VoxCPM2, aby interfejs zachowywał się identycznie
+LANGUAGES = VOXCPM2_LANGUAGES
 
 # Formanty (F1, F2, F3) samogłosek – dają barwę zbliżoną do samogłoski
 FORMANTS = {
@@ -33,8 +36,9 @@ def _seed(*parts: object) -> int:
 class DemoEngine(TTSEngine):
     mode = "demo"
 
-    def __init__(self, sample_rate: int = 24000):
+    def __init__(self, sample_rate: int = 24000, latency_ms: int = 0):
         self.sample_rate = sample_rate
+        self.latency_ms = latency_ms
 
     def capabilities(self) -> Capabilities:
         return Capabilities(voice_design=True, cloning=False, style_prompt=True, emotion=True, speed=True, languages=LANGUAGES)
@@ -82,6 +86,10 @@ class DemoEngine(TTSEngine):
         return out
 
     def _render(self, text: str, f0: float, params: GenerationParams, seed: int) -> np.ndarray:
+        if self.latency_ms:
+            import time
+
+            time.sleep(self.latency_ms / 1000)
         sr = self.sample_rate
         rng = np.random.default_rng(seed)
         syllables = self._syllables(text) or [("a", 0.2)]

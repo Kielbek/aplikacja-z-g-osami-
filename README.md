@@ -4,6 +4,8 @@ Aplikacja SaaS do generowania naturalnego głosu z tekstu (TTS). Po zalogowaniu 
 
 Silnikiem syntezy jest **VoxCPM2** (OpenBMB). Gdy model nie jest załadowany, aplikacja działa w **wyraźnie oznaczonym trybie demonstracyjnym**.
 
+Aplikacja obsługuje wielu użytkowników. Logowanie odbywa się hasłem lub przez Google, a sesje są przechowywane w ciasteczku httpOnly. Generowanie działa w tle, z postępem na żywo przez SSE. Dane są w PostgreSQL z migracjami Flyway, nagrania w S3, a subskrypcje obsługuje Stripe.
+
 ```
 ┌────────────────────┐   /api    ┌──────────────────────┐   HTTP   ┌───────────────────────────┐
 │ Angular 22         │ ────────▶ │ Spring Boot 4        │ ───────▶ │ Python / FastAPI          │
@@ -17,7 +19,7 @@ Silnikiem syntezy jest **VoxCPM2** (OpenBMB). Gdy model nie jest załadowany, ap
 | Warstwa | Odpowiada za | Nie wie o |
 |---|---|---|
 | **frontend** | widoki, edycję, autozapis, odtwarzanie, waveform | silniku TTS (rozmawia tylko z `/api`) |
-| **backend** | domena (projekty, fragmenty, głosy, historia, konto), wykrywanie zmian, łączenie fragmentów, eksport | szczegółach modelu (jeden klient: `EngineClient`) |
+| **backend** | użytkownicy i sesje, domena (projekty, fragmenty, głosy, historia, konto), kolejka generowania, limity planów, płatności, łączenie fragmentów, eksport | szczegółach modelu (jeden klient: `EngineClient`) |
 | **tts-engine** | synteza, projektowanie głosu, klonowanie, analiza audio, kodowanie MP3 | projektach i użytkownikach |
 
 ## Szybki start (tryb demonstracyjny, bez GPU)
@@ -41,13 +43,21 @@ cd backend && mvn spring-boot:run
 cd frontend && npm install && npm start
 ```
 
-Otwórz http://localhost:4200. Konto demonstracyjne ma już wypełnione dane logowania.
+Otwórz http://localhost:4200. Lokalnie powstaje konto demonstracyjne **marta@studio-glos.pl / demo-haslo** (plan Pro, przykładowe projekty). Na stronie logowania można je wypełnić jednym kliknięciem. Można też założyć własne konto, które startuje z planem Free.
 
-Wszystko naraz w kontenerach:
+Lokalnie backend używa H2 (plik w `./data`). Do pracy z PostgreSQL ustaw `DATABASE_URL`, `DATABASE_USER` i `DATABASE_PASSWORD`. Schemat tworzy Flyway przy starcie.
+
+Wszystko naraz w kontenerach (PostgreSQL, MinIO jako S3, silnik, backend w profilu `prod`, frontend):
+
+```bash
+cp .env.example .env
+```
 
 ```bash
 docker compose up --build
 ```
+
+W pliku `.env` uzupełnij co najmniej `POSTGRES_PASSWORD`, `JWT_SECRET` (min. 32 znaki), `S3_ACCESS_KEY` i `S3_SECRET_KEY`.
 
 ## Podłączenie VoxCPM2
 
@@ -61,6 +71,8 @@ ENGINE_MODE=voxcpm2 VOXCPM_MODEL_ID=openbmb/VoxCPM2 uvicorn app.main:app --host 
 
 Następnie wskaż adres backendowi: `ENGINE_URL=http://gpu-host:8808`.
 
+- **Weryfikacja z biblioteką:** adapter został sprawdzony z kodem źródłowym `voxcpm` 2.0.3 i ma testy na atrapie o identycznej sygnaturze (`tts-engine/tests/test_voxcpm_adapter.py`). Weryfikacja wykryła i usunęła dwa błędy. Pierwszy: `VoxCPM.generate(*args, **kwargs)` ukrywa parametry, więc są odczytywane z `_generate`. Drugi: klonowanie bez transkrypcji używa tylko `reference_wav_path`, a para `prompt_wav_path`/`prompt_text` jest przekazywana razem. Lista języków odpowiada 30 językom VoxCPM2: polski jest, czeskiego i ukraińskiego nie ma. **Uruchomienia z prawdziwymi wagami na GPU nie dało się przeprowadzić w środowisku deweloperskim.**
+- Wymagania VoxCPM2: Python 3.10–3.12, PyTorch ≥ 2.5, CUDA ≥ 12. Częstotliwość wyjściowa to 48 kHz.
 - `ENGINE_MODE=auto` (domyślnie) próbuje załadować model, a gdy się nie uda, przechodzi w tryb demo. Powód jest widoczny w *Ustawienia → Silnik TTS*.
 - `ENGINE_MODE=voxcpm2` wymaga modelu. Bez niego serwis nie wystartuje.
 - Cała wiedza o bibliotece `voxcpm` siedzi w jednym pliku: `tts-engine/app/engines/voxcpm2.py`. Adapter sprawdza sygnaturę `VoxCPM.generate` i przekazuje tylko obsługiwane argumenty (`cfg_value`, `inference_timesteps`, `normalize`, `denoise`, `prompt_wav_path`, `prompt_text`…). Opis głosu i instrukcja stylu trafiają do modelu jako prefiks `(opis)tekst`, zgodnie z konwencją voice design VoxCPM2. Konwencję przełącza `VOXCPM_DESCRIPTION_FORMAT`. **Po aktualizacji modelu zweryfikuj ten plik z dokumentacją OpenBMB.**
@@ -71,7 +83,7 @@ Następnie wskaż adres backendowi: `ENGINE_URL=http://gpu-host:8808`.
 - Syntezator demo **nie generuje mowy**. Tworzy sygnał zastępczy o rytmie mowy (sylaby, pauzy, intonacja), żeby dało się przetestować cały przepływ.
 - Każda odpowiedź silnika niesie nagłówek `X-Engine-Mode`. Interfejs pokazuje baner trybu demo, odznaki **DEMO** przy fragmentach, próbkach, w odtwarzaczu i w historii. Eksportowane pliki dostają sufiks `_DEMO`.
 - **Klonowanie** w trybie demo jest zablokowane: endpoint zwraca 503, a interfejs wyjaśnia dlaczego. Analiza nagrania (długość, SNR, clipping, głośność, cisza) działa naprawdę.
-- Logowanie i płatności nie są podłączone. Widoki mówią o tym wprost, a odpowiednie przyciski są nieaktywne.
+- Do testowania kolejki można spowolnić syntezę demo: `DEMO_LATENCY_MS=2500`.
 
 ## Plany subskrypcji i limity
 
@@ -101,18 +113,49 @@ Gdzie limity są sprawdzane:
 
 Po obniżeniu planu istniejące dane zostają nienaruszone. Blokowane są tylko nowe działania ponad limit, a ustawienia eksportu są automatycznie dopasowywane do nowego planu.
 
-Zmiana planu (`PUT /api/account/plan`) działa w wersji demonstracyjnej bez płatności. Po integracji z operatorem płatności powinna być wywoływana z webhooka potwierdzającego zakup.
+W produkcji plan zmienia się wyłącznie przez Stripe (zob. „Płatności”). `PUT /api/account/plan` (zmiana bez płatności) działa tylko przy `DEMO_PLAN_SWITCH=true`, czyli w lokalnym developmencie.
 
-## Logowanie
+## Konta, logowanie i bezpieczeństwo
 
-- **Strona logowania** to wyśrodkowany formularz z logo. Ma trzy tryby: logowanie, rejestracja (z miernikiem siły hasła) i reset hasła. Walidacja jest inline, a pole hasła ma przycisk pokaż/ukryj i opcję „Zapamiętaj mnie”.
-- **Logowanie przez Google** działa w przepływie tokenu OAuth 2.0 Google Identity Services. Frontend pobiera token, a backend (`POST /api/auth/google`) weryfikuje go w Google: sprawdza, czy został wydany dla naszego klienta (`aud`) i czy e-mail jest zweryfikowany. Konfiguracja:
-  1. W Google Cloud Console utwórz identyfikator klienta OAuth typu „Aplikacja internetowa”.
-  2. Dodaj autoryzowane źródło JavaScript, np. `http://localhost:4200`.
-  3. Uruchom backend z `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com`.
+- **Konta:** wielu użytkowników. Projekty, własne głosy, ulubione, historia, zadania i subskrypcja należą do konkretnego użytkownika. Biblioteka głosów jest wspólna. Próba otwarcia cudzego zasobu zwraca 404, nieodróżnialne od braku zasobu.
+- **Sesja:** JWT (HS256) w ciasteczku `vc_session` z flagami httpOnly i SameSite=Lax, w produkcji także Secure. JavaScript nie ma dostępu do tokenu. Sesja trwa 14 dni z „Zapamiętaj mnie”, bez tej opcji kończy się z zamknięciem przeglądarki. Token zawiera wersję sesji, więc zmiana hasła, reset hasła i „Wyloguj ze wszystkich innych urządzeń” natychmiast unieważniają pozostałe sesje.
+- **Hasła:** bcrypt, minimum 8 znaków. Limit 5 nieudanych prób na konto i IP oraz 30 na IP w ciągu 15 minut (HTTP 429). Odpowiedź przy nieistniejącym koncie trwa tyle samo co przy błędnym haśle.
+- **Ochrona CSRF:** ciasteczko SameSite=Lax oraz wymagany nagłówek `X-Requested-With` przy każdym żądaniu zmieniającym dane. Wyjątkiem jest webhook Stripe, uwierzytelniany podpisem.
+- **Reset hasła:** jednorazowy link ważny przez godzinę. W bazie przechowywany jest wyłącznie skrót SHA-256 tokenu, a odpowiedź nie zdradza, czy konto istnieje. E-maile wysyłane są przez SMTP (`SPRING_MAIL_HOST` i powiązane zmienne). Bez SMTP link trafia do logów serwera, co nadaje się tylko do lokalnego developmentu.
+- **Logowanie przez Google:** przepływ tokenu Google Identity Services. Backend weryfikuje token w Google: czy wydano go dla naszego klienta (`aud`) i czy e-mail jest zweryfikowany. Konto e-mail z tym samym adresem zostaje połączone z Google. Konfiguracja:
+  1. W Google Cloud Console utwórz identyfikator klienta OAuth typu „Aplikacja internetowa” i dodaj źródło JavaScript, np. `http://localhost:4200`.
+  2. Ustaw `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com`.
+- **Usunięcie konta:** wymaga hasła i trwale usuwa projekty, głosy, historię oraz zadania. Przy aktywnej subskrypcji trzeba ją najpierw anulować.
+- **Konto demo i darmowa zmiana planu** są włączone tylko lokalnie. W profilu `prod` są domyślnie wyłączone (`SEED_DEMO_DATA`, `DEMO_PLAN_SWITCH`).
 
-  Bez tej zmiennej przycisk wyjaśnia, że logowanie przez Google nie jest skonfigurowane.
-- Logowanie e-mailem jest nadal lokalne (wersja demonstracyjna).
+## Generowanie w tle
+
+„Generuj zmienione” tworzy w backendzie zadanie (`generation_jobs`). Fragmenty są generowane po kolei w puli wątków, a liczba równoległych zadań jest ustawiana przez `voicecraft.jobs.concurrency` (domyślnie 2).
+
+- Postęp i gotowe fragmenty trafiają do przeglądarki przez Server-Sent Events (`GET /api/projects/{id}/events`).
+- **Zamknięcie karty nie przerywa generowania.** Po ponownym otwarciu projektu edytor podłącza się do trwającego zadania.
+- Po restarcie serwera niedokończone zadania są wznawiane od miejsca przerwania.
+- Zadanie można zatrzymać. Przekroczenie limitu planu lub niedostępność silnika kończy zadanie z komunikatem.
+- Kanał zdarzeń działa w pamięci jednej instancji. Przy kilku instancjach backendu potrzebny jest Redis Pub/Sub lub sticky sessions.
+
+## Baza danych i magazyn plików
+
+- **Baza:** PostgreSQL 14+ w produkcji. Schemat jest zarządzany przez Flyway (`backend/src/main/resources/db/migration`), a Hibernate tylko go waliduje (`ddl-auto: validate`). Ta sama migracja działa na H2 w lokalnym developmencie. Sprawdzone na PostgreSQL 16.
+- **Nagrania:** `STORAGE_TYPE=local` (katalog danych) albo `STORAGE_TYPE=s3`. S3 działa z AWS, MinIO, Cloudflare R2 i Backblaze B2. Ustawia się je przez `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` i `S3_PATH_STYLE`. Bucket jest tworzony automatycznie, jeśli nie istnieje.
+
+## Płatności (Stripe)
+
+1. W Stripe utwórz produkty i ceny cykliczne dla planów Starter, Pro i Business, a ich identyfikatory wpisz w `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO` i `STRIPE_PRICE_BUSINESS`.
+2. Ustaw `STRIPE_SECRET_KEY`.
+3. Dodaj endpoint webhooka `https://<twoja-domena>/api/billing/webhook` ze zdarzeniami `checkout.session.completed` i `customer.subscription.created|updated|deleted`, a jego sekret wpisz w `STRIPE_WEBHOOK_SECRET`.
+4. Włącz Customer Portal, przez który użytkownicy zmieniają plan, metodę płatności, pobierają faktury i anulują subskrypcję.
+
+Jak to działa:
+
+- Wybór planu przekierowuje do Stripe Checkout. **Plan zmienia się wyłącznie po zweryfikowanym webhooku**, a powrót z Checkout niczego sam nie aktywuje.
+- Webhook sprawdza podpis HMAC z tolerancją 5 minut i ignoruje powtórzone zdarzenia.
+- Anulowanie lub nieopłacenie subskrypcji przywraca plan Free. Przy statusie `past_due` plan zostaje na czas ponawiania płatności.
+- Do testów lokalnych możesz przekierować zdarzenia poleceniem `stripe listen --forward-to localhost:8080/api/billing/webhook`.
 
 ## Logo
 
@@ -186,14 +229,21 @@ tts-engine/app/
 | POST | `/api/voices/clone/analyze`, `/api/voices/clone` | analiza nagrania, klonowanie |
 | GET/DELETE | `/api/history` | historia generowania |
 | GET/PATCH | `/api/account`, GET `/api/account/usage` | profil, preferencje, eksport, wykorzystanie limitów |
-| GET/POST | `/api/auth/config`, `/api/auth/google` | konfiguracja logowania, weryfikacja tokenu Google |
-| GET/PUT | `/api/account/plans`, `/api/account/plan` | plany z limitami, zmiana planu (demo) |
+| POST | `/api/auth/register`, `/login`, `/logout`, `/logout-all`, `/google` | konto i sesja (ciasteczko httpOnly) |
+| GET | `/api/auth/me`, `/api/auth/config` | bieżący użytkownik, konfiguracja logowania |
+| POST | `/api/auth/password`, `/password-reset`, `/password-reset/confirm`, `/delete-account` | hasło i usunięcie konta |
+| POST/GET | `/api/projects/{id}/jobs`, `/jobs/active`, `/api/jobs/{id}/cancel` | kolejka generowania |
+| GET (SSE) | `/api/projects/{id}/events` | zdarzenia: `job`, `segment`, `segment-error` |
+| GET/POST | `/api/billing/config`, `/checkout`, `/portal`, `/webhook` | subskrypcje Stripe |
+| GET/PUT | `/api/account/plans`, `/api/account/plan` | plany z limitami; zmiana planu bez płatności (tylko gdy `DEMO_PLAN_SWITCH=true`) |
 
 ## Testy
 
 ```bash
 cd backend && mvn test
 ```
+
+Backend ma 20 testów: integracyjne dla logowania, sesji, izolacji danych, CSRF i limitu prób, test webhooka Stripe z podpisami oraz testy jednostkowe.
 
 ```bash
 cd tts-engine && pip install -r requirements-dev.txt && ENGINE_MODE=demo pytest
@@ -205,7 +255,7 @@ cd frontend && npx ng build
 
 ## Dalsze kroki
 
-- Uwierzytelnianie: Spring Security + OAuth2/JWT. Teraz jest jeden lokalny użytkownik.
-- PostgreSQL zamiast H2 i magazyn obiektów (S3) dla plików audio.
-- Kolejka zadań (np. Redis) i strumieniowanie postępu przez SSE przy długich projektach.
-- Integracja płatności (np. Stripe) wywołująca zmianę planu z webhooka.
+- Uruchomienie VoxCPM2 z prawdziwymi wagami na GPU i odsłuch jakości (adapter jest zweryfikowany z kodem biblioteki).
+- Redis dla kanału zdarzeń i limitu logowań przy wielu instancjach backendu.
+- Weryfikacja adresu e-mail przy rejestracji i opcjonalne 2FA.
+- Testy end-to-end frontendu w CI (Playwright).

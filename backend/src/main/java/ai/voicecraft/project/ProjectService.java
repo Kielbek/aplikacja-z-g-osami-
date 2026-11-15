@@ -9,6 +9,7 @@ import ai.voicecraft.engine.EngineClient;
 import ai.voicecraft.engine.EngineDtos.Audio;
 import ai.voicecraft.history.GenerationRecord;
 import ai.voicecraft.history.HistoryRepository;
+import ai.voicecraft.security.CurrentUser;
 import ai.voicecraft.project.ProjectDtos.*;
 import ai.voicecraft.voice.Voice;
 import ai.voicecraft.voice.VoiceRepository;
@@ -45,9 +46,10 @@ public class ProjectService {
     // ------------------------------------------------------------ odczyt
 
     public List<ProjectDto> list() {
+        String uid = CurrentUser.id();
         String mode = generation.currentMode();
-        Map<String, Voice> vs = voices.findAll().stream().collect(Collectors.toMap(v -> v.id, Function.identity()));
-        return projects.findAllByOrderByUpdatedAtDesc().stream().map(p -> toDto(p, mode, vs, false)).toList();
+        Map<String, Voice> vs = voices.findVisible(uid).stream().collect(Collectors.toMap(v -> v.id, Function.identity()));
+        return projects.findAllByOwnerIdOrderByUpdatedAtDesc(uid).stream().map(p -> toDto(p, mode, vs, false)).toList();
     }
 
     public ProjectDto get(String id) {
@@ -62,9 +64,10 @@ public class ProjectService {
         Account a = account.get();
         var p = new Project();
         p.id = UUID.randomUUID().toString();
+        p.ownerId = a.userId;
         p.name = req.name() == null || req.name().isBlank() ? "Projekt bez tytułu" : req.name().trim();
         p.settings.language = a.defaultLanguage;
-        p.settings.voiceId = voices.existsById(a.defaultVoiceId) ? a.defaultVoiceId : null;
+        p.settings.voiceId = canUseVoice(a.defaultVoiceId) ? a.defaultVoiceId : null;
         List<String> parts = req.text() == null ? List.of() : TextSplitter.paragraphs(req.text());
         if (parts.isEmpty()) parts = List.of("");
         account.requireProjectCharacters(parts.stream().mapToInt(String::length).sum());
@@ -78,7 +81,7 @@ public class ProjectService {
         if (req.name() != null) p.name = req.name().trim();
         if (req.settings() != null) {
             VoiceSettings s = req.settings();
-            if (s.voiceId != null && !voices.existsById(s.voiceId)) throw ApiException.notFound("Głos");
+            if (s.voiceId != null && !canUseVoice(s.voiceId)) throw ApiException.notFound("Głos");
             account.requireAdvancedAllowed(p.settings, s);
             s.speed = clamp(s.speed, 0.5, 2.0);
             s.expressiveness = clamp(s.expressiveness, 0, 1);
@@ -125,6 +128,7 @@ public class ProjectService {
         account.requireProjectSlot();
         var p = new Project();
         p.id = UUID.randomUUID().toString();
+        p.ownerId = src.ownerId;
         p.name = src.name + " (kopia)";
         p.settings = src.settings.copy();
         p.lastGeneratedAt = src.lastGeneratedAt;
@@ -150,9 +154,11 @@ public class ProjectService {
         if (text.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "Fragment jest pusty.");
         account.requireProjectCharacters(p.segments.stream().mapToInt(x -> x.text.trim().length()).sum());
         account.requireGenerationQuota(text.length());
-        Voice voice = p.settings.voiceId == null ? null : voices.findById(p.settings.voiceId).orElse(null);
+        Voice voice = p.settings.voiceId == null || !canUseVoice(p.settings.voiceId) ? null
+                : voices.findById(p.settings.voiceId).orElse(null);
 
         var rec = new GenerationRecord();
+        rec.userId = p.ownerId;
         rec.type = "segment";
         rec.projectId = p.id;
         rec.projectName = p.name;
@@ -226,6 +232,7 @@ public class ProjectService {
         String filename = fileName(a.fileNamePattern, p.name) + ("demo".equals(mode) ? "_DEMO" : "") + "." + fmt;
         if (recordExport) {
             var rec = new GenerationRecord();
+            rec.userId = p.ownerId;
             rec.type = "export";
             rec.projectId = p.id;
             rec.projectName = p.name;
@@ -241,12 +248,33 @@ public class ProjectService {
 
     // ------------------------------------------------------------ pomocnicze
 
+    /** Projekt bieżącego użytkownika — cudze projekty są nieodróżnialne od nieistniejących (404). */
     private Project find(String id) {
-        return projects.findById(id).orElseThrow(() -> ApiException.notFound("Projekt"));
+        return projects.findByIdAndOwnerId(id, CurrentUser.id()).orElseThrow(() -> ApiException.notFound("Projekt"));
+    }
+
+    /** Głos z biblioteki lub własny głos bieżącego użytkownika. */
+    private boolean canUseVoice(String voiceId) {
+        if (voiceId == null) return false;
+        return voices.findById(voiceId).map(v -> v.ownerId == null || v.ownerId.equals(CurrentUser.id())).orElse(false);
+    }
+
+    /** Projekt powitalny dla nowego konta. */
+    @Transactional
+    public void createWelcomeProject(String userId) {
+        CurrentUser.runAs(userId, () -> create(new CreateProject("Mój pierwszy projekt",
+                "Witaj w VoiceCraft AI! To jest pierwszy fragment Twojego projektu.\n\n"
+                        + "Każdy akapit to osobny fragment. Możesz go poprawić i wygenerować ponownie, nie generując całości od nowa.")));
+    }
+
+    /** Usuwa wszystkie projekty użytkownika (np. przy usuwaniu konta). */
+    @Transactional
+    public void deleteAllOf(String userId) {
+        projects.deleteAll(projects.findAllByOwnerIdOrderByUpdatedAtDesc(userId));
     }
 
     private ProjectDto dto(Project p) {
-        Map<String, Voice> vs = p.settings.voiceId == null ? Map.of()
+        Map<String, Voice> vs = p.settings.voiceId == null || !canUseVoice(p.settings.voiceId) ? Map.of()
                 : voices.findById(p.settings.voiceId).map(v -> Map.of(v.id, v)).orElse(Map.of());
         return toDto(p, generation.currentMode(), vs, true);
     }
