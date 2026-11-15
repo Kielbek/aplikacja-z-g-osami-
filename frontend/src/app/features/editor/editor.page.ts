@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
@@ -13,6 +14,8 @@ import { SegmentRowComponent } from './segment-row.component';
 import { VersionsDialogComponent } from './versions-dialog.component';
 import { VoicePanelComponent } from './voice-panel.component';
 import { VoicePickerComponent } from './voice-picker.component';
+import { NarratorEditorComponent } from './narrator-editor.component';
+import { StarterPrompt, StarterPromptsComponent } from './starter-prompts.component';
 
 @Component({
   selector: 'vc-editor-page',
@@ -30,6 +33,9 @@ import { VoicePickerComponent } from './voice-picker.component';
     CdkDropList,
     CdkDrag,
     CdkDragPlaceholder,
+    NgTemplateOutlet,
+    NarratorEditorComponent,
+    StarterPromptsComponent,
   ],
   styleUrl: './editor.page.scss',
   templateUrl: './editor.page.html',
@@ -99,6 +105,25 @@ export class EditorPage {
     const file = input.files?.[0];
     if (file) void this.store.importFile(file);
     input.value = '';
+  }
+
+  private narrator = viewChild(NarratorEditorComponent);
+
+  protected insertPause(p: { ms: number; token: string }) {
+    const n = this.narrator();
+    if (this.store.viewMode() === 'narrator' && n) n.insertPause(p.token);
+    else this.store.insertPause(p.ms);
+  }
+
+  /** Podpowiedź startowa: tekst dla jednego lektora albo gotowa rozmowa w widoku dialogu. */
+  protected useStarter(p: StarterPrompt) {
+    if (p.dialog) {
+      this.store.setViewMode('dialog');
+      this.store.startDialog(p.dialog);
+    } else if (p.text) {
+      this.store.setFullText(p.text);
+      if (this.store.viewMode() === 'narrator') queueMicrotask(() => this.narrator()?.focus());
+    }
   }
 
   protected generateSelected() {

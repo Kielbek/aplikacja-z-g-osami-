@@ -287,3 +287,70 @@
 .limit-over { color: var(--danger); font-weight: 550; }
 .plan-link { color: inherit; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; white-space: nowrap; align-self: center; }
 .banner + .banner { margin-top: -12px; }
+
+/* ---------- Widok: jeden lektor / dialog ---------- */
+
+.view-switch {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 10px;
+  background: var(--bg-sunken);
+  border: 1px solid var(--border-subtle);
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 28px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-2);
+    font: inherit;
+    font-size: var(--text-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 120ms, color 120ms, box-shadow 120ms;
+    &:hover { color: var(--text); }
+    &.on {
+      background: var(--surface);
+      color: var(--text);
+      font-weight: 600;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 0 0 1px var(--border);
+    }
+  }
+}
+
+.tools-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 6px;
+  background: var(--border);
+}
+
+.prompts {
+  margin: 28px 0 0 40px;
+}
+
+vc-narrator-editor {
+  margin-left: 40px;
+}
+
+@media (max-width: 1023px) {
+  .prompts, vc-narrator-editor { margin-left: 24px; }
+}
+
+.prompts-leave {
+  animation: prompts-out 200ms ease forwards;
+}
+
+@keyframes prompts-out {
+  to { opacity: 0; transform: translateY(6px); }
+}
+
+@media (max-width: 640px) {
+  .view-switch button { padding: 0 9px; }
+  .tools-sep { display: none; }
+}

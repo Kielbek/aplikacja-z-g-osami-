@@ -237,28 +237,29 @@
   &::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 4px;
-    background: linear-gradient(to right, var(--accent) var(--fill), var(--border) var(--fill));
+    background: linear-gradient(to right, var(--accent) var(--fill), var(--border-strong) var(--fill));
   }
-  &::-moz-range-track { height: 4px; border-radius: 4px; background: var(--border); }
+  &::-moz-range-track { height: 4px; border-radius: 4px; background: var(--border-strong); }
   &::-moz-range-progress { height: 4px; border-radius: 4px; background: var(--accent); }
+  /* Pełny, wyraźny uchwyt — jak w profesjonalnych narzędziach audio */
   &::-webkit-slider-thumb {
     appearance: none;
-    width: 14px;
-    height: 14px;
-    margin-top: -5px;
+    width: 16px;
+    height: 16px;
+    margin-top: -6px;
     border-radius: 50%;
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+    background: var(--accent);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgba(0, 0, 0, 0.2);
     transition: transform var(--dur-fast) var(--ease);
   }
   &::-moz-range-thumb {
     width: 14px;
     height: 14px;
     border-radius: 50%;
-    background: var(--surface);
-    border: 1px solid var(--border-strong);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.16);
+    background: var(--accent);
+    border: 2px solid var(--surface);
+    box-shadow: 0 0 0 1px var(--accent), 0 1px 3px rgba(0, 0, 0, 0.2);
   }
   &:hover::-webkit-slider-thumb { transform: scale(1.1); }
   &:focus-visible { outline: none; }

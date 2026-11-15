@@ -117,7 +117,21 @@
           </div>
 
           <div class="doc-tools">
-            @if (store.selectedIds().length) {
+            <div class="view-switch" role="tablist" aria-label="Widok edytora">
+              <button role="tab" [attr.aria-selected]="store.viewMode() === 'narrator'" [class.on]="store.viewMode() === 'narrator'"
+                (click)="store.setViewMode('narrator')" title="Cały tekst czyta jeden głos">
+                <vc-icon name="type" [size]="14" />Jeden lektor
+              </button>
+              <button role="tab" [attr.aria-selected]="store.viewMode() === 'dialog'" [class.on]="store.viewMode() === 'dialog'"
+                (click)="store.setViewMode('dialog')" title="Fragmenty z osobnymi głosami — rozmowa, wywiad, słuchowisko">
+                <vc-icon name="voices" [size]="14" />Dialog
+              </button>
+            </div>
+            <span class="tools-sep"></span>
+            @if (store.viewMode() === 'narrator') {
+              <ng-container *ngTemplateOutlet="pauseMenu" />
+              <ng-container *ngTemplateOutlet="importBtn" />
+            } @else if (store.selectedIds().length) {
               <div class="selection-bar">
                 <span class="tabular">Zaznaczono: {{ store.selectedIds().length }}</span>
                 <button class="btn btn-sm btn-accent" [disabled]="store.isGenerating() || engine.isOffline() || !!store.planBlock()" (click)="generateSelected()">
@@ -129,25 +143,35 @@
               </div>
             } @else {
               <button class="btn btn-sm btn-ghost" (click)="store.resplitAll()" title="Podziel tekst na akapity, a zbyt długie akapity na grupy zdań">
-                <vc-icon name="scissors" [size]="14" />Podziel automatycznie
+                <vc-icon name="scissors" [size]="14" />Podziel
               </button>
               <button class="btn btn-sm btn-ghost" (click)="store.addSegment()"><vc-icon name="list-plus" [size]="14" />Dodaj fragment</button>
-              <vc-dropdown align="start" [width]="220">
-                <button trigger class="btn btn-sm btn-ghost" title="Wstaw pauzę w miejscu kursora"><vc-icon name="hourglass" [size]="14" />Pauza<vc-icon name="chevron-down" [size]="12" /></button>
-                <div menu>
-                  <div class="menu-label">Wstaw w miejscu kursora</div>
-                  @for (p of pauseOptions; track p.ms) {
-                    <button class="menu-item" (mousedown)="$event.preventDefault()" (click)="store.insertPause(p.ms)">{{ p.label }}<span class="menu-hint">[pauza {{ p.token }}]</span></button>
-                  }
-                </div>
-              </vc-dropdown>
-              <label class="btn btn-sm btn-ghost import" title="Importuj tekst z pliku TXT, MD, DOCX lub PDF">
-                <vc-icon name="upload" [size]="14" />Importuj
-                <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" (change)="onImport($event)" />
-              </label>
+              <ng-container *ngTemplateOutlet="pauseMenu" />
+              <ng-container *ngTemplateOutlet="importBtn" />
             }
           </div>
 
+          <ng-template #pauseMenu>
+            <vc-dropdown align="start" [width]="220">
+              <button trigger class="btn btn-sm btn-ghost" title="Wstaw pauzę w miejscu kursora"><vc-icon name="hourglass" [size]="14" />Pauza<vc-icon name="chevron-down" [size]="12" /></button>
+              <div menu>
+                <div class="menu-label">Wstaw w miejscu kursora</div>
+                @for (p of pauseOptions; track p.ms) {
+                  <button class="menu-item" (mousedown)="$event.preventDefault()" (click)="insertPause(p)">{{ p.label }}<span class="menu-hint">[pauza {{ p.token }}]</span></button>
+                }
+              </div>
+            </vc-dropdown>
+          </ng-template>
+          <ng-template #importBtn>
+            <label class="btn btn-sm btn-ghost import" title="Importuj tekst z pliku TXT, MD, DOCX lub PDF">
+              <vc-icon name="upload" [size]="14" />Importuj
+              <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" (change)="onImport($event)" />
+            </label>
+          </ng-template>
+
+          @if (store.viewMode() === 'narrator') {
+            <vc-narrator-editor />
+          } @else {
           <div class="segments" role="list" cdkDropList (cdkDropListDropped)="store.reorder($event.previousIndex, $event.currentIndex)"
             [cdkDropListDisabled]="!!store.batch()">
             @for (seg of store.segments(); track seg.id; let i = $index) {
@@ -161,6 +185,11 @@
             <vc-icon name="plus" [size]="14" />Dodaj fragment
           </button>
 
+          }
+
+          @if (store.characters() === 0) {
+            <vc-starter-prompts class="prompts" animate.leave="prompts-leave" (choose)="useStarter($event)" />
+          } @else if (store.viewMode() === 'dialog') {
           <div class="shortcuts">
             <span><kbd class="kbd">Enter</kbd> nowy fragment</span>
             <span><kbd class="kbd">Shift</kbd>+<kbd class="kbd">Enter</kbd> nowa linia</span>
@@ -168,6 +197,12 @@
             <span><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">Enter</kbd> generuj zmienione</span>
             <span><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Z</kbd> cofnij</span>
           </div>
+          } @else {
+          <div class="shortcuts">
+            <span>Pusta linia oddziela akapity — każdy akapit generuje się osobno</span>
+            <span><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">Enter</kbd> generuj zmienione</span>
+          </div>
+          }
         </div>
       }
     </div>

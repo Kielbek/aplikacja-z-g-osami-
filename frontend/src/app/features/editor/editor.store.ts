@@ -489,6 +489,68 @@ export class EditorStore implements OnDestroy {
     this.markSegmentsDirty();
   }
 
+  // ------------------------------------------------------------ tryb „Jeden lektor”
+
+  /** Widok edytora: jeden lektor (cały tekst w jednym polu) lub dialog (fragmenty z głosami). */
+  readonly viewMode = signal<'narrator' | 'dialog'>(readViewMode());
+
+  setViewMode(mode: 'narrator' | 'dialog') {
+    this.viewMode.set(mode);
+    try {
+      localStorage.setItem(VIEW_MODE_KEY, mode);
+    } catch {
+      /* brak dostępu do pamięci przeglądarki */
+    }
+  }
+
+  /** Cały tekst projektu (akapity = fragmenty), jak w polu trybu „Jeden lektor”. */
+  readonly fullText = computed(() => this.segments().map((s) => s.text).join('\n\n'));
+
+  /** Fragmenty z własnym głosem (w trybie „Jeden lektor” cały tekst powinien czytać głos projektu). */
+  readonly voiceOverrides = computed(() => this.segments().filter((s) => !!s.voiceId).length);
+
+  /**
+   * Zastępuje cały tekst (tryb „Jeden lektor”). Akapity stają się fragmentami; fragmenty o niezmienionym
+   * tekście zachowują nagranie, a zmieniony akapit zachowuje identyfikator (wersje, własny głos).
+   */
+  setFullText(text: string) {
+    const paras = text
+      .split(/\n[ \t]*\n+/)
+      .map((p) => p.replace(/^\n+|\s+$/g, ''))
+      .filter((p) => p.trim().length > 0);
+    const old = this.segments();
+    if (paras.length === old.filter((s) => s.text.trim()).length && paras.every((p, i) => p === old.filter((s) => s.text.trim())[i]?.text)) {
+      return;
+    }
+    this.snapshot('fulltext', true);
+    const byText = new Map<string, EditorSegment[]>();
+    for (const s of old) byText.set(s.text, [...(byText.get(s.text) ?? []), s]);
+    const used = new Set<string>();
+    const next = paras.map((p, i) => {
+      const exact = byText.get(p)?.find((s) => !used.has(s.id));
+      if (exact) {
+        used.add(exact.id);
+        return exact;
+      }
+      const sameSlot = old[i] && !used.has(old[i].id) && !paras.includes(old[i].text) ? old[i] : null;
+      if (sameSlot) {
+        used.add(sameSlot.id);
+        return { ...sameSlot, text: p, status: localStatus(sameSlot, p), error: null };
+      }
+      return blank(p);
+    });
+    this.segments.set(next.length ? next : [blank('')]);
+    this.markSegmentsDirty();
+  }
+
+  /** Wypełnia pusty projekt rozmową: kolejne kwestie z przypisanymi głosami. */
+  startDialog(lines: { voiceId: string; text: string }[]) {
+    this.snapshot('dialog');
+    const projectVoice = this.settings()?.voiceId ?? null;
+    this.segments.set(lines.map((l) => ({ ...blank(l.text), voiceId: l.voiceId === projectVoice ? null : l.voiceId })));
+    this.markSegmentsDirty();
+  }
+
   /** Dołącza fragmenty (np. z importowanego pliku). Pusty projekt jest zastępowany. */
   appendSegments(texts: string[]) {
     if (!texts.length) return;
@@ -876,6 +938,16 @@ export class EditorStore implements OnDestroy {
 
   private patchSeg(id: string, patch: Partial<EditorSegment>) {
     this.segments.update((list) => list.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+  }
+}
+
+const VIEW_MODE_KEY = 'vc.editorView';
+
+function readViewMode(): 'narrator' | 'dialog' {
+  try {
+    return localStorage.getItem(VIEW_MODE_KEY) === 'dialog' ? 'dialog' : 'narrator';
+  } catch {
+    return 'narrator';
   }
 }
 
