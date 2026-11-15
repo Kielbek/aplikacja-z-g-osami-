@@ -52,7 +52,7 @@
               </div>
             </div>
             <div class="lang">
-              <span class="t-small">{{ languageLabel(v.languages[0] ?? '') }}</span>
+              <span class="t-small lang-name"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" />{{ languageLabel(v.languages[0] ?? '') }}</span>
               <span class="cell-muted">{{ v.gender === 'female' ? 'Kobiecy' : v.gender === 'male' ? 'Męski' : 'Neutralny' }}@if (v.age) { · ~{{ v.age }} lat }</span>
             </div>
             <div class="cats-cell">

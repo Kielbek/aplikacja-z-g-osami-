@@ -11,6 +11,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { FlagComponent } from './flag.component';
 import { IconComponent } from './icon.component';
 import { isMobile } from './viewport';
 
@@ -24,6 +25,8 @@ export interface SelectOption<T = string> {
   disabled?: boolean;
   /** Krótki tekst przy zablokowanej opcji, np. „Starter+”. */
   badge?: string;
+  /** Kod języka — przed etykietą wyświetlana jest flaga. */
+  flag?: string | null;
 }
 
 let uid = 0;
@@ -36,7 +39,7 @@ let uid = 0;
 @Component({
   selector: 'vc-select',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent],
+  imports: [IconComponent, FlagComponent],
   styleUrl: './select.component.scss',
   host: { '[class.is-open]': 'open()', '[class.is-disabled]': 'disabled()', '[class.sm]': "size() === 'sm'" },
   template: `
@@ -55,6 +58,7 @@ let uid = 0;
       (keydown)="onTriggerKey($event)"
     >
       @if (selected(); as s) {
+        @if (s.flag) { <vc-flag [lang]="s.flag" /> }
         <span class="value">{{ s.label }}</span>
         @if (showHintInTrigger() && s.hint) { <span class="value-hint">{{ s.hint }}</span> }
       } @else {
@@ -104,6 +108,7 @@ let uid = 0;
               (pointermove)="active.set(i)"
               (click)="choose(o)"
             >
+              @if (o.flag) { <vc-flag class="opt-flag" [lang]="o.flag" [size]="13" /> }
               <span class="opt-text">
                 <span class="opt-label">{{ o.label }}</span>
                 @if (o.hint) { <span class="opt-hint">{{ o.hint }}</span> }

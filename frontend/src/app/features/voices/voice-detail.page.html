@@ -15,7 +15,7 @@
           }
           <div class="hero-meta">
             <span>{{ kindLabel() }}</span>
-            <span class="sep">·</span><span>{{ languageLabel(v.languages[0] ?? '') }}</span>
+            <span class="sep">·</span><span class="lang-name"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" [size]="13" />{{ languageLabel(v.languages[0] ?? '') }}</span>
             <span class="sep">·</span><span>{{ genderLabel(v.gender) }}</span>
             @if (v.age) { <span class="sep">·</span><span>ok. {{ v.age }} lat</span> }
           </div>
@@ -58,7 +58,7 @@
         <dl class="props">
           <div><dt>Kategorie</dt><dd class="chips">@for (c of v.categories; track c) { <span class="badge">{{ categoryLabel(c) }}</span> } @empty { — }</dd></div>
           <div><dt>Barwa</dt><dd class="chips">@for (t of v.traits; track t) { <span class="badge">{{ t }}</span> } @empty { — }</dd></div>
-          <div><dt>Języki</dt><dd>{{ v.languages.map(languageLabel).join(', ') }}</dd></div>
+          <div><dt>Języki</dt><dd class="langs">@for (l of v.languages; track l) { <span class="lang-name"><vc-flag [lang]="l" [voiceId]="v.id" />{{ languageLabel(l) }}</span> }</dd></div>
           <div><dt>Użycia</dt><dd class="tabular">{{ v.useCount }} {{ v.useCount === 1 ? 'generacja' : 'generacji' }}</dd></div>
           @if (v.kind !== 'LIBRARY') { <div><dt>Utworzono</dt><dd>{{ formatDate(v.createdAt) }}</dd></div> }
           <div>

@@ -18,11 +18,27 @@ export const LANGUAGES: Record<string, string> = {
 
 export const languageLabel = (code: string) => LANGUAGES[code] ?? code.toUpperCase();
 
+/** Kraj (ISO 3166-1 alpha-2) reprezentujący język — do flagi przy nazwie języka. */
+const LANGUAGE_COUNTRY: Record<string, string> = {
+  pl: 'pl', en: 'gb', de: 'de', fr: 'fr', es: 'es', it: 'it', pt: 'pt', nl: 'nl', cs: 'cz', sk: 'sk', uk: 'ua',
+  ru: 'ru', ja: 'jp', zh: 'cn', ko: 'kr', ar: 'sa', hi: 'in', tr: 'tr', sv: 'se', da: 'dk', fi: 'fi', no: 'no',
+  nb: 'no', el: 'gr', he: 'il', id: 'id', ms: 'my', th: 'th', vi: 'vn', hu: 'hu', ro: 'ro', bg: 'bg', hr: 'hr',
+  sr: 'rs', sl: 'si', lt: 'lt', lv: 'lv', et: 'ee', fa: 'ir', ur: 'pk', bn: 'bd', tl: 'ph', sw: 'ke', ca: 'es-ct',
+};
+
+/** Głosy z akcentem innym niż domyślny kraj języka. */
+const VOICE_COUNTRY: Record<string, string> = { 'en-james': 'us', 'en-maya': 'us' };
+
+export function flagCountry(lang: string, voiceId?: string | null): string | null {
+  if (voiceId && VOICE_COUNTRY[voiceId]) return VOICE_COUNTRY[voiceId];
+  return LANGUAGE_COUNTRY[(lang ?? '').toLowerCase()] ?? null;
+}
+
 /** Opcje listy języków dla vc-select (polski zawsze na górze). */
-export function languageOptions(codes: string[]): { value: string; label: string; hint: string }[] {
+export function languageOptions(codes: string[]): { value: string; label: string; hint: string; flag: string | null }[] {
   return [...codes]
     .sort((a, b) => (a === 'pl' ? -1 : b === 'pl' ? 1 : languageLabel(a).localeCompare(languageLabel(b), 'pl')))
-    .map((c) => ({ value: c, label: languageLabel(c), hint: c.toUpperCase() }));
+    .map((c) => ({ value: c, label: languageLabel(c), hint: c.toUpperCase(), flag: c }));
 }
 
 export const CATEGORIES: { id: string; label: string }[] = [

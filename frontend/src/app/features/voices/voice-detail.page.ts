@@ -10,6 +10,7 @@ import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { formatDate, formatSeconds } from '../../core/util/format';
 import { categoryLabel, genderLabel, languageLabel } from '../../core/util/labels';
+import { FlagComponent } from '../../shared/flag.component';
 import { IconComponent } from '../../shared/icon.component';
 import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
 import { WaveformComponent } from '../../shared/waveform.component';
@@ -18,7 +19,7 @@ import { VoiceActions } from './voice-actions';
 @Component({
   selector: 'vc-voice-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, VoiceAvatarComponent, WaveformComponent],
+  imports: [RouterLink, IconComponent, VoiceAvatarComponent, WaveformComponent, FlagComponent],
   styleUrl: './voice-detail.page.scss',
   templateUrl: './voice-detail.page.html',
 })

@@ -5,6 +5,7 @@ import { VoicesStore } from '../../core/services/voices.store';
 import { CATEGORIES, GENDERS, categoryLabel, languageLabel, languageOptions } from '../../core/util/labels';
 import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { EngineBannerComponent } from '../../shared/engine-banner.component';
+import { FlagComponent } from '../../shared/flag.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PlayButtonComponent } from '../../shared/play-button.component';
 import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
@@ -13,7 +14,7 @@ import { VoiceActions } from './voice-actions';
 @Component({
   selector: 'vc-voices-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, PlayButtonComponent, VoiceAvatarComponent, EngineBannerComponent, SelectComponent],
+  imports: [RouterLink, IconComponent, PlayButtonComponent, VoiceAvatarComponent, EngineBannerComponent, SelectComponent, FlagComponent],
   styleUrl: './voices.page.scss',
   templateUrl: './voices.page.html',
 })

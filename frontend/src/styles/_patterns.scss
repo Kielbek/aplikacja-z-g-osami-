@@ -322,3 +322,16 @@
   background: color-mix(in srgb, var(--avatar-fg, #888) 22%, var(--surface));
   color: color-mix(in srgb, var(--avatar-fg, #888) 45%, #fff);
 }
+
+/* Nazwa języka z flagą kraju */
+.lang-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.langs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}

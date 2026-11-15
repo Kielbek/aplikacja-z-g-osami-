@@ -6,6 +6,7 @@ import { PlayerTrack } from '../../core/services/player.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { categoryLabel, languageLabel } from '../../core/util/labels';
 import { DropdownComponent } from '../../shared/dropdown.component';
+import { FlagComponent } from '../../shared/flag.component';
 import { IconComponent } from '../../shared/icon.component';
 import { PlayButtonComponent } from '../../shared/play-button.component';
 import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
@@ -14,7 +15,7 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
 @Component({
   selector: 'vc-voice-picker',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DropdownComponent, IconComponent, VoiceAvatarComponent, PlayButtonComponent, RouterLink],
+  imports: [DropdownComponent, IconComponent, VoiceAvatarComponent, PlayButtonComponent, RouterLink, FlagComponent],
   styles: `
     :host { display: block; }
     vc-dropdown { display: block; }
@@ -36,6 +37,8 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
     .item .sb { font-size: var(--text-xs); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .item.sel { background: var(--accent-soft); }
     .check { color: var(--accent); }
+    .sb vc-flag, .cur-sub vc-flag { margin-right: 5px; vertical-align: -1px; }
+    .menu-label { display: flex; align-items: center; gap: 6px; }
     vc-play-button { --pb: 26px; }
     .foot { display: block; padding: 8px 10px 6px; font-size: var(--text-xs); }
     .chip-trigger {
@@ -64,7 +67,7 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
           <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="34" />
           <span class="cur-text">
             <span class="cur-name">{{ v.name }}</span>
-            <span class="cur-sub">{{ describe(v) }}</span>
+            <span class="cur-sub"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" [size]="10" />{{ describe(v) }}</span>
           </span>
         } @else {
           <span class="cur-text"><span class="cur-name">Wybierz głos</span><span class="cur-sub">Brak wybranego głosu</span></span>
@@ -88,13 +91,13 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
           </div>
         </div>
         @for (group of groups(); track group.label) {
-          <div class="menu-label">{{ group.label }}</div>
+          <div class="menu-label">@if (group.lang) { <vc-flag [lang]="group.lang" [size]="10" /> }{{ group.label }}</div>
           @for (v of group.voices; track v.id) {
             <button class="menu-item item" [class.sel]="v.id === selectedId()" (click)="select.emit(v.id)">
               <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="28" />
               <span class="it">
                 <span class="nm">{{ v.name }} @if (v.favorite) { <vc-icon name="star" [size]="11" [filled]="true" style="color:var(--warning)" /> }</span>
-                <span class="sb">{{ describe(v) }}</span>
+                <span class="sb"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" [size]="10" />{{ describe(v) }}</span>
               </span>
               @if (v.id === selectedId()) { <vc-icon class="check" name="check" [size]="14" /> }
               <vc-play-button [track]="sample(v)" label="Odsłuchaj próbkę" [iconSize]="10" (click)="$event.stopPropagation()" />
@@ -134,10 +137,10 @@ export class VoicePickerComponent {
     const inLang = list.filter((v) => v.kind === 'LIBRARY' && !v.favorite && v.languages.includes(lang));
     const other = list.filter((v) => v.kind === 'LIBRARY' && !v.favorite && !v.languages.includes(lang));
     return [
-      { label: 'Ulubione', voices: fav },
-      { label: 'Moje głosy', voices: own },
-      { label: languageLabel(lang), voices: inLang },
-      { label: 'Inne języki', voices: other },
+      { label: 'Ulubione', voices: fav, lang: null },
+      { label: 'Moje głosy', voices: own, lang: null },
+      { label: languageLabel(lang), voices: inLang, lang },
+      { label: 'Inne języki', voices: other, lang: null },
     ].filter((g) => g.voices.length);
   });
 
