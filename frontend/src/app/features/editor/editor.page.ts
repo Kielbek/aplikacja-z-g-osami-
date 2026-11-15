@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, HostListener, computed, effect, inject, input, signal, untracked, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { AccountStore } from '../../core/services/account.store';
@@ -92,7 +92,11 @@ export class EditorPage {
   });
 
   constructor() {
-    effect(() => void this.store.load(this.id()));
+    // Tylko zmiana identyfikatora z trasy przeładowuje projekt (bez śledzenia stanu wewnątrz load)
+    effect(() => {
+      const id = this.id();
+      untracked(() => void this.store.load(id));
+    });
   }
 
   protected playAll() {

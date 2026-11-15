@@ -234,7 +234,14 @@ class ComplianceIntegrationTest {
         old.createdAt = Instant.now().minus(Duration.ofDays(120)); // PRO przechowuje 90 dni
         history.save(old);
 
+        // Pusty projekt (bez tekstu) zostaje usunięty, projekt z tekstem — nie
+        String empty = mvc.perform(json(post("/api/projects").cookie(c), "{\"name\":\"Pusty\"}")).andReturn().getResponse()
+                .getContentAsString().replaceAll(".*?\"id\":\"([^\"]+)\".*", "$1");
+
         var report = cleanup.run(Instant.now().plus(Duration.ofDays(2)));
+        assertThat(report.emptyProjectsRemoved()).isGreaterThanOrEqualTo(1);
+        mvc.perform(get("/api/projects/" + empty).cookie(c)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/projects/" + pid).cookie(c)).andExpect(status().isOk());
         assertThat(report.historyRemoved()).isGreaterThanOrEqualTo(1);
         assertThat(report.filesRemoved()).isGreaterThanOrEqualTo(2);
         assertThat(storage.exists(orphan)).isFalse();

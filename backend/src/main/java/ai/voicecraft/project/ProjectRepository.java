@@ -11,6 +11,11 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
 
     long countByOwnerId(String ownerId);
 
+    /** Puste projekty (bez tekstu, nigdy niegenerowane), nieruszane od podanej chwili. */
+    @org.springframework.data.jpa.repository.Query("select p from Project p where p.lastGeneratedAt is null and p.updatedAt < ?1"
+            + " and not exists (select s from Segment s where s.project = p and length(trim(s.text)) > 0)")
+    List<Project> findEmptyBefore(java.time.Instant before);
+
     @org.springframework.transaction.annotation.Transactional
     @org.springframework.data.jpa.repository.Modifying
     @org.springframework.data.jpa.repository.Query("update Project p set p.folderId = null where p.folderId = ?1 and p.ownerId = ?2")

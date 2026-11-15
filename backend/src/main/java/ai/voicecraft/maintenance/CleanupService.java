@@ -24,7 +24,8 @@ import org.springframework.stereotype.Service;
  *   <li>historia generowania starsza niż okres przechowywania planu właściciela,</li>
  *   <li>pliki audio, do których nic już nie prowadzi (stare wersje fragmentów, usunięte projekty i głosy,
  *       niezapisane podglądy projektowania) — z zapasem 24 h, aby nie usunąć pliku zapisywanego właśnie teraz,</li>
- *   <li>wygasłe tokeny resetu hasła i potwierdzenia e-mail.</li>
+ *   <li>wygasłe tokeny resetu hasła i potwierdzenia e-mail,</li>
+ *   <li>puste projekty (bez tekstu, nigdy niegenerowane) nieruszane od doby.</li>
  * </ol>
  * Zużycie limitów (usage_events) nie jest usuwane — nie zależy od historii.
  */
@@ -50,14 +51,16 @@ public class CleanupService {
         this.verificationTokens = verificationTokens;
     }
 
-    public record Report(int historyRemoved, long filesScanned, long filesRemoved, long bytesFreed, int tokensRemoved) {}
+    public record Report(int historyRemoved, long filesScanned, long filesRemoved, long bytesFreed, int tokensRemoved,
+                         int emptyProjectsRemoved) {}
 
     @Scheduled(cron = "${voicecraft.cleanup.cron:0 30 3 * * *}")
     public void nightly() {
         try {
             Report r = run(Instant.now());
-            log.info("Sprzątanie: usunięto {} wpisów historii, {} z {} plików ({} MB), {} tokenów",
-                    r.historyRemoved(), r.filesRemoved(), r.filesScanned(), r.bytesFreed() / 1_048_576, r.tokensRemoved());
+            log.info("Sprzątanie: usunięto {} wpisów historii, {} z {} plików ({} MB), {} tokenów, {} pustych projektów",
+                    r.historyRemoved(), r.filesRemoved(), r.filesScanned(), r.bytesFreed() / 1_048_576, r.tokensRemoved(),
+                    r.emptyProjectsRemoved());
         } catch (RuntimeException e) {
             log.error("Sprzątanie danych nie powiodło się", e);
         }
@@ -69,6 +72,9 @@ public class CleanupService {
             removed += history.deleteExpired(plan, now.minus(Duration.ofDays(plan.historyRetentionDays)));
         }
         int tokens = resetTokens.deleteExpired(now) + verificationTokens.deleteExpired(now);
+        // Puste projekty (np. „Nowy projekt” zamknięty bez wpisania tekstu) — po dobie bez zmian
+        var empty = projects.findEmptyBefore(now.minus(Duration.ofDays(1)));
+        projects.deleteAll(empty);
 
         // Zbiór referencji budowany PO usunięciu historii — pliki wygasłych wersji stają się osierocone
         Set<String> referenced = new HashSet<>();
@@ -94,6 +100,6 @@ public class CleanupService {
             }
         });
         if (firstError.get() != null) log.warn("Nie udało się usunąć części plików: {}", firstError.get().getMessage());
-        return new Report(removed, scanned.get(), deleted.get(), bytes.get(), tokens);
+        return new Report(removed, scanned.get(), deleted.get(), bytes.get(), tokens, empty.size());
     }
 }

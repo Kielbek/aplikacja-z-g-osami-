@@ -208,6 +208,8 @@ Strona projektów ma dwa widoki (wybór jest zapamiętywany):
 - **Foldery** — jak eksplorator plików: kafelki folderów i projektów. Projekt przenosisz, przeciągając go na folder (albo na kafelek „Wszystkie projekty”, żeby wyjąć go z folderu), lub z menu projektu → „Przenieś do”. Nowy projekt utworzony wewnątrz folderu od razu do niego trafia. Wyszukiwanie przeszukuje wszystkie foldery.
 - **Lista** — wszystkie projekty w jednej tabeli z kolumną „Folder”.
 
+Puste projekty nie są zachowywane: projekt bez żadnego tekstu (i nigdy niegenerowany) jest usuwany po wyjściu z edytora, a nocne sprzątanie usuwa takie projekty pozostawione dłużej niż dobę (np. po zamknięciu karty).
+
 Foldery mają jeden poziom (bez folderów w folderach), najwyżej 100 na konto. Usunięcie folderu nie usuwa projektów — wracają do „Wszystkich projektów”. API: `GET/POST /api/folders`, `PATCH/DELETE /api/folders/{id}`, `PUT /api/projects/{id}/folder`.
 
 ## Zgodność z prawem i porządek danych

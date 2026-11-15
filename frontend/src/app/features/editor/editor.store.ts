@@ -125,6 +125,7 @@ export class EditorStore implements OnDestroy {
   // ------------------------------------------------------------ ładowanie
 
   async load(id: string) {
+    if (this.project() && this.project()!.id !== id) void this.discardIfEmpty();
     this.reset();
     try {
       const p = await this.api.project(id);
@@ -149,6 +150,29 @@ export class EditorStore implements OnDestroy {
 
   ngOnDestroy() {
     this.events?.close();
+    void this.discardIfEmpty();
+  }
+
+  /**
+   * Pusty projekt (bez żadnego tekstu i nigdy niegenerowany) nie jest zachowywany —
+   * usuwany przy wyjściu z edytora. Zabezpieczenie po stronie serwera: nocne sprzątanie.
+   */
+  private async discardIfEmpty() {
+    const p = this.project();
+    if (!p || p.lastGeneratedAt || this.batch()) return;
+    if (this.segments().some((s) => s.text.trim().length > 0)) return;
+    if (this.segTimer) clearTimeout(this.segTimer);
+    if (this.settingsTimer) clearTimeout(this.settingsTimer);
+    this.segDirty = false;
+    this.settingsDirty = false;
+    try {
+      if (this.saving) await this.saving;
+      await this.api.deleteProject(p.id);
+      this.projectsStore.remove(p.id);
+      void this.accountStore.refreshUsage();
+    } catch {
+      /* projekt usunie nocne sprzątanie */
+    }
   }
 
   // ------------------------------------------------------------ zdarzenia z backendu (SSE)
