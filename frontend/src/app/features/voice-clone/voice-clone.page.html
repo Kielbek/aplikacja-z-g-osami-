@@ -116,7 +116,7 @@
           <h2>Zgoda właściciela głosu</h2>
           <label class="checkbox consent">
             <input type="checkbox" [checked]="consent()" (change)="consent.set($any($event.target).checked)" [disabled]="!file()" />
-            <span>Oświadczam, że nagranie przedstawia mój głos lub mam wyraźną zgodę osoby nagranej na utworzenie i wykorzystanie jej cyfrowego głosu. Nie użyję klonu do podszywania się, wprowadzania w błąd ani w celach niezgodnych z prawem.</span>
+            <span>{{ consentText()?.text ?? 'Oświadczam, że nagranie przedstawia mój głos lub mam wyraźną zgodę osoby nagranej na utworzenie i wykorzystanie jej cyfrowego głosu. Nie użyję klonu do podszywania się, wprowadzania w błąd ani w celach niezgodnych z prawem.' }}</span>
           </label>
         </div>
       </li>

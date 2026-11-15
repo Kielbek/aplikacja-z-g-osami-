@@ -1,6 +1,7 @@
 package ai.voicecraft.voice;
 
 import ai.voicecraft.engine.EngineDtos.AudioAnalysis;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +76,23 @@ public class VoiceController {
     @PostMapping(value = "/clone", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public Voice clone(@RequestPart("file") MultipartFile file, @RequestParam String name,
                        @RequestParam(defaultValue = "") String transcript, @RequestParam(defaultValue = "pl") String language,
-                       @RequestParam(defaultValue = "false") boolean consent) throws IOException {
-        return service.createClone(file.getBytes(), file.getOriginalFilename(), name, transcript, language, consent);
+                       @RequestParam(defaultValue = "false") boolean consent,
+                       @RequestParam(required = false) String consentVersion,
+                       HttpServletRequest http) throws IOException {
+        return service.createClone(file.getBytes(), file.getOriginalFilename(), name, transcript, language, consent,
+                consentVersion, new VoiceService.RequestContext(http.getRemoteAddr(), http.getHeader("User-Agent")));
+    }
+
+    /** Aktualna treść oświadczenia o zgodzie na klonowanie (wyświetlana w formularzu). */
+    @GetMapping("/clone/consent")
+    public VoiceService.ConsentInfo cloningConsent() {
+        return service.cloningConsent();
+    }
+
+    /** Zapisana zgoda dla sklonowanego głosu (brak treści dla innych głosów). */
+    @GetMapping("/{id}/consent")
+    public ResponseEntity<VoiceService.ConsentDto> consent(@PathVariable String id) {
+        var c = service.consentOf(id);
+        return c == null ? ResponseEntity.noContent().build() : ResponseEntity.ok(c);
     }
 }

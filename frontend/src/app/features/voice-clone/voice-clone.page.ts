@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, AudioAnalysis } from '../../core/api/models';
+import { ApiError, AudioAnalysis, ConsentText } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { PlayerService } from '../../core/services/player.service';
@@ -40,6 +40,12 @@ export class VoiceClonePage {
   protected analyzing = signal(false);
   protected analysisError = signal<string | null>(null);
   protected consent = signal(false);
+  /** Treść oświadczenia z backendu — zapisywana w rejestrze zgód razem z wersją. */
+  protected consentText = signal<ConsentText | null>(null);
+
+  constructor() {
+    void this.api.cloningConsent().then((c) => this.consentText.set(c), () => undefined);
+  }
   protected name = signal('');
   protected transcript = signal('');
   protected language = signal('pl');
@@ -147,6 +153,7 @@ export class VoiceClonePage {
         transcript: this.transcript().trim(),
         language: this.language(),
         consent: this.consent(),
+        consentVersion: this.consentText()?.version ?? null,
       });
       this.voices.upsert(voice);
       void this.account.refreshUsage();

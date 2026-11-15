@@ -122,6 +122,8 @@ export interface Voice {
   description: string;
   enginePrompt: string | null;
   referenceId: string | null;
+  /** Głos ma nagranie wzorcowe — stała barwa we wszystkich fragmentach. */
+  anchored: boolean;
   sampleText: string | null;
   sampleEngineMode: EngineMode | null;
   favorite: boolean;
@@ -253,4 +255,19 @@ export interface GenerationJob {
   lastError: string | null;
   lastErrorCode: string | null;
   createdAt: string;
+}
+
+export interface ConsentText {
+  version: string;
+  text: string;
+}
+
+/** Zapisany dowód zgody na klonowanie głosu. */
+export interface VoiceConsent {
+  version: string;
+  text: string;
+  createdAt: string;
+  ip: string | null;
+  audioSha256: string;
+  fileName: string | null;
 }

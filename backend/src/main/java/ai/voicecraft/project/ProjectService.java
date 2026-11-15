@@ -211,6 +211,7 @@ public class ProjectService {
         }
         projects.save(p);
         history.save(rec);
+        account.recordUsage(p.ownerId, "segment", characters, rec.durationMs);
         Map<String, Voice> vs = voice == null ? Map.of() : Map.of(voice.id, voice);
         return toDto(p, generation.currentMode(), vs, true, dict).segments().stream()
                 .filter(x -> x.id().equals(segmentId)).findFirst().orElseThrow();
@@ -329,6 +330,11 @@ public class ProjectService {
         String fmt = format == null ? a.exportFormat : format;
         if (recordExport) account.requireExportFormat(fmt);
         byte[] out = "mp3".equals(fmt) ? engine.toMp3(wav, account.effectiveBitrate()) : wav;
+        if (recordExport) {
+            // Oznaczenie treści AI w metadanych pliku (AI Act art. 50)
+            var label = ai.voicecraft.audio.AiContentLabel.of(p.name, mode);
+            out = "mp3".equals(fmt) ? ai.voicecraft.audio.AiContentLabel.mp3(out, label) : ai.voicecraft.audio.AiContentLabel.wav(out, label);
+        }
         String filename = fileName(a.fileNamePattern, p.name) + ("demo".equals(mode) ? "_DEMO" : "") + "." + fmt;
         if (recordExport) {
             var rec = new GenerationRecord();

@@ -84,6 +84,15 @@ public class S3AudioStorage implements AudioStorage {
     }
 
     @Override
+    public void forEachObject(java.util.function.Consumer<StoredObject> action) {
+        var req = ListObjectsV2Request.builder().bucket(bucket).prefix(PREFIX).build();
+        for (S3Object o : s3.listObjectsV2Paginator(req).contents()) {
+            String key = o.key().substring(PREFIX.length());
+            if (AudioStorage.validKey(key)) action.accept(new StoredObject(key, o.lastModified(), o.size()));
+        }
+    }
+
+    @Override
     public void delete(String key) {
         if (AudioStorage.validKey(key)) s3.deleteObject(DeleteObjectRequest.builder().bucket(bucket).key(PREFIX + key).build());
     }

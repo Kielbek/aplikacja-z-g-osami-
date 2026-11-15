@@ -61,8 +61,32 @@
           <div><dt>Języki</dt><dd>{{ v.languages.map(languageLabel).join(', ') }}</dd></div>
           <div><dt>Użycia</dt><dd class="tabular">{{ v.useCount }} {{ v.useCount === 1 ? 'generacja' : 'generacji' }}</dd></div>
           @if (v.kind !== 'LIBRARY') { <div><dt>Utworzono</dt><dd>{{ formatDate(v.createdAt) }}</dd></div> }
+          <div>
+            <dt>Spójność</dt>
+            <dd>
+              @if (v.anchored) {
+                Nagranie wzorcowe — każdy fragment brzmi tym samym głosem
+              } @else {
+                Nagranie wzorcowe powstanie przy pierwszym generowaniu z modelem VoxCPM2
+              }
+            </dd>
+          </div>
         </dl>
       </section>
+
+      @if (consent(); as c) {
+        <section class="section">
+          <div class="section-head"><h2>Zgoda na klonowanie</h2></div>
+          <p class="desc consent-text">„{{ c.text }}”</p>
+          <dl class="props">
+            <div><dt>Złożona</dt><dd>{{ formatDate(c.createdAt) }}</dd></div>
+            <div><dt>Wersja oświadczenia</dt><dd><code>{{ c.version }}</code></dd></div>
+            @if (c.fileName) { <div><dt>Nagranie</dt><dd>{{ c.fileName }}</dd></div> }
+            <div><dt>Skrót nagrania</dt><dd><code class="hash">{{ c.audioSha256.slice(0, 16) }}…</code></dd></div>
+            @if (c.ip) { <div><dt>Adres IP</dt><dd><code>{{ c.ip }}</code></dd></div> }
+          </dl>
+        </section>
+      }
 
       <section class="section">
         <button class="disclosure" (click)="showPrompt.set(!showPrompt())" [attr.aria-expanded]="showPrompt()">

@@ -5,6 +5,9 @@ import { ShellComponent } from './layout/shell.component';
 export const routes: Routes = [
   { path: 'login', canActivate: [guestGuard], loadComponent: () => import('./features/login/login.page').then((m) => m.LoginPage), title: 'Logowanie · VoiceCraft AI' },
   { path: 'reset-password', loadComponent: () => import('./features/login/reset-password.page').then((m) => m.ResetPasswordPage), title: 'Nowe hasło · VoiceCraft AI' },
+  { path: 'verify-email', loadComponent: () => import('./features/login/verify-email.page').then((m) => m.VerifyEmailPage), title: 'Potwierdzenie e-mail · VoiceCraft AI' },
+  { path: 'terms', loadComponent: () => import('./features/legal/legal.page').then((m) => m.LegalPage), data: { doc: 'terms' }, title: 'Regulamin · VoiceCraft AI' },
+  { path: 'privacy', loadComponent: () => import('./features/legal/legal.page').then((m) => m.LegalPage), data: { doc: 'privacy' }, title: 'Polityka prywatności · VoiceCraft AI' },
   {
     path: '',
     component: ShellComponent,

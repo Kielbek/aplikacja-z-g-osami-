@@ -32,6 +32,9 @@
           }
           {{ mode() === 'register' ? 'Zarejestruj się przez Google' : 'Zaloguj się przez Google' }}
         </button>
+        @if (mode() === 'register') {
+          <p class="google-terms">Rejestrując się przez Google, akceptujesz <a href="/terms" target="_blank" rel="noopener">regulamin</a> i <a href="/privacy" target="_blank" rel="noopener">politykę prywatności</a>.</p>
+        }
 
         <div class="or"><span>lub e-mailem</span></div>
       }
@@ -98,7 +101,7 @@
         @if (mode() === 'register') {
           <label class="checkbox">
             <input type="checkbox" [checked]="acceptTerms()" (change)="acceptTerms.set($any($event.target).checked)" />
-            <span>Akceptuję <a href="#" (click)="$event.preventDefault()">regulamin</a> i <a href="#" (click)="$event.preventDefault()">politykę prywatności</a>.</span>
+            <span>Akceptuję <a href="/terms" target="_blank" rel="noopener">regulamin</a> i <a href="/privacy" target="_blank" rel="noopener">politykę prywatności</a>.</span>
           </label>
           @if (termsError(); as e) { <span class="field-error">{{ e }}</span> }
         }
@@ -130,9 +133,9 @@
 
     <footer class="foot">
       <span>© {{ year }} VoiceCraft AI</span>
-      <a href="#" (click)="$event.preventDefault()">Prywatność</a>
-      <a href="#" (click)="$event.preventDefault()">Regulamin</a>
-      <a href="#" (click)="$event.preventDefault()">Pomoc</a>
+      <a href="/privacy" target="_blank" rel="noopener">Prywatność</a>
+      <a href="/terms" target="_blank" rel="noopener">Regulamin</a>
+      <a href="/privacy#cookies" target="_blank" rel="noopener">Cookies</a>
     </footer>
   </main>
 

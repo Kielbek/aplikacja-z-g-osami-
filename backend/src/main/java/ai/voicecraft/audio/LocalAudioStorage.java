@@ -53,6 +53,24 @@ public class LocalAudioStorage implements AudioStorage {
         }
     }
 
+    @Override
+    public void forEachObject(java.util.function.Consumer<StoredObject> action) {
+        try (var files = Files.list(root)) {
+            files.filter(Files::isRegularFile)
+                    .filter(f -> AudioStorage.validKey(f.getFileName().toString()))
+                    .forEach(f -> {
+                        try {
+                            action.accept(new StoredObject(f.getFileName().toString(),
+                                    Files.getLastModifiedTime(f).toInstant(), Files.size(f)));
+                        } catch (IOException ignored) {
+                            // plik usunięty w międzyczasie
+                        }
+                    });
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+    }
+
     private Path resolve(String key) {
         if (!AudioStorage.validKey(key)) throw new IllegalArgumentException("Niepoprawny klucz pliku.");
         Path p = root.resolve(key).normalize();

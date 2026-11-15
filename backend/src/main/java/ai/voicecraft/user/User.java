@@ -27,4 +27,11 @@ public class User {
 
     public Instant createdAt = Instant.now();
     public Instant lastLoginAt;
+
+    /** Potwierdzenie adresu e-mail (link z wiadomości lub logowanie przez Google). */
+    public Instant emailVerifiedAt;
+
+    /** Akceptacja regulaminu i polityki prywatności przy rejestracji. */
+    public Instant termsAcceptedAt;
+    public String termsVersion;
 }

@@ -44,7 +44,7 @@ class StripeWebhookTest {
     @Test
     void webhookActivatesAndCancelsPlan() throws Exception {
         var reg = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).header("X-Requested-With", "t")
-                .content("{\"name\":\"Pay\",\"email\":\"pay@test.pl\",\"password\":\"Haslo12345\"}")).andReturn();
+                .content("{\"name\":\"Pay\",\"email\":\"pay@test.pl\",\"password\":\"Haslo12345\",\"acceptTerms\":true}")).andReturn();
         Cookie c = reg.getResponse().getCookie("vc_session");
         String uid = reg.getResponse().getContentAsString().replaceAll(".*?\"id\":\"([^\"]+)\".*", "$1");
 

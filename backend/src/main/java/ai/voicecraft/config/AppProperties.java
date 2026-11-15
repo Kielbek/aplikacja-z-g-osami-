@@ -16,9 +16,15 @@ public record AppProperties(Path dataDir, List<String> corsOrigins, Engine engin
      * googleClientId — identyfikator klienta OAuth 2.0 (Google Cloud Console).
      * jwtSecret — sekret HMAC do podpisywania sesji (min. 32 znaki; w produkcji obowiązkowy).
      */
-    public record Auth(String googleClientId, String jwtSecret, Duration sessionTtl, boolean cookieSecure) {
+    public record Auth(String googleClientId, String jwtSecret, Duration sessionTtl, boolean cookieSecure,
+                       Boolean requireEmailVerification) {
         public boolean googleEnabled() {
             return googleClientId != null && !googleClientId.isBlank();
+        }
+
+        /** Generowanie i klonowanie wymagają potwierdzonego adresu e-mail (domyślnie tak). */
+        public boolean emailVerificationRequired() {
+            return !Boolean.FALSE.equals(requireEmailVerification);
         }
     }
 
@@ -38,7 +44,7 @@ public record AppProperties(Path dataDir, List<String> corsOrigins, Engine engin
     }
 
     public Auth auth() {
-        return auth == null ? new Auth(null, null, Duration.ofDays(14), false) : auth;
+        return auth == null ? new Auth(null, null, Duration.ofDays(14), false, true) : auth;
     }
 
     public Storage storage() {

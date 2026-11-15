@@ -1,0 +1,136 @@
+<header class="top">
+  <a routerLink="/" aria-label="VoiceCraft AI"><vc-logo [size]="28" /></a>
+  <nav>
+    <a routerLink="/terms" [class.active]="doc() === 'terms'">Regulamin</a>
+    <a routerLink="/privacy" [class.active]="doc() === 'privacy'">Prywatność i cookies</a>
+  </nav>
+</header>
+
+<article>
+  <h1>{{ title() }}</h1>
+  <p class="meta">Wersja {{ version }} · obowiązuje od {{ version }}</p>
+  <div class="draft" role="note">
+    <strong>Szablon do weryfikacji prawnej.</strong> Dokument opisuje rzeczywiste działanie aplikacji, ale przed
+    udostępnieniem usługi należy uzupełnić dane usługodawcy (pola w nawiasach kwadratowych) i zlecić jego przegląd prawnikowi.
+  </div>
+
+  @if (doc() === 'terms') {
+    <h2>1. Postanowienia ogólne</h2>
+    <p>Regulamin określa zasady korzystania z serwisu VoiceCraft AI (dalej „Serwis”), który zamienia tekst na mowę przy
+      użyciu modeli sztucznej inteligencji. Usługodawcą jest [nazwa firmy, adres, NIP, KRS/CEIDG], kontakt: [adres e-mail].</p>
+
+    <h2>2. Konto</h2>
+    <ul>
+      <li>Do korzystania z Serwisu potrzebne jest konto. Rejestracja wymaga akceptacji niniejszego regulaminu i polityki prywatności.</li>
+      <li>Generowanie nagrań i klonowanie głosu są dostępne po potwierdzeniu adresu e-mail.</li>
+      <li>Jedna osoba może posiadać jedno bezpłatne konto. Zakładanie wielu kont w celu obejścia limitów jest zabronione.</li>
+      <li>Użytkownik odpowiada za poufność hasła. Konto można w każdej chwili usunąć w ustawieniach.</li>
+    </ul>
+
+    <h2>3. Plany i płatności</h2>
+    <p>Zakres usług (limity znaków i minut, liczba projektów i głosów, formaty eksportu, okres przechowywania historii)
+      zależy od planu opisanego w ustawieniach konta. Płatności obsługuje Stripe. Subskrypcja odnawia się co miesiąc
+      i można ją anulować w panelu płatności — dostęp do planu trwa do końca opłaconego okresu. Wyczyszczenie historii
+      nie przywraca wykorzystanego limitu.</p>
+
+    <h2>4. Treści generowane przez AI</h2>
+    <ul>
+      <li>Nagrania są tworzone automatycznie przez model AI i mogą zawierać błędy wymowy lub intonacji.</li>
+      <li>Pliki eksportowane z Serwisu zawierają w metadanych oznaczenie, że są treścią wygenerowaną przez AI.
+        Użytkownik nie usuwa tego oznaczenia i — gdy wymagają tego przepisy (m.in. art. 50 rozporządzenia o AI) —
+        informuje odbiorców, że treść została wygenerowana sztucznie.</li>
+      <li>Użytkownik odpowiada za tekst, który przekazuje do syntezy, i za sposób wykorzystania nagrań.</li>
+    </ul>
+
+    <h2>5. Klonowanie głosu</h2>
+    <ul>
+      <li>Klonować można wyłącznie własny głos albo głos osoby, która udzieliła na to wyraźnej zgody.</li>
+      <li>Przed utworzeniem klonu użytkownik składa oświadczenie o zgodzie. Serwis zapisuje jego treść i wersję,
+        datę, adres IP, przeglądarkę oraz skrót (SHA-256) przesłanego nagrania.</li>
+      <li>Zabronione jest używanie klonów do podszywania się pod inne osoby, oszustw, dezinformacji i nękania.
+        Naruszenie skutkuje usunięciem głosu i konta oraz może zostać zgłoszone odpowiednim organom.</li>
+    </ul>
+
+    <h2>6. Zakazane treści</h2>
+    <p>Zabronione jest generowanie treści niezgodnych z prawem, w szczególności naruszających dobra osobiste lub prawa autorskie,
+      nawołujących do przemocy, wprowadzających w błąd co do tożsamości mówiącego oraz wykorzystywanych do wyłudzeń.</p>
+
+    <h2>7. Prawa do nagrań</h2>
+    <p>W zakresie, w jakim przysługują one usługodawcy, użytkownik może wykorzystywać wygenerowane nagrania komercyjnie
+      zgodnie z planem. Prawa do tekstu źródłowego pozostają przy ich właścicielach.</p>
+
+    <h2>8. Odpowiedzialność i dostępność</h2>
+    <p>Usługodawca dokłada starań, aby Serwis działał bez przerw, ale nie gwarantuje stałej dostępności, w szczególności
+      w czasie prac technicznych. Usługodawca nie odpowiada za sposób wykorzystania nagrań przez użytkownika.</p>
+
+    <h2>9. Reklamacje</h2>
+    <p>Reklamacje można zgłaszać na adres [adres e-mail]. Odpowiadamy w ciągu 14 dni.</p>
+
+    <h2>10. Zmiany regulaminu</h2>
+    <p>O zmianach informujemy e-mailem z co najmniej 14-dniowym wyprzedzeniem. Każda wersja ma datę, a w koncie zapisujemy,
+      którą wersję zaakceptowano.</p>
+  } @else {
+    <h2>1. Administrator danych</h2>
+    <p>Administratorem danych jest [nazwa firmy, adres], kontakt w sprawach danych osobowych: [adres e-mail].</p>
+
+    <h2>2. Jakie dane przetwarzamy i dlaczego</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Dane</th><th>Cel</th><th>Podstawa (RODO)</th></tr></thead>
+        <tbody>
+          <tr><td>E-mail, imię i nazwisko, hasło (wyłącznie skrót bcrypt), identyfikator Google</td><td>Konto i logowanie</td><td>art. 6 ust. 1 lit. b — umowa</td></tr>
+          <tr><td>Teksty projektów, wygenerowane nagrania, słownik wymowy, ustawienia</td><td>Świadczenie usługi</td><td>art. 6 ust. 1 lit. b</td></tr>
+          <tr><td>Nagranie głosu przesłane do klonowania</td><td>Utworzenie i działanie klonu głosu</td><td>art. 6 ust. 1 lit. b i wyraźna zgoda osoby nagranej (art. 9 ust. 2 lit. a, jeśli głos służy identyfikacji)</td></tr>
+          <tr><td>Rejestr zgód na klonowanie: data, IP, przeglądarka, skrót nagrania</td><td>Wykazanie zgody, ochrona przed nadużyciami</td><td>art. 6 ust. 1 lit. c i f</td></tr>
+          <tr><td>Zużycie limitów, historia generowania</td><td>Rozliczenie planu</td><td>art. 6 ust. 1 lit. b</td></tr>
+          <tr><td>Dane płatności (obsługiwane przez Stripe; nie przechowujemy numerów kart)</td><td>Płatności, księgowość</td><td>art. 6 ust. 1 lit. b i c</td></tr>
+          <tr><td>Adres IP przy logowaniu i rejestracji</td><td>Bezpieczeństwo (ochrona przed zgadywaniem haseł i masowym zakładaniem kont)</td><td>art. 6 ust. 1 lit. f</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>3. Jak długo przechowujemy dane</h2>
+    <ul>
+      <li>Konto, projekty i głosy — do usunięcia konta.</li>
+      <li>Historia generowania i poprzednie wersje nagrań — przez okres przechowywania historii w planie (7–365 dni);
+        starsze wpisy i pliki usuwamy automatycznie co noc.</li>
+      <li>Pliki audio, do których nic już nie prowadzi (np. z usuniętych projektów) — usuwane automatycznie po 24 godzinach.</li>
+      <li>Rejestr zgód na klonowanie — także po usunięciu głosu lub konta, przez okres przedawnienia roszczeń
+        (art. 17 ust. 3 lit. e RODO).</li>
+      <li>Dokumenty rozliczeniowe — przez okres wymagany przepisami podatkowymi.</li>
+    </ul>
+
+    <h2>4. Odbiorcy danych</h2>
+    <p>Dostawca infrastruktury i przechowywania plików [nazwa, region], Stripe (płatności), Google (jeśli wybierzesz logowanie
+      przez Google), dostawca poczty e-mail [nazwa]. Model VoxCPM2 działa na naszych serwerach — teksty i nagrania nie są
+      przekazywane zewnętrznym dostawcom AI.</p>
+
+    <h2>5. Twoje prawa</h2>
+    <ul>
+      <li>Dostęp do danych i ich przenoszenie — <strong>Ustawienia → Konto → Pobierz moje dane</strong> (archiwum ZIP z danymi w JSON i nagraniami).</li>
+      <li>Sprostowanie — w ustawieniach profilu.</li>
+      <li>Usunięcie — <strong>Ustawienia → Konto → Usuń konto</strong>.</li>
+      <li>Ograniczenie przetwarzania, sprzeciw, cofnięcie zgody — kontakt: [adres e-mail].</li>
+      <li>Skarga do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa).</li>
+    </ul>
+
+    <h2 id="cookies">6. Cookies i pamięć przeglądarki</h2>
+    <p>Używamy wyłącznie mechanizmów niezbędnych do działania Serwisu — nie stosujemy cookies analitycznych ani reklamowych,
+      dlatego nie wyświetlamy banera zgody.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Nazwa</th><th>Rodzaj</th><th>Cel</th><th>Czas</th></tr></thead>
+        <tbody>
+          <tr><td><code>vc_session</code></td><td>cookie (httpOnly, SameSite=Lax)</td><td>Utrzymanie zalogowanej sesji</td><td>do 14 dni lub do wylogowania</td></tr>
+          <tr><td><code>vc.theme</code>, <code>vc.volume</code></td><td>localStorage</td><td>Zapamiętanie motywu i głośności odtwarzacza</td><td>do wyczyszczenia przez użytkownika</td></tr>
+          <tr><td>Google Identity Services</td><td>cookies Google</td><td>Tylko po kliknięciu „Zaloguj się przez Google”</td><td>wg polityki Google</td></tr>
+          <tr><td>Stripe Checkout</td><td>cookies Stripe</td><td>Tylko na stronie płatności Stripe</td><td>wg polityki Stripe</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h2>7. Bezpieczeństwo</h2>
+    <p>Hasła przechowujemy wyłącznie jako skróty bcrypt, sesje są podpisane i niedostępne dla skryptów strony,
+      połączenia są szyfrowane (HTTPS). Linki resetu hasła i potwierdzenia e-mail są jednorazowe i wygasają.</p>
+  }
+</article>

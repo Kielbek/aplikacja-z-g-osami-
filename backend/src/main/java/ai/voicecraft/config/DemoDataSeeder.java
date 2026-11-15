@@ -60,6 +60,9 @@ public class DemoDataSeeder implements ApplicationRunner {
         u.email = DemoAccount.EMAIL;
         u.fullName = "Marta Nowak";
         u.passwordHash = encoder.encode(DemoAccount.PASSWORD);
+        u.emailVerifiedAt = java.time.Instant.now();
+        u.termsAcceptedAt = u.emailVerifiedAt;
+        u.termsVersion = ai.voicecraft.auth.LegalDocuments.TERMS_VERSION;
         users.save(u);
         var a = AccountService.create(u, SubscriptionPlan.PRO);
         a.company = "Studio Głos";

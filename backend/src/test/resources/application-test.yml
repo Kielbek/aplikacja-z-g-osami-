@@ -7,6 +7,8 @@ voicecraft:
     url: http://127.0.0.1:9
   auth:
     jwt-secret: test-secret-test-secret-test-secret-0123456789
+    require-email-verification: false
+    registrations-per-ip-hour: 1000
   billing:
     stripe-webhook-secret: whsec_test
     prices:

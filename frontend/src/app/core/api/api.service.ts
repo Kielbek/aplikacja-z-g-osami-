@@ -5,6 +5,8 @@ import {
   Account,
   ApiError,
   BillingConfig,
+  ConsentText,
+  VoiceConsent,
   GenerationJob,
   ImportedText,
   PronunciationEntry,
@@ -200,13 +202,20 @@ export class ApiService {
     form.append('file', file);
     return this.p(this.http.post<AudioAnalysis>(`${API}/voices/clone/analyze`, form));
   }
-  createClone(file: File, data: { name: string; transcript: string; language: string; consent: boolean }) {
+  cloningConsent() {
+    return this.p(this.http.get<ConsentText>(`${API}/voices/clone/consent`));
+  }
+  voiceConsent(id: string) {
+    return this.p(this.http.get<VoiceConsent | null>(`${API}/voices/${id}/consent`));
+  }
+  createClone(file: File, data: { name: string; transcript: string; language: string; consent: boolean; consentVersion: string | null }) {
     const form = new FormData();
     form.append('file', file);
     form.append('name', data.name);
     form.append('transcript', data.transcript);
     form.append('language', data.language);
     form.append('consent', String(data.consent));
+    if (data.consentVersion) form.append('consentVersion', data.consentVersion);
     return this.p(this.http.post<Voice>(`${API}/voices/clone`, form));
   }
 
@@ -230,6 +239,10 @@ export class ApiService {
   }
   usage() {
     return this.p(this.http.get<Usage>(`${API}/account/usage`));
+  }
+  /** Eksport wszystkich danych konta (RODO) — archiwum ZIP. */
+  exportAccountData() {
+    return this.audio(`${API}/account/export`);
   }
   plans() {
     return this.p(this.http.get<Plan[]>(`${API}/account/plans`));

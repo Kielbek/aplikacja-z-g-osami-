@@ -50,12 +50,20 @@ public class AuthService {
     private final AppProperties props;
     private final JobRepository jobs;
     private final PronunciationRepository dictionary;
+    private final ai.voicecraft.usage.UsageRepository usage;
+    private final EmailVerificationService verification;
+    private final ai.voicecraft.user.EmailVerificationTokenRepository verificationTokens;
     private final SecureRandom random = new SecureRandom();
 
     public AuthService(UserRepository users, AccountRepository accounts, AccountService accountService, ProjectService projects,
                        VoiceService voices, HistoryRepository history, PasswordResetTokenRepository resetTokens,
                        PasswordEncoder encoder, LoginRateLimiter limiter, MailService mail, AppProperties props,
-                       JobRepository jobs, PronunciationRepository dictionary) {
+                       JobRepository jobs, PronunciationRepository dictionary,
+                       ai.voicecraft.usage.UsageRepository usage, EmailVerificationService verification,
+                       ai.voicecraft.user.EmailVerificationTokenRepository verificationTokens) {
+        this.usage = usage;
+        this.verification = verification;
+        this.verificationTokens = verificationTokens;
         this.jobs = jobs;
         this.dictionary = dictionary;
         this.users = users;
@@ -75,18 +83,23 @@ public class AuthService {
     // ------------------------------------------------------------ rejestracja i logowanie
 
     @Transactional
-    public User register(String name, String email, String password) {
+    public User register(String name, String email, String password, boolean acceptTerms, String ip) {
         String normalized = normalizeEmail(email);
         if (name == null || name.isBlank()) throw new IllegalArgumentException("Podaj imię i nazwisko.");
         validatePassword(password);
+        if (!acceptTerms) throw new IllegalArgumentException("Zaakceptuj regulamin i politykę prywatności.");
         if (users.existsByEmailIgnoreCase(normalized)) {
             throw new ApiException(HttpStatus.CONFLICT, "Konto z tym adresem e-mail już istnieje. Zaloguj się lub zresetuj hasło.");
         }
+        limiter.checkRegistration(ip == null ? "unknown" : ip);
         var u = newUser(normalized, name.trim());
         u.passwordHash = encoder.encode(password);
+        u.termsAcceptedAt = Instant.now();
+        u.termsVersion = LegalDocuments.TERMS_VERSION;
         users.save(u);
         accounts.save(AccountService.create(u, SubscriptionPlan.FREE));
         projects.createWelcomeProject(u.id);
+        verification.send(u);
         return u;
     }
 
@@ -118,6 +131,10 @@ public class AuthService {
             user = newUser(normalized, name);
             user.googleSub = sub;
             user.pictureUrl = picture;
+            // Przycisk Google na stronie logowania informuje o akceptacji regulaminu
+            user.termsAcceptedAt = Instant.now();
+            user.termsVersion = LegalDocuments.TERMS_VERSION;
+            user.emailVerifiedAt = Instant.now();
             users.save(user);
             accounts.save(AccountService.create(user, SubscriptionPlan.FREE));
             projects.createWelcomeProject(user.id);
@@ -125,6 +142,7 @@ public class AuthService {
             // Połączenie istniejącego konta e-mail z Google (e-mail zweryfikowany przez Google)
             if (user.googleSub == null) user.googleSub = sub;
             if (picture != null) user.pictureUrl = picture;
+            if (user.emailVerifiedAt == null && user.email.equalsIgnoreCase(normalized)) user.emailVerifiedAt = Instant.now();
         }
         user.lastLoginAt = Instant.now();
         return user;
@@ -210,7 +228,9 @@ public class AuthService {
         projects.deleteAllOf(userId);
         voices.deleteAllOf(userId);
         history.deleteByUserId(userId);
+        usage.deleteByUserId(userId);
         resetTokens.deleteByUserId(userId);
+        verificationTokens.deleteByUserId(userId);
         if (a != null) accounts.delete(a);
         users.delete(u);
     }

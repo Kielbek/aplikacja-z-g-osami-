@@ -1,10 +1,11 @@
 package ai.voicecraft.account;
 
 import ai.voicecraft.common.ApiException;
-import ai.voicecraft.history.HistoryRepository;
 import ai.voicecraft.project.ProjectRepository;
 import ai.voicecraft.project.VoiceSettings;
 import ai.voicecraft.security.CurrentUser;
+import ai.voicecraft.usage.UsageEvent;
+import ai.voicecraft.usage.UsageRepository;
 import ai.voicecraft.user.User;
 import ai.voicecraft.user.UserRepository;
 import ai.voicecraft.voice.VoiceRepository;
@@ -20,15 +21,17 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AccountService {
     private final AccountRepository repo;
-    private final HistoryRepository history;
+    private final UsageRepository usage;
     private final ProjectRepository projects;
     private final VoiceRepository voices;
     private final UserRepository users;
+    private final ai.voicecraft.auth.EmailVerificationService verification;
 
-    public AccountService(AccountRepository repo, HistoryRepository history, ProjectRepository projects,
-                          VoiceRepository voices, UserRepository users) {
+    public AccountService(AccountRepository repo, UsageRepository usage, ProjectRepository projects,
+                          VoiceRepository voices, UserRepository users, ai.voicecraft.auth.EmailVerificationService verification) {
+        this.verification = verification;
         this.repo = repo;
-        this.history = history;
+        this.usage = usage;
         this.projects = projects;
         this.voices = voices;
         this.users = users;
@@ -131,11 +134,11 @@ public class AccountService {
         out.put("plan", p.dto());
         out.put("periodStart", a.billingPeriodStart.toString());
         out.put("renewsOn", a.renewsOn.toString());
-        out.put("charactersUsed", history.sumCharactersSince(uid, since));
+        out.put("charactersUsed", usage.sumCharactersSince(uid, since));
         out.put("characterLimit", p.monthlyCharacters);
-        out.put("minutesUsed", Math.round(history.sumDurationSince(uid, since) / 600.0) / 100.0);
+        out.put("minutesUsed", Math.round(usage.sumDurationSince(uid, since) / 600.0) / 100.0);
         out.put("minuteLimit", p.monthlyMinutes);
-        out.put("generations", history.countSince(uid, since));
+        out.put("generations", usage.countSince(uid, since));
         out.put("projectsUsed", projects.countByOwnerId(uid));
         out.put("projectLimit", p.maxProjects);
         out.put("customVoicesUsed", voices.countByOwnerId(uid));
@@ -143,22 +146,33 @@ public class AccountService {
         return out;
     }
 
+    /** Zapisuje zużycie limitu (niezależnie od historii, której użytkownik może się pozbyć). */
+    public void recordUsage(String userId, String kind, int characters, long durationMs) {
+        usage.save(UsageEvent.of(userId, kind, characters, durationMs));
+    }
+
     // ------------------------------------------------------------ egzekwowanie limitów
 
     /** Limity miesięczne: znaki i minuty audio. */
     public void requireGenerationQuota(int characters) {
         Account a = get();
+        verification.requireVerified(a.userId);
         SubscriptionPlan p = a.planId;
         Instant since = periodStart(a);
-        long used = history.sumCharactersSince(a.userId, since);
+        long used = usage.sumCharactersSince(a.userId, since);
         if (used + characters > p.monthlyCharacters) {
             long left = Math.max(0, p.monthlyCharacters - used);
             throw ApiException.plan("Wykorzystano miesięczny limit znaków planu " + p.displayName + " ("
                     + fmt(p.monthlyCharacters) + "). Pozostało " + fmt(left) + " znaków, fragment ma " + fmt(characters) + ".");
         }
-        if (history.sumDurationSince(a.userId, since) >= p.monthlyMinutes * 60_000L) {
+        if (usage.sumDurationSince(a.userId, since) >= p.monthlyMinutes * 60_000L) {
             throw ApiException.plan("Wykorzystano miesięczny limit " + p.monthlyMinutes + " minut audio planu " + p.displayName + ".");
         }
+    }
+
+    /** Generowanie i klonowanie wymagają potwierdzonego adresu e-mail. */
+    public void requireVerifiedEmail() {
+        verification.requireVerified(CurrentUser.id());
     }
 
     public void requireProjectCharacters(int projectCharacters) {
@@ -250,8 +264,10 @@ public class AccountService {
         if (!u.email.equals(normalized) && users.existsByEmailIgnoreCase(normalized)) {
             throw new ApiException(org.springframework.http.HttpStatus.CONFLICT, "Ten adres e-mail jest już używany.");
         }
+        boolean changed = !u.email.equals(normalized);
         u.email = normalized;
         a.email = normalized;
+        if (changed) verification.emailChanged(u);
     }
 
     private static Instant periodStart(Account a) {

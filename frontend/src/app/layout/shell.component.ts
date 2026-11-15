@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AccountStore } from '../core/services/account.store';
+import { AuthService } from '../core/services/auth.service';
+import { ToastService } from '../core/services/toast.service';
 import { EngineStatusService } from '../core/services/engine-status.service';
 import { ProjectsStore } from '../core/services/projects.store';
 import { VoicesStore } from '../core/services/voices.store';
@@ -25,6 +27,15 @@ import { SidebarComponent } from './sidebar.component';
           <vc-logo [size]="22" [wordmark]="true" />
           <span style="width:34px"></span>
         </header>
+        @if (needsVerification()) {
+          <div class="verify-bar" role="status">
+            <vc-icon name="info" [size]="15" />
+            <span>Potwierdź adres <strong>{{ auth.user()?.email }}</strong>, aby generować nagrania. Link wysłaliśmy e-mailem.</span>
+            <button class="btn btn-sm" (click)="resend()" [disabled]="sending()">
+              @if (sending()) { <span class="spinner"></span> } Wyślij ponownie
+            </button>
+          </div>
+        }
         <main class="content"><router-outlet /></main>
         <vc-player-bar class="player" />
       </div>
@@ -33,8 +44,26 @@ import { SidebarComponent } from './sidebar.component';
 })
 export class ShellComponent {
   protected navOpen = signal(false);
+  protected auth = inject(AuthService);
+  private toast = inject(ToastService);
+  private verificationRequired = signal(false);
+  protected sending = signal(false);
+  protected needsVerification = computed(() => this.verificationRequired() && this.auth.user()?.emailVerified === false);
+
+  async resend() {
+    this.sending.set(true);
+    try {
+      await this.auth.resendVerification();
+      this.toast.success('Wysłaliśmy nowy link potwierdzający.');
+    } catch (e) {
+      this.toast.apiError('Nie udało się wysłać linku', e);
+    } finally {
+      this.sending.set(false);
+    }
+  }
 
   constructor() {
+    void this.auth.loadConfig().then((c) => this.verificationRequired.set(!!c.emailVerificationRequired));
     inject(EngineStatusService).start();
     void inject(AccountStore).load();
     void inject(VoicesStore).load();

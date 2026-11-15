@@ -10,12 +10,15 @@ export interface SessionUser {
   picture: string | null;
   hasPassword: boolean;
   google: boolean;
+  emailVerified: boolean;
 }
 
 export interface AuthConfig {
   googleEnabled: boolean;
   googleClientId: string | null;
   emailDelivery: boolean;
+  emailVerificationRequired?: boolean;
+  termsVersion?: string;
   demoAccount?: { email: string; password: string };
 }
 
@@ -58,8 +61,28 @@ export class AuthService {
     return this.session(this.http.post<SessionUser>(`${API}/auth/login`, { email, password, remember }));
   }
 
-  register(name: string, email: string, password: string) {
-    return this.session(this.http.post<SessionUser>(`${API}/auth/register`, { name, email, password, remember: true }));
+  register(name: string, email: string, password: string, acceptTerms: boolean) {
+    return this.session(this.http.post<SessionUser>(`${API}/auth/register`, { name, email, password, acceptTerms, remember: true }));
+  }
+
+  /** Potwierdzenie adresu z linku w e-mailu (działa także bez zalogowania). */
+  async verifyEmail(token: string) {
+    const r = await this.call(this.http.post<{ verified: boolean; email: string }>(`${API}/auth/verify-email`, { token }));
+    const u = this.user();
+    if (u && u.email === r.email) this.user.set({ ...u, emailVerified: true });
+    return r;
+  }
+
+  resendVerification() {
+    return this.call(this.http.post<{ sent: boolean }>(`${API}/auth/verify-email/resend`, {}));
+  }
+
+  /** Odświeża dane sesji (np. po zmianie adresu e-mail w ustawieniach). */
+  async refresh() {
+    const u = await this.call(this.http.get<SessionUser>(`${API}/auth/me`));
+    this.user.set(u);
+    this.loaded = Promise.resolve(u);
+    return u;
   }
 
   loginWithGoogleToken(accessToken: string, remember: boolean) {

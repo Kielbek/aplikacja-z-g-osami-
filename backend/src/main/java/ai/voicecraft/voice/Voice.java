@@ -45,8 +45,21 @@ public class Voice {
     @Column(length = 1000)
     public String enginePrompt;
 
-    /** Identyfikator nagrania referencyjnego w silniku (głosy klonowane). */
+    /** Identyfikator nagrania referencyjnego zarejestrowanego w silniku. */
     public String referenceId;
+
+    /**
+     * Nagranie wzorcowe w magazynie aplikacji (klucz pliku). Dla klonów — przesłane nagranie,
+     * dla głosów zaprojektowanych — wybrany wariant, dla biblioteki — próbka wygenerowana ze stałym seedem.
+     * Pozwala odtworzyć referencję w silniku po jego restarcie lub utracie danych.
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public String referenceFile;
+
+    /** Transkrypcja nagrania wzorcowego (prompt_text dla VoxCPM2). */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    @Column(length = 1000)
+    public String referenceText;
 
     @Column(length = 1000)
     public String sampleText;
@@ -58,5 +71,11 @@ public class Voice {
     @Transient
     public boolean favorite;
     public int useCount;
+
+    /** Głos ma nagranie wzorcowe — każdy fragment brzmi tym samym głosem. */
+    @com.fasterxml.jackson.annotation.JsonProperty("anchored")
+    public boolean anchored() {
+        return referenceId != null;
+    }
     public Instant createdAt = Instant.now();
 }

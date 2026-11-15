@@ -109,6 +109,7 @@ public class ProjectController {
         var r = service.render(id, format, true);
         return ResponseEntity.ok().contentType(MediaType.parseMediaType(r.contentType()))
                 .header("X-Engine-Mode", r.engineMode())
+                .header("X-AI-Generated", "true")
                 .header("X-Loudness-LUFS", r.loudnessLufs() == null ? "" : String.valueOf(r.loudnessLufs()))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename(r.filename(), StandardCharsets.UTF_8).build().toString())

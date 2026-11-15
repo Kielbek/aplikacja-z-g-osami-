@@ -154,7 +154,7 @@ public class JobService {
     /** Błędy, przy których dalsze generowanie nie ma sensu (limit planu, silnik niedostępny, projekt usunięty). */
     private static boolean fatal(ApiException e) {
         HttpStatus s = e.status();
-        return s == HttpStatus.PAYMENT_REQUIRED || s == HttpStatus.SERVICE_UNAVAILABLE || s == HttpStatus.TOO_MANY_REQUESTS
+        return "EMAIL_NOT_VERIFIED".equals(e.code()) || s == HttpStatus.PAYMENT_REQUIRED || s == HttpStatus.SERVICE_UNAVAILABLE || s == HttpStatus.TOO_MANY_REQUESTS
                 || (s == HttpStatus.NOT_FOUND && e.getMessage() != null && e.getMessage().startsWith("Projekt"));
     }
 

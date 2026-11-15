@@ -24,9 +24,16 @@ public class VoiceService {
     private final HistoryRepository history;
     private final AccountService account;
     private final VoiceFavoriteRepository favorites;
+    private final VoiceAnchorService anchors;
+    private final VoiceConsentRepository consents;
+    private final ai.voicecraft.user.UserRepository users;
 
     public VoiceService(VoiceRepository repo, GenerationService generation, EngineClient engine, AudioStorage storage,
-                        HistoryRepository history, AccountService account, VoiceFavoriteRepository favorites) {
+                        HistoryRepository history, AccountService account, VoiceFavoriteRepository favorites,
+                        VoiceAnchorService anchors, VoiceConsentRepository consents, ai.voicecraft.user.UserRepository users) {
+        this.anchors = anchors;
+        this.consents = consents;
+        this.users = users;
         this.account = account;
         this.favorites = favorites;
         this.repo = repo;
@@ -100,6 +107,9 @@ public class VoiceService {
     /** Próbka głosu – generowana przy pierwszym odsłuchu i ponownie po zmianie trybu silnika. */
     public Audio sample(String id) {
         Voice v = get(id);
+        Health h = engine.health(false);
+        // Z prawdziwym modelem próbka głosu = jego nagranie wzorcowe (tak brzmią fragmenty projektów)
+        if (anchors.supported(h) && v.referenceId == null) anchors.ensure(v, h);
         String mode = generation.currentMode();
         if (storage.exists(v.sampleFile) && (mode == null || mode.equals(v.sampleEngineMode))) {
             return new Audio(storage.read(v.sampleFile), v.sampleEngineMode, 0);
@@ -142,7 +152,9 @@ public class VoiceService {
         rec.engineMode = a.engineMode();
         rec.status = "success";
         rec.audioFile = file;
+        rec.segmentText = req.text().trim(); // transkrypcja próbki — potrzebna, gdy stanie się nagraniem wzorcowym
         history.save(rec);
+        account.recordUsage(rec.userId, "voice_design", rec.characters, a.durationMs());
         return new DesignPreview(file, a.durationMs(), a.engineMode());
     }
 
@@ -176,9 +188,17 @@ public class VoiceService {
         v.description = req.description().trim();
         v.enginePrompt = req.description().trim();
         v.sampleText = req.sampleText();
-        if (req.previewId() != null && history.existsByUserIdAndAudioFile(v.ownerId, req.previewId()) && storage.exists(req.previewId())) {
-            v.sampleFile = req.previewId();
-            v.sampleEngineMode = req.engineMode();
+        var preview = req.previewId() == null ? null
+                : history.findFirstByUserIdAndAudioFile(v.ownerId, req.previewId()).filter(r -> storage.exists(r.audioFile)).orElse(null);
+        if (preview != null) {
+            v.sampleFile = preview.audioFile;
+            v.sampleEngineMode = preview.engineMode;
+            // Wybrany wariant staje się nagraniem wzorcowym — głos w projektach brzmi dokładnie tak jak w podglądzie.
+            // Próbka z trybu demo nie jest mową, więc nie może być wzorcem dla prawdziwego modelu.
+            if (!"demo".equals(preview.engineMode) && preview.segmentText != null) {
+                v.referenceFile = preview.audioFile;
+                v.referenceText = preview.segmentText;
+            }
         }
         return repo.save(v);
     }
@@ -189,9 +209,22 @@ public class VoiceService {
         return engine.analyze(file, filename);
     }
 
+    public record ConsentInfo(String version, String text) {}
+
+    public ConsentInfo cloningConsent() {
+        return new ConsentInfo(ConsentTexts.CLONING_VERSION, ConsentTexts.CLONING_TEXT);
+    }
+
+    /** Kontekst żądania zapisywany w rejestrze zgód. */
+    public record RequestContext(String ip, String userAgent) {}
+
     @Transactional
-    public Voice createClone(byte[] file, String filename, String name, String transcript, String language, boolean consent) {
+    public Voice createClone(byte[] file, String filename, String name, String transcript, String language, boolean consent,
+                             String consentVersion, RequestContext ctx) {
         if (!consent) throw new ApiException(HttpStatus.BAD_REQUEST, "Potwierdź, że masz zgodę właściciela głosu.");
+        if (consentVersion != null && !ConsentTexts.CLONING_VERSION.equals(consentVersion)) {
+            throw new ApiException(HttpStatus.CONFLICT, "Treść oświadczenia o zgodzie została zaktualizowana. Odśwież stronę i potwierdź ją ponownie.");
+        }
         if (name == null || name.isBlank()) throw new IllegalArgumentException("Podaj nazwę głosu.");
         account.requireCloning();
         account.requireCustomVoiceSlot();
@@ -200,6 +233,7 @@ public class VoiceService {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Klonowanie wymaga połączenia z modelem VoxCPM2. Silnik działa obecnie w trybie demonstracyjnym.");
         }
+        account.requireVerifiedEmail();
         CloneReference ref = engine.createReference(file, filename, transcript, true);
         var v = new Voice();
         v.id = "clone-" + UUID.randomUUID().toString().substring(0, 8);
@@ -211,6 +245,45 @@ public class VoiceService {
         v.description = "Głos sklonowany z nagrania (" + Math.round(ref.durationSec()) + " s).";
         v.referenceId = ref.referenceId();
         v.sampleText = "To jest próbka mojego sklonowanego głosu, wygenerowana przez VoiceCraft AI.";
-        return repo.save(v);
+        // Kopia nagrania w magazynie aplikacji — referencję można odtworzyć w silniku po jego restarcie
+        v.referenceFile = storage.save("ref", file);
+        v.referenceText = transcript == null || transcript.isBlank() ? null : transcript.trim();
+        repo.save(v);
+
+        var c = new VoiceConsent();
+        c.id = UUID.randomUUID().toString();
+        c.userId = v.ownerId;
+        c.userEmail = users.findById(v.ownerId).map(u -> u.email).orElse(null);
+        c.voiceId = v.id;
+        c.voiceName = v.name;
+        c.referenceId = ref.referenceId();
+        c.consentVersion = ConsentTexts.CLONING_VERSION;
+        c.consentText = ConsentTexts.CLONING_TEXT;
+        c.audioSha256 = sha256(file);
+        c.audioBytes = file.length;
+        c.fileName = filename == null ? null : filename.substring(0, Math.min(filename.length(), 255));
+        c.ip = ctx == null ? null : ctx.ip();
+        c.userAgent = ctx == null || ctx.userAgent() == null ? null : ctx.userAgent().substring(0, Math.min(ctx.userAgent().length(), 500));
+        consents.save(c);
+        return v;
+    }
+
+    public record ConsentDto(String version, String text, java.time.Instant createdAt, String ip, String audioSha256, String fileName) {}
+
+    /** Zapisana zgoda dla klonu bieżącego użytkownika (null dla innych głosów). */
+    public ConsentDto consentOf(String voiceId) {
+        Voice v = get(voiceId);
+        if (v.kind != VoiceKind.CLONED) return null;
+        return consents.findFirstByVoiceIdAndUserIdOrderByCreatedAtDesc(v.id, CurrentUser.id())
+                .map(c -> new ConsentDto(c.consentVersion, c.consentText, c.createdAt, c.ip, c.audioSha256, c.fileName))
+                .orElse(null);
+    }
+
+    private static String sha256(byte[] data) {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(data));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

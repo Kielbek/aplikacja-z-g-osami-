@@ -21,18 +21,23 @@ public class AuthController {
     private final SessionTokens sessions;
     private final AppProperties props;
     private final MailService mail;
+    private final EmailVerificationService verification;
     private final RestClient google = RestClient.create();
 
-    public AuthController(AuthService auth, SessionTokens sessions, AppProperties props, MailService mail) {
+    public AuthController(AuthService auth, SessionTokens sessions, AppProperties props, MailService mail,
+                          EmailVerificationService verification) {
+        this.verification = verification;
         this.auth = auth;
         this.sessions = sessions;
         this.props = props;
         this.mail = mail;
     }
 
-    public record SessionUser(String id, String email, String name, String picture, boolean hasPassword, boolean google) {
+    public record SessionUser(String id, String email, String name, String picture, boolean hasPassword, boolean google,
+                              boolean emailVerified) {
         static SessionUser of(User u) {
-            return new SessionUser(u.id, u.email, u.fullName, u.pictureUrl, u.passwordHash != null, u.googleSub != null);
+            return new SessionUser(u.id, u.email, u.fullName, u.pictureUrl, u.passwordHash != null, u.googleSub != null,
+                    u.emailVerifiedAt != null);
         }
     }
 
@@ -42,15 +47,17 @@ public class AuthController {
         out.put("googleEnabled", props.auth().googleEnabled());
         out.put("googleClientId", props.auth().googleEnabled() ? props.auth().googleClientId() : null);
         out.put("emailDelivery", mail.configured());
+        out.put("emailVerificationRequired", verification.required());
+        out.put("termsVersion", LegalDocuments.TERMS_VERSION);
         if (props.seedDemoData()) out.put("demoAccount", Map.of("email", DemoAccount.EMAIL, "password", DemoAccount.PASSWORD));
         return out;
     }
 
-    public record Register(String name, String email, String password, Boolean remember) {}
+    public record Register(String name, String email, String password, Boolean remember, Boolean acceptTerms) {}
 
     @PostMapping("/register")
-    public SessionUser register(@RequestBody Register req, HttpServletResponse res) {
-        User u = auth.register(req.name(), req.email(), req.password());
+    public SessionUser register(@RequestBody Register req, HttpServletRequest http, HttpServletResponse res) {
+        User u = auth.register(req.name(), req.email(), req.password(), Boolean.TRUE.equals(req.acceptTerms()), http.getRemoteAddr());
         sessions.write(res, u, !Boolean.FALSE.equals(req.remember()));
         return SessionUser.of(u);
     }
@@ -106,6 +113,21 @@ public class AuthController {
         User u = auth.confirmPasswordReset(req.token(), req.password());
         sessions.write(res, u, true);
         return SessionUser.of(u);
+    }
+
+    public record VerifyEmail(String token) {}
+
+    /** Potwierdzenie adresu z linku w e-mailu (działa także bez zalogowania). */
+    @PostMapping("/verify-email")
+    public Map<String, Object> verifyEmail(@RequestBody VerifyEmail req) {
+        User u = verification.confirm(req.token());
+        return Map.of("verified", true, "email", u.email);
+    }
+
+    @PostMapping("/verify-email/resend")
+    public Map<String, Object> resendVerification() {
+        verification.resend(CurrentUser.id());
+        return Map.of("sent", true);
     }
 
     public record DeleteAccount(String password) {}

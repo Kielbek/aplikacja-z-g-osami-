@@ -263,6 +263,27 @@ export class SettingsPage {
     }
   }
 
+  protected exporting = signal(false);
+
+  /** Eksport danych konta (RODO art. 15 i 20). */
+  async exportData() {
+    this.exporting.set(true);
+    try {
+      const res = await this.api.exportAccountData();
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(res.blob);
+      a.href = url;
+      a.download = res.filename ?? 'voicecraft-dane.zip';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      this.toast.success('Pobrano archiwum z danymi konta');
+    } catch (e) {
+      this.toast.apiError('Nie udało się przygotować eksportu', e);
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
   async logoutEverywhere() {
     const ok = await this.confirm.ask({
       title: 'Wylogować z innych urządzeń?',
@@ -348,8 +369,14 @@ export class SettingsPage {
     }
     this.saving.set(true);
     try {
+      const emailChanged = this.auth.user()?.email !== d.email.trim().toLowerCase();
       await this.store.update({ fullName: d.fullName, email: d.email, company: d.company, role: d.role });
-      this.toast.success('Zapisano profil');
+      if (emailChanged) {
+        await this.auth.refresh();
+        this.toast.success('Zapisano profil', 'Potwierdź nowy adres — link wysłaliśmy e-mailem.');
+      } else {
+        this.toast.success('Zapisano profil');
+      }
     } catch (e) {
       this.toast.apiError('Nie zapisano profilu', e);
     } finally {

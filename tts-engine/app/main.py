@@ -5,6 +5,7 @@ Uruchomienie:  uvicorn app.main:app --port 8808
 from __future__ import annotations
 
 import logging
+import re
 import time
 import uuid
 
@@ -15,7 +16,7 @@ from fastapi.responses import Response
 
 from . import audio
 from .config import settings
-from .engines.base import EngineUnavailable, TTSEngine
+from .engines.base import EngineUnavailable, ReferenceMissing, TTSEngine
 from .engines.demo import DemoEngine
 from .schemas import (
     AudioAnalysis,
@@ -98,6 +99,9 @@ def synthesize(req: SynthesizeRequest) -> Response:
     started = time.perf_counter()
     try:
         samples = engine.synthesize(req.text, req.language, req.voice, req.params)
+    except ReferenceMissing as exc:
+        # Backend rozpoznaje ten kod i rejestruje nagranie wzorcowe ponownie (z własnej kopii)
+        raise HTTPException(409, f"REFERENCE_MISSING:{exc.reference_id}") from exc
     except EngineUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
     log.info("synthesize %d znaków → %.2fs audio w %.2fs [%s]", len(req.text), len(samples) / engine.sample_rate,
@@ -121,12 +125,24 @@ async def clone_analyze(file: UploadFile = File(...)) -> AudioAnalysis:
         raise HTTPException(422, f"Nie udało się odczytać pliku audio: {exc}") from exc
 
 
+REFERENCE_ID = re.compile(r"^[A-Za-z0-9_-]{4,80}$")
+
+
 @app.post("/v1/clone/references", response_model=CloneProfileResponse)
 async def clone_reference(
     file: UploadFile = File(...),
     transcript: str = Form(""),
     consent: bool = Form(False),
+    reference_id: str | None = Form(None),
+    trusted: bool = Form(False),
 ) -> CloneProfileResponse:
+    """Rejestruje nagranie referencyjne.
+
+    reference_id — stały identyfikator (ponowna rejestracja po restarcie silnika nadpisuje plik),
+    trusted — nagranie wzorcowe wygenerowane przez sam model: bez oceny jakości nagrania.
+    """
+    if reference_id is not None and not REFERENCE_ID.match(reference_id):
+        raise HTTPException(400, "Niepoprawny identyfikator nagrania referencyjnego.")
     if not consent:
         raise HTTPException(400, "Wymagane jest potwierdzenie zgody właściciela głosu.")
     if not engine.capabilities().cloning:
@@ -135,15 +151,21 @@ async def clone_reference(
             "Klonowanie głosu wymaga załadowanego modelu VoxCPM2. Silnik działa w trybie demonstracyjnym.",
         )
     raw = await file.read()
-    analysis = audio.analyze(raw)
-    if not analysis.suitable:
+    try:
+        analysis = audio.analyze(raw)
+    except Exception as exc:  # noqa: BLE001
+        raise HTTPException(422, f"Nie udało się odczytać pliku audio: {exc}") from exc
+    if not analysis.suitable and not trusted:
         raise HTTPException(422, "Nagranie nie spełnia wymagań: " + " ".join(analysis.issues))
     mono, sr, _ = audio.read_audio(raw)
-    ref_id = f"ref_{uuid.uuid4().hex[:12]}"
+    ref_id = reference_id or f"ref_{uuid.uuid4().hex[:12]}"
     path = settings.data_dir / "references" / f"{ref_id}.wav"
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(audio.to_wav_bytes(mono[: sr * 60], sr))
     if transcript.strip():
         path.with_suffix(".txt").write_text(transcript.strip(), "utf-8")
+    else:
+        path.with_suffix(".txt").unlink(missing_ok=True)
     engine.register_reference(ref_id, str(path), transcript.strip() or None)
     return CloneProfileResponse(reference_id=ref_id, duration_sec=analysis.duration_sec)
 

@@ -20,7 +20,28 @@ public class LoginRateLimiter {
     static final int PER_IP = 30;
     static final Duration WINDOW = Duration.ofMinutes(15);
 
+    static final Duration REGISTRATION_WINDOW = Duration.ofHours(1);
+    private final int registrationsPerIp;
+
+    public LoginRateLimiter(@org.springframework.beans.factory.annotation.Value("${voicecraft.auth.registrations-per-ip-hour:5}") int registrationsPerIp) {
+        this.registrationsPerIp = registrationsPerIp;
+    }
+
     private final Map<String, Deque<Instant>> failures = new ConcurrentHashMap<>();
+    private final Map<String, Deque<Instant>> registrations = new ConcurrentHashMap<>();
+
+    /** Domyślnie najwyżej 5 nowych kont z jednego adresu IP na godzinę (utrudnia masowe zakładanie kont). */
+    public void checkRegistration(String ip) {
+        Deque<Instant> q = registrations.computeIfAbsent(ip, k -> new ArrayDeque<>());
+        synchronized (q) {
+            Instant cutoff = Instant.now().minus(REGISTRATION_WINDOW);
+            while (!q.isEmpty() && q.peekFirst().isBefore(cutoff)) q.pollFirst();
+            if (q.size() >= registrationsPerIp) {
+                throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Zbyt wiele nowych kont z tego adresu. Spróbuj ponownie później.");
+            }
+            q.addLast(Instant.now());
+        }
+    }
 
     public void check(String email, String ip) {
         check("acc:" + email.toLowerCase() + "|" + ip, PER_ACCOUNT);

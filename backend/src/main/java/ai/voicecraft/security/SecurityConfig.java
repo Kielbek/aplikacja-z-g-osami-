@@ -36,7 +36,7 @@ public class SecurityConfig {
     /** Endpointy dostępne bez logowania. */
     static final String[] PUBLIC = {
         "/api/auth/login", "/api/auth/register", "/api/auth/google", "/api/auth/config", "/api/auth/logout",
-        "/api/auth/password-reset", "/api/auth/password-reset/confirm", "/api/engine/status", "/api/billing/webhook",
+        "/api/auth/password-reset", "/api/auth/password-reset/confirm", "/api/auth/verify-email", "/api/engine/status", "/api/billing/webhook",
     };
     private static final Set<String> PUBLIC_SET = Set.of(PUBLIC);
 

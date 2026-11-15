@@ -43,6 +43,7 @@
             <button class="menu-item" [disabled]="!store.allReady() || !wavAllowed()" (click)="store.export('wav')" data-wav>
               <vc-icon [name]="wavAllowed() ? 'file-audio' : 'lock'" />Pobierz WAV<span class="menu-hint">{{ wavAllowed() ? 'bezstratnie' : 'od planu ' + wavPlan() }}</span>
             </button>
+            <div class="menu-note ai-note">Plik zawiera w metadanych oznaczenie treści wygenerowanej przez AI (AI Act, art. 50).</div>
             <div class="menu-sep"></div>
             <div class="menu-label">Napisy</div>
             <button class="menu-item" [disabled]="!store.allReady()" (click)="store.exportSubtitles('srt')"><vc-icon name="subtitles" />Napisy SRT<span class="menu-hint">wideo, YouTube</span></button>

@@ -104,7 +104,7 @@ export class LoginPage {
         });
         return;
       }
-      if (this.mode() === 'register') await this.auth.register(this.name().trim(), email, this.password());
+      if (this.mode() === 'register') await this.auth.register(this.name().trim(), email, this.password(), this.acceptTerms());
       else await this.auth.login(email, this.password(), this.remember());
       this.enterApp();
     } catch (e) {

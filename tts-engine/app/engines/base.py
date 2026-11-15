@@ -12,6 +12,14 @@ class EngineUnavailable(RuntimeError):
     """Funkcja wymaga prawdziwego modelu, który nie jest załadowany."""
 
 
+class ReferenceMissing(LookupError):
+    """Silnik nie zna nagrania referencyjnego (np. nowy kontener) — aplikacja może je zarejestrować ponownie."""
+
+    def __init__(self, reference_id: str):
+        super().__init__(reference_id)
+        self.reference_id = reference_id
+
+
 class TTSEngine(ABC):
     mode: str
     sample_rate: int

@@ -52,6 +52,8 @@ services:
       DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET (min. 32 znaki) w .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      REQUIRE_EMAIL_VERIFICATION: ${REQUIRE_EMAIL_VERIFICATION:-true}
+      CLEANUP_CRON: ${CLEANUP_CRON:-0 30 3 * * *}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:4200}
       VOICECRAFT_CORS: ${PUBLIC_URL:-http://localhost:4200}
       ENGINE_URL: http://tts-engine:8808

@@ -82,3 +82,47 @@ def test_languages_match_voxcpm2(engine):
     langs = engine.capabilities().languages
     assert "pl" in langs and len(langs) == 30
     assert "uk" not in langs and "cs" not in langs
+
+
+def test_unknown_reference_raises_reference_missing(engine):
+    from app.engines.base import ReferenceMissing
+
+    with pytest.raises(ReferenceMissing) as exc:
+        engine.synthesize("Tekst.", "pl", VoiceSpec(id="c", reference_id="anchor-x"), GenerationParams())
+    assert exc.value.reference_id == "anchor-x"
+
+
+def test_reference_endpoint_stable_id_trusted_and_409(engine, monkeypatch, tmp_path):
+    """Pełny cykl API: rejestracja pod stałym id, synteza, utrata referencji → 409 REFERENCE_MISSING."""
+    import io
+
+    import soundfile as sf
+    from fastapi.testclient import TestClient
+
+    from app import main
+
+    monkeypatch.setattr(main, "engine", engine)
+    import dataclasses
+
+    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, data_dir=tmp_path))
+    client = TestClient(main.app)
+    buf = io.BytesIO()
+    # 2 s ciszy: nagranie „nieodpowiednie” (za krótkie) — przyjęte tylko jako zaufane nagranie wzorcowe
+    sf.write(buf, np.zeros(48000 * 2, dtype=np.float32), 48000, format="WAV")
+    files = {"file": ("a.wav", buf.getvalue(), "audio/wav")}
+    r = client.post("/v1/clone/references", files=files, data={"consent": "true", "reference_id": "anchor-v1"})
+    assert r.status_code == 422
+    r = client.post("/v1/clone/references", files=files,
+                    data={"consent": "true", "reference_id": "anchor-v1", "trusted": "true", "transcript": "Tekst wzorcowy."})
+    assert r.status_code == 200 and r.json()["reference_id"] == "anchor-v1"
+    assert (tmp_path / "references" / "anchor-v1.txt").read_text("utf-8") == "Tekst wzorcowy."
+    assert client.post("/v1/clone/references", files=files,
+                       data={"consent": "true", "reference_id": "../etc", "trusted": "true"}).status_code == 400
+
+    body = {"text": "Cześć.", "language": "pl", "voice": {"id": "v", "reference_id": "anchor-v1"}, "params": {}}
+    assert client.post("/v1/synthesize", json=body).status_code == 200
+    assert FakeVoxCPM.calls[-1]["prompt_text"] == "Tekst wzorcowy."
+
+    engine._references.clear()  # np. restart kontenera bez danych
+    r = client.post("/v1/synthesize", json=body)
+    assert r.status_code == 409 and r.json()["detail"] == "REFERENCE_MISSING:anchor-v1"

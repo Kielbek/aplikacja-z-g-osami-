@@ -12,4 +12,10 @@ public interface VoiceRepository extends JpaRepository<Voice, String> {
     long countByOwnerId(String ownerId);
 
     List<Voice> findAllByOwnerId(String ownerId);
+
+    @Query("select v.sampleFile from Voice v where v.sampleFile is not null")
+    List<String> allSampleFiles();
+
+    @Query("select v.referenceFile from Voice v where v.referenceFile is not null")
+    List<String> allReferenceFiles();
 }

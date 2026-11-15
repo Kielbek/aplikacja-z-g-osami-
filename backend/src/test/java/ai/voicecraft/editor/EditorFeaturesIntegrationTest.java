@@ -61,7 +61,7 @@ class EditorFeaturesIntegrationTest {
     }
 
     private Cookie user(String email) throws Exception {
-        return mvc.perform(json(post("/api/auth/register"), "{\"name\":\"T\",\"email\":\"" + email + "\",\"password\":\"Haslo12345\"}"))
+        return mvc.perform(json(post("/api/auth/register"), "{\"name\":\"T\",\"email\":\"" + email + "\",\"password\":\"Haslo12345\",\"acceptTerms\":true}"))
                 .andReturn().getResponse().getCookie("vc_session");
     }
 

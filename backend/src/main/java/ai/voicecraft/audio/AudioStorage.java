@@ -16,6 +16,12 @@ public interface AudioStorage {
 
     void delete(String key);
 
+    /** Obiekt w magazynie (do sprzątania osieroconych plików). */
+    record StoredObject(String key, java.time.Instant lastModified, long size) {}
+
+    /** Przegląda wszystkie pliki audio aplikacji w magazynie. */
+    void forEachObject(java.util.function.Consumer<StoredObject> action);
+
     static String newKey(String prefix) {
         if (!prefix.matches("[a-z]+")) throw new IllegalArgumentException("Niepoprawny prefiks pliku.");
         return prefix + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 16) + ".wav";

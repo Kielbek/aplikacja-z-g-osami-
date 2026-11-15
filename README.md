@@ -78,6 +78,21 @@ Następnie wskaż adres backendowi: `ENGINE_URL=http://gpu-host:8808`.
 - Cała wiedza o bibliotece `voxcpm` siedzi w jednym pliku: `tts-engine/app/engines/voxcpm2.py`. Adapter sprawdza sygnaturę `VoxCPM.generate` i przekazuje tylko obsługiwane argumenty (`cfg_value`, `inference_timesteps`, `normalize`, `denoise`, `prompt_wav_path`, `prompt_text`…). Opis głosu i instrukcja stylu trafiają do modelu jako prefiks `(opis)tekst`, zgodnie z konwencją voice design VoxCPM2. Konwencję przełącza `VOXCPM_DESCRIPTION_FORMAT`. **Po aktualizacji modelu zweryfikuj ten plik z dokumentacją OpenBMB.**
 - Fragmenty wygenerowane w trybie demo automatycznie dostają status *Nieaktualny* po podłączeniu prawdziwego modelu.
 
+### Spójny głos: nagrania wzorcowe
+
+Projektowanie głosu z samego opisu daje przy każdym wywołaniu nieco inną barwę, więc fragmenty jednego projektu mogłyby brzmieć jak różne osoby. Dlatego z prawdziwym modelem każdy głos ma **jedno nagranie wzorcowe**, a każdy fragment jest syntezowany przez klonowanie z tego nagrania (`reference_wav_path`, a przy znanej transkrypcji także `prompt_wav_path` + `prompt_text`). Logika jest w `VoiceAnchorService`.
+
+| Głos | Nagranie wzorcowe |
+|---|---|
+| Z biblioteki | Generowane raz przy pierwszym użyciu, ze stałym seedem wynikającym z identyfikatora głosu. Ono staje się też próbką w bibliotece. |
+| Zaprojektowany | Wariant wybrany podczas projektowania. Głos w projekcie brzmi dokładnie jak w podglądzie. |
+| Sklonowany | Przesłane nagranie. |
+
+- Nagranie jest przechowywane w magazynie aplikacji (`voices.reference_file`), nie tylko w silniku.
+- Gdy silnik nie zna referencji (np. nowy kontener bez danych), zwraca `409 REFERENCE_MISSING:<id>`. Backend rejestruje wtedy nagranie ponownie pod tym samym identyfikatorem i powtarza syntezę.
+- W trybie demo głos opisuje wyłącznie opis — tryb demo nie obsługuje nagrań referencyjnych.
+- **Nie zostało to odsłuchane na prawdziwych wagach** (brak GPU w środowisku deweloperskim). Przetestowano przepływ z atrapą silnika i adapter z atrapą biblioteki o identycznej sygnaturze.
+
 ## Uczciwość trybu demonstracyjnego
 
 - Syntezator demo **nie generuje mowy**. Tworzy sygnał zastępczy o rytmie mowy (sylaby, pauzy, intonacja), żeby dało się przetestować cały przepływ.
@@ -111,6 +126,8 @@ Gdzie limity są sprawdzane:
 - **Zmiana ustawień zaawansowanych projektu:** odrzucana w planie Free. Generowanie w tym planie używa wartości domyślnych.
 - **Lista historii:** pokazuje tylko wpisy z okresu przechowywania danego planu.
 
+Zużycie znaków i minut jest liczone z osobnej tabeli `usage_events`, której użytkownik nie może usunąć. „Wyczyść historię” usuwa wpisy i stare wersje nagrań, ale **nie zeruje limitu**. Migracja V3 przeniosła dotychczasowe zużycie z historii.
+
 Po obniżeniu planu istniejące dane zostają nienaruszone. Blokowane są tylko nowe działania ponad limit, a ustawienia eksportu są automatycznie dopasowywane do nowego planu.
 
 W produkcji plan zmienia się wyłącznie przez Stripe (zob. „Płatności”). `PUT /api/account/plan` (zmiana bez płatności) działa tylko przy `DEMO_PLAN_SWITCH=true`, czyli w lokalnym developmencie.
@@ -125,7 +142,9 @@ W produkcji plan zmienia się wyłącznie przez Stripe (zob. „Płatności”).
 - **Logowanie przez Google:** przepływ tokenu Google Identity Services. Backend weryfikuje token w Google: czy wydano go dla naszego klienta (`aud`) i czy e-mail jest zweryfikowany. Konto e-mail z tym samym adresem zostaje połączone z Google. Konfiguracja:
   1. W Google Cloud Console utwórz identyfikator klienta OAuth typu „Aplikacja internetowa” i dodaj źródło JavaScript, np. `http://localhost:4200`.
   2. Ustaw `GOOGLE_CLIENT_ID=<id>.apps.googleusercontent.com`.
-- **Usunięcie konta:** wymaga hasła i trwale usuwa projekty, głosy, historię oraz zadania. Przy aktywnej subskrypcji trzeba ją najpierw anulować.
+- **Potwierdzenie adresu e-mail:** po rejestracji wysyłany jest jednorazowy link ważny 48 godzin (w bazie tylko skrót SHA-256). Do potwierdzenia konto może się logować i edytować, ale nie generuje audio ani nie klonuje głosu (HTTP 403, `code: "EMAIL_NOT_VERIFIED"`). Na górze aplikacji jest baner z ponowną wysyłką (najwyżej raz na minutę). Zmiana adresu w ustawieniach wymaga ponownego potwierdzenia. Konta Google są potwierdzone przez Google. Wyłączenie: `REQUIRE_EMAIL_VERIFICATION=false`.
+- **Rejestracja:** wymaga akceptacji regulaminu i polityki prywatności (zapisywane są data i wersja dokumentów). Z jednego adresu IP można założyć najwyżej 5 kont na godzinę.
+- **Usunięcie konta:** wymaga hasła i trwale usuwa projekty, głosy, historię, zużycie oraz zadania. Przy aktywnej subskrypcji trzeba ją najpierw anulować. Rejestr zgód na klonowanie jest zachowywany (zob. niżej).
 - **Konto demo i darmowa zmiana planu** są włączone tylko lokalnie. W profilu `prod` są domyślnie wyłączone (`SEED_DEMO_DATA`, `DEMO_PLAN_SWITCH`).
 
 ## Generowanie w tle
@@ -156,6 +175,19 @@ Jak to działa:
 - Webhook sprawdza podpis HMAC z tolerancją 5 minut i ignoruje powtórzone zdarzenia.
 - Anulowanie lub nieopłacenie subskrypcji przywraca plan Free. Przy statusie `past_due` plan zostaje na czas ponawiania płatności.
 - Do testów lokalnych możesz przekierować zdarzenia poleceniem `stripe listen --forward-to localhost:8080/api/billing/webhook`.
+
+## Zgodność z prawem i porządek danych
+
+- **Oznaczanie treści AI (AI Act, art. 50 ust. 2):** eksportowane pliki i nagrania pobierane z historii mają oznaczenie w metadanych. WAV dostaje fragment `LIST/INFO` (`ICMT`, `ISFT`, `IGNR`, `ICRD`, `INAM`), a MP3 znacznik ID3v2.3 (`TXXX:AI_GENERATED=true`, `TXXX:AI_GENERATOR`, `COMM`, `TSSE`). Odpowiedź ma nagłówek `X-AI-Generated: true`, a menu eksportu o tym informuje. Metadane da się usunąć przy ponownym zapisie pliku — docelowo warto dodać znak wodny w sygnale audio (np. AudioSeal) lub manifest C2PA.
+- **Rejestr zgód na klonowanie:** przy tworzeniu klonu zapisywane są treść i wersja oświadczenia, data, adres IP, przeglądarka, nazwa pliku i skrót SHA-256 nagrania (`voice_consents`). Treść oświadczenia pochodzi z backendu (`GET /api/voices/clone/consent`); nieaktualna wersja jest odrzucana (409). Zgoda jest widoczna w szczegółach głosu i zachowywana po usunięciu głosu lub konta (art. 17 ust. 3 lit. e RODO).
+- **Regulamin i polityka prywatności** z informacją o cookies: publiczne strony `/terms` i `/privacy`. Aplikacja używa tylko niezbędnego ciasteczka sesji i localStorage (motyw, głośność), więc nie potrzebuje banera zgody. **Treść to szablon opisujący rzeczywiste działanie aplikacji — przed startem trzeba uzupełnić dane usługodawcy i dać ją do przeglądu prawnikowi.** Wersja dokumentów: `LegalDocuments.TERMS_VERSION` (backend) i `LEGAL_VERSION` (frontend).
+- **Eksport danych (RODO art. 15 i 20):** *Ustawienia → Konto → Pobierz moje dane* zwraca archiwum ZIP: dane w JSON (konto, projekty, głosy, historia, zużycie, słownik, zgody) oraz nagrania fragmentów i nagrania wzorcowe własnych głosów.
+- **Automatyczne sprzątanie** (`CleanupService`, codziennie o 3:30, `CLEANUP_CRON`):
+  - usuwa historię starszą niż okres przechowywania planu właściciela;
+  - usuwa pliki audio, do których nic już nie prowadzi (stare wersje fragmentów, usunięte projekty i głosy, niezapisane podglądy), z zapasem 24 godzin na pliki zapisywane w danej chwili;
+  - usuwa wygasłe tokeny resetu hasła i potwierdzenia e-mail.
+
+  Działa z dyskiem lokalnym i z S3.
 
 ## Logo
 
@@ -292,9 +324,12 @@ tts-engine/app/
 | GET | `/api/voices`, `/api/voices/{id}`, `/api/voices/{id}/sample` | biblioteka głosów, próbki |
 | PUT | `/api/voices/{id}/favorite` | ulubione |
 | POST | `/api/voices/design/preview`, `/api/voices/design` | projektowanie głosu |
-| POST | `/api/voices/clone/analyze`, `/api/voices/clone` | analiza nagrania, klonowanie |
+| POST | `/api/voices/clone/analyze`, `/api/voices/clone` | analiza nagrania, klonowanie (z wersją oświadczenia o zgodzie) |
+| GET | `/api/voices/clone/consent`, `/api/voices/{id}/consent` | treść oświadczenia; zapisana zgoda klonu |
 | GET/DELETE | `/api/history` | historia generowania |
 | GET/PATCH | `/api/account`, GET `/api/account/usage` | profil, preferencje, eksport, wykorzystanie limitów |
+| GET | `/api/account/export` | eksport danych konta (ZIP) |
+| POST | `/api/auth/verify-email`, `/api/auth/verify-email/resend` | potwierdzenie adresu e-mail |
 | POST | `/api/auth/register`, `/login`, `/logout`, `/logout-all`, `/google` | konto i sesja (ciasteczko httpOnly) |
 | GET | `/api/auth/me`, `/api/auth/config` | bieżący użytkownik, konfiguracja logowania |
 | POST | `/api/auth/password`, `/password-reset`, `/password-reset/confirm`, `/delete-account` | hasło i usunięcie konta |
@@ -309,11 +344,12 @@ tts-engine/app/
 cd backend && mvn test
 ```
 
-Backend ma 44 testy:
+Backend ma 51 testów:
 
 - integracyjne: logowanie, sesje, izolacja danych, CSRF, limit prób, webhook Stripe;
+- zgodność: licznik zużycia odporny na czyszczenie historii, nagrania wzorcowe i ich odtwarzanie po utracie w silniku, oznaczenie AI w eksporcie, rejestr zgód, eksport danych ZIP, sprzątanie, potwierdzenie e-mail, limit rejestracji;
 - funkcje edytora z atrapą silnika: głosy fragmentów, pauzy, słownik, wersje, napisy, eksport −16 LUFS, import;
-- jednostkowe: pauzy i słownik, LUFS (sinus 1 kHz 0 dBFS = −3,01 LUFS), napisy, ekstrakcja DOCX/PDF/TXT.
+- jednostkowe: pauzy i słownik, LUFS (sinus 1 kHz 0 dBFS = −3,01 LUFS), napisy, ekstrakcja DOCX/PDF/TXT, metadane AI w WAV i MP3.
 
 ```bash
 cd tts-engine && pip install -r requirements-dev.txt && ENGINE_MODE=demo pytest
@@ -325,8 +361,9 @@ cd frontend && npx ng build
 
 ## Dalsze kroki
 
-- Uruchomienie VoxCPM2 z prawdziwymi wagami na GPU i odsłuch jakości (adapter jest zweryfikowany z kodem biblioteki).
+- Uruchomienie VoxCPM2 z prawdziwymi wagami na GPU i odsłuch jakości, w tym spójności głosu z nagrań wzorcowych (adapter jest zweryfikowany z kodem biblioteki).
+- Znak wodny w sygnale audio (oprócz metadanych) i przegląd prawny regulaminu oraz polityki prywatności.
 - Redis dla kanału zdarzeń i limitu logowań przy wielu instancjach backendu.
-- Weryfikacja adresu e-mail przy rejestracji i opcjonalne 2FA.
+- Opcjonalne 2FA.
 - Testy end-to-end frontendu w CI (Playwright).
 - OCR dla skanowanych PDF-ów i podgląd odsłuchu pojedynczego wpisu słownika.

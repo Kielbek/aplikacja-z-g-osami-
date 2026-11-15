@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, Voice } from '../../core/api/models';
+import { ApiError, Voice, VoiceConsent } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { EngineStatusService } from '../../core/services/engine-status.service';
@@ -64,10 +64,15 @@ export class VoiceDetailPage {
     });
   }
 
+  protected consent = signal<VoiceConsent | null>(null);
+
   async load(id: string) {
     this.error.set(null);
+    this.consent.set(null);
     try {
-      this.voice.set(await this.api.voice(id));
+      const v = await this.api.voice(id);
+      this.voice.set(v);
+      if (v.kind === 'CLONED') this.consent.set(await this.api.voiceConsent(id).catch(() => null));
     } catch (e) {
       this.error.set((e as ApiError).message);
     }

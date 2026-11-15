@@ -29,7 +29,7 @@ class SecurityIntegrationTest {
 
     private Cookie register(String email) throws Exception {
         MvcResult r = mvc.perform(json(post("/api/auth/register"),
-                        "{\"name\":\"Test\",\"email\":\"" + email + "\",\"password\":\"Haslo12345\"}"))
+                        "{\"name\":\"Test\",\"email\":\"" + email + "\",\"password\":\"Haslo12345\",\"acceptTerms\":true}"))
                 .andExpect(status().isOk()).andReturn();
         Cookie c = r.getResponse().getCookie("vc_session");
         assertThat(c).isNotNull();
@@ -80,9 +80,9 @@ class SecurityIntegrationTest {
     @Test
     void duplicateEmailAndWeakPasswordAreRejected() throws Exception {
         register("dup@test.pl");
-        mvc.perform(json(post("/api/auth/register"), "{\"name\":\"X\",\"email\":\"DUP@test.pl\",\"password\":\"Haslo12345\"}"))
+        mvc.perform(json(post("/api/auth/register"), "{\"name\":\"X\",\"email\":\"DUP@test.pl\",\"password\":\"Haslo12345\",\"acceptTerms\":true}"))
                 .andExpect(status().isConflict());
-        mvc.perform(json(post("/api/auth/register"), "{\"name\":\"X\",\"email\":\"weak@test.pl\",\"password\":\"krotkie\"}"))
+        mvc.perform(json(post("/api/auth/register"), "{\"name\":\"X\",\"email\":\"weak@test.pl\",\"password\":\"krotkie\",\"acceptTerms\":true}"))
                 .andExpect(status().isBadRequest());
     }
 
@@ -93,7 +93,7 @@ class SecurityIntegrationTest {
             mvc.perform(json(post("/api/auth/login"), "{\"email\":\"limit@test.pl\",\"password\":\"zle-haslo\"}"))
                     .andExpect(status().isUnauthorized());
         }
-        mvc.perform(json(post("/api/auth/login"), "{\"email\":\"limit@test.pl\",\"password\":\"Haslo12345\"}"))
+        mvc.perform(json(post("/api/auth/login"), "{\"email\":\"limit@test.pl\",\"password\":\"Haslo12345\",\"acceptTerms\":true}"))
                 .andExpect(status().isTooManyRequests());
     }
 
@@ -126,9 +126,9 @@ class SecurityIntegrationTest {
     @Test
     void deletedAccountCannotLogIn() throws Exception {
         Cookie c = register("bye@test.pl");
-        mvc.perform(json(post("/api/auth/delete-account").cookie(c), "{\"password\":\"Haslo12345\"}")).andExpect(status().isOk());
+        mvc.perform(json(post("/api/auth/delete-account").cookie(c), "{\"password\":\"Haslo12345\",\"acceptTerms\":true}")).andExpect(status().isOk());
         mvc.perform(get("/api/projects").cookie(c)).andExpect(status().isUnauthorized());
-        mvc.perform(json(post("/api/auth/login"), "{\"email\":\"bye@test.pl\",\"password\":\"Haslo12345\"}"))
+        mvc.perform(json(post("/api/auth/login"), "{\"email\":\"bye@test.pl\",\"password\":\"Haslo12345\",\"acceptTerms\":true}"))
                 .andExpect(status().isUnauthorized());
     }
 }

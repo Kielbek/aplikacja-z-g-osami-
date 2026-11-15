@@ -87,6 +87,15 @@
                 </section>
 
                 <section class="section">
+                  <div class="section-head"><div><h2>Twoje dane</h2><p>Archiwum ZIP z profilem, projektami, głosami, historią, zużyciem, słownikiem wymowy i zapisanymi zgodami (JSON) oraz nagraniami fragmentów i nagraniami wzorcowymi głosów (WAV). Szczegóły w <a href="/privacy" target="_blank" rel="noopener">polityce prywatności</a>.</p></div></div>
+                  <div class="form-actions" style="justify-content:flex-start">
+                    <button class="btn" (click)="exportData()" [disabled]="exporting()">
+                      @if (exporting()) { <span class="spinner"></span> } @else { <vc-icon name="download" [size]="14" /> } Pobierz moje dane
+                    </button>
+                  </div>
+                </section>
+
+                <section class="section">
                   <div class="section-head"><div><h2>Usunięcie konta</h2><p>Trwale usuwa projekty, nagrania, własne głosy i historię. Tej operacji nie można cofnąć.</p></div></div>
                   <div class="danger-zone">
                     @if (u.hasPassword) {

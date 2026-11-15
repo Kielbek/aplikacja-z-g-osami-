@@ -39,7 +39,9 @@ public class HistoryController {
         var r = repo.findByIdAndUserId(id, CurrentUser.id()).orElseThrow(() -> ApiException.notFound("Wpis historii"));
         if (r.audioFile == null || !storage.exists(r.audioFile)) throw ApiException.notFound("Plik audio");
         return ResponseEntity.ok().contentType(MediaType.parseMediaType("audio/wav"))
-                .header("X-Engine-Mode", r.engineMode).body(storage.read(r.audioFile));
+                .header("X-Engine-Mode", r.engineMode).header("X-AI-Generated", "true")
+                .body(ai.voicecraft.audio.AiContentLabel.wav(storage.read(r.audioFile),
+                        ai.voicecraft.audio.AiContentLabel.of(r.projectName, r.engineMode)));
     }
 
     @DeleteMapping

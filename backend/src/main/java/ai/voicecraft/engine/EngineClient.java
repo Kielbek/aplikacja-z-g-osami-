@@ -81,10 +81,23 @@ public class EngineClient {
     }
 
     public CloneReference createReference(byte[] file, String filename, String transcript, boolean consent) {
+        return createReference(file, filename, transcript, consent, null, false);
+    }
+
+    /**
+     * Rejestruje nagranie referencyjne w silniku.
+     *
+     * @param referenceId stały identyfikator (ponowna rejestracja tego samego głosu po restarcie silnika) lub null
+     * @param trusted     nagranie pochodzi z aplikacji (wygenerowane wzorcowe) — silnik pomija ocenę jakości
+     */
+    public CloneReference createReference(byte[] file, String filename, String transcript, boolean consent,
+                                          String referenceId, boolean trusted) {
         var form = new LinkedMultiValueMap<String, Object>();
         form.add("file", named(file, filename));
         form.add("transcript", transcript == null ? "" : transcript);
         form.add("consent", String.valueOf(consent));
+        if (referenceId != null) form.add("reference_id", referenceId);
+        if (trusted) form.add("trusted", "true");
         return call(() -> http.post().uri("/v1/clone/references").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
                 .retrieve().body(CloneReference.class));
     }

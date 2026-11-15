@@ -4,6 +4,7 @@ import ai.voicecraft.common.ApiException;
 import ai.voicecraft.engine.EngineClient;
 import ai.voicecraft.engine.EngineDtos.*;
 import ai.voicecraft.voice.Voice;
+import ai.voicecraft.voice.VoiceAnchorService;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -15,16 +16,34 @@ import org.springframework.stereotype.Service;
 @Service
 public class GenerationService {
     private final EngineClient engine;
+    private final VoiceAnchorService anchors;
 
-    public GenerationService(EngineClient engine) {
+    public GenerationService(EngineClient engine, VoiceAnchorService anchors) {
         this.engine = engine;
+        this.anchors = anchors;
     }
 
+    /**
+     * Synteza tekstu wskazanym głosem. Gdy silnik obsługuje nagrania referencyjne, głos jest odtwarzany
+     * z nagrania wzorcowego (stała barwa we wszystkich fragmentach); w trybie demo — z opisu.
+     */
     public Audio synthesize(String text, VoiceSettings s, Voice voice) {
-        engine.requireOnline();
+        Health h = engine.requireOnline();
         if (voice == null) throw new ApiException(HttpStatus.BAD_REQUEST, "Wybierz głos przed generowaniem.");
-        var spec = new VoiceSpec(voice.id, voice.enginePrompt, voice.referenceId, voice.gender, voice.age);
-        return engine.synthesize(new SynthesizeRequest(text, s.language, spec, params(s)));
+        String ref = anchors.ensure(voice, h);
+        try {
+            return engine.synthesize(request(text, s, voice, ref));
+        } catch (ApiException e) {
+            if (ref == null || !VoiceAnchorService.isMissingReference(e)) throw e;
+            anchors.recover(voice); // silnik utracił referencję (np. nowy kontener) — zarejestruj ponownie
+            return engine.synthesize(request(text, s, voice, voice.referenceId));
+        }
+    }
+
+    private static SynthesizeRequest request(String text, VoiceSettings s, Voice voice, String referenceId) {
+        // Z nagraniem wzorcowym opis barwy jest zbędny (a nawet szkodliwy) — barwę niesie referencja
+        var spec = new VoiceSpec(voice.id, referenceId == null ? voice.enginePrompt : null, referenceId, voice.gender, voice.age);
+        return new SynthesizeRequest(text, s.language, spec, params(s));
     }
 
     /**

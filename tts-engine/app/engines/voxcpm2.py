@@ -19,7 +19,7 @@ import numpy as np
 
 from ..languages import VOXCPM2_LANGUAGES
 from ..schemas import Capabilities, GenerationParams, VoiceSpec
-from .base import EngineUnavailable, TTSEngine
+from .base import EngineUnavailable, ReferenceMissing, TTSEngine
 
 log = logging.getLogger("voxcpm2")
 
@@ -94,7 +94,7 @@ class VoxCPM2Engine(TTSEngine):
         if voice.reference_id:
             ref = self._references.get(voice.reference_id)
             if not ref:
-                raise EngineUnavailable(f"Brak nagrania referencyjnego {voice.reference_id} w silniku.")
+                raise ReferenceMissing(voice.reference_id)
             path, transcript = ref
             kwargs = dict(text=self._control_text(text, None, params), reference_wav_path=path)
             if transcript:  # „ultimate cloning”: oba parametry muszą być podane razem

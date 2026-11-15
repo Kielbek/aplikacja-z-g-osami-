@@ -18,6 +18,6 @@ public class WebConfig implements WebMvcConfigurer {
                 .allowedOrigins(props.corsOrigins().toArray(String[]::new))
                 .allowedMethods("GET", "POST", "PUT", "PATCH", "DELETE")
                 .allowCredentials(true)
-                .exposedHeaders("X-Engine-Mode", "X-Duration-Ms", "X-Loudness-LUFS", "Content-Disposition");
+                .exposedHeaders("X-Engine-Mode", "X-Duration-Ms", "X-Loudness-LUFS", "X-AI-Generated", "Content-Disposition");
     }
 }

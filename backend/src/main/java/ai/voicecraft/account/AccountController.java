@@ -13,10 +13,23 @@ import org.springframework.web.bind.annotation.*;
 public class AccountController {
     private final AccountService service;
     private final AppProperties props;
+    private final DataExportService export;
 
-    public AccountController(AccountService service, AppProperties props) {
+    public AccountController(AccountService service, AppProperties props, DataExportService export) {
         this.service = service;
         this.props = props;
+        this.export = export;
+    }
+
+    /** Eksport wszystkich danych konta (RODO art. 15 i 20) jako archiwum ZIP. */
+    @GetMapping("/export")
+    public org.springframework.http.ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> exportData() {
+        var data = export.prepare();
+        String name = "voicecraft-dane-" + java.time.LocalDate.now() + ".zip";
+        return org.springframework.http.ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.parseMediaType("application/zip"))
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")
+                .body(out -> export.write(data, out));
     }
 
     @GetMapping
