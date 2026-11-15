@@ -17,6 +17,11 @@ const PORTRAITS: Record<string, string> = {
   voice_news_anchor_f: 'en-claire',
   voice_casual_podcast: 'en-james',
   voice_anime_sweet: 'en-maya',
+  voice_luxury_sensual: 'voice_luxury_sensual',
+  voice_relax_grandma: 'voice_relax_grandma',
+  voice_wise_grandpa: 'voice_wise_grandpa',
+  voice_energetic_boy: 'voice_energetic_boy',
+  voice_curious_girl: 'voice_curious_girl',
 };
 
 export function hasPortrait(voiceId: string): boolean {
