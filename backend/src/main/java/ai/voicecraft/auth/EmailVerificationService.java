@@ -63,8 +63,8 @@ public class EmailVerificationService {
         tokens.save(t);
         lastSent.put(u.id, Instant.now());
         String link = props.publicUrl() + "/verify-email?token=" + token;
-        mail.send(u.email, "VoiceCraft AI — potwierdź adres e-mail",
-                "Dzień dobry,\n\npotwierdź adres e-mail, aby zacząć generować nagrania w VoiceCraft AI.\n"
+        mail.send(u.email, "Narrivy — potwierdź adres e-mail",
+                "Dzień dobry,\n\npotwierdź adres e-mail, aby zacząć generować nagrania w Narrivy.\n"
                         + "Link jest ważny 48 godzin:\n\n" + link
                         + "\n\nJeśli to nie Ty zakładałeś konto, zignoruj tę wiadomość.");
     }

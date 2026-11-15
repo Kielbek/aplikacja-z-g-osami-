@@ -12,7 +12,7 @@ export const apiInterceptor: HttpInterceptorFn = (req, next) => {
   if (!req.url.startsWith('/api/')) return next(req);
   const auth = inject(AuthService);
   const router = inject(Router);
-  const request = req.clone({ setHeaders: { 'X-Requested-With': 'VoiceCraft' }, withCredentials: true });
+  const request = req.clone({ setHeaders: { 'X-Requested-With': 'Narrivy' }, withCredentials: true });
   return next(request).pipe(
     catchError((err: unknown) => {
       if (err instanceof HttpErrorResponse && err.status === 401 && !req.url.startsWith('/api/auth/')) {

@@ -58,7 +58,7 @@ export class VoiceDetailPage {
   protected isDefault = computed(() => this.account.account()?.defaultVoiceId === this.voice()?.id);
   protected kindLabel = computed(() => {
     const k = this.voice()?.kind;
-    return k === 'DESIGNED' ? 'Zaprojektowany z opisu' : k === 'CLONED' ? 'Sklonowany z nagrania' : 'Biblioteka VoiceCraft';
+    return k === 'DESIGNED' ? 'Zaprojektowany z opisu' : k === 'CLONED' ? 'Sklonowany z nagrania' : 'Biblioteka Narrivy';
   });
 
   constructor() {

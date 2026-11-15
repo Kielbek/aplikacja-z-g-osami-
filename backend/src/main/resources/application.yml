@@ -28,7 +28,7 @@ voicecraft:
   data-dir: ${VOICECRAFT_DATA_DIR:./data}
   cors-origins: ${VOICECRAFT_CORS:http://localhost:4200}
   public-url: ${PUBLIC_URL:http://localhost:4200}
-  mail-from: ${MAIL_FROM:VoiceCraft AI <no-reply@voicecraft.local>}
+  mail-from: ${MAIL_FROM:Narrivy <no-reply@narrivy.local>}
   engine:
     url: ${ENGINE_URL:http://localhost:8808}
     api-key: ${ENGINE_API_KEY:}

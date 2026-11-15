@@ -24,7 +24,7 @@ import { SidebarComponent } from './sidebar.component';
       <div class="main">
         <header class="mobile-bar">
           <button class="btn btn-ghost btn-icon" aria-label="Menu" (click)="navOpen.set(true)"><vc-icon name="menu" [size]="18" /></button>
-          <vc-logo [size]="22" [wordmark]="true" />
+          <vc-logo [size]="20" />
           <span style="width:34px"></span>
         </header>
         @if (needsVerification()) {

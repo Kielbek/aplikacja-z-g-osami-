@@ -56,7 +56,7 @@ export class VoiceDesignPage {
 
   // Próbka
   protected language = signal('pl');
-  protected sampleText = signal('Dzień dobry. To jest próbka nowego głosu przygotowanego w VoiceCraft AI. Brzmi naturalnie, spokojnie i wyraźnie.');
+  protected sampleText = signal('Dzień dobry. To jest próbka nowego głosu przygotowanego w Narrivy. Brzmi naturalnie, spokojnie i wyraźnie.');
   protected expressiveness = signal(0.5);
 
   // Wyniki

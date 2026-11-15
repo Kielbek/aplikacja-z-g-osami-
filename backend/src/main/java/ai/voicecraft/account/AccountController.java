@@ -25,7 +25,7 @@ public class AccountController {
     @GetMapping("/export")
     public org.springframework.http.ResponseEntity<org.springframework.web.servlet.mvc.method.annotation.StreamingResponseBody> exportData() {
         var data = export.prepare();
-        String name = "voicecraft-dane-" + java.time.LocalDate.now() + ".zip";
+        String name = "narrivy-dane-" + java.time.LocalDate.now() + ".zip";
         return org.springframework.http.ResponseEntity.ok()
                 .contentType(org.springframework.http.MediaType.parseMediaType("application/zip"))
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + name + "\"")

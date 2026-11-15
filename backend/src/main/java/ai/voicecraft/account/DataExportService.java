@@ -121,7 +121,7 @@ public class DataExportService {
 
     public void write(Prepared data, OutputStream target) throws IOException {
         try (var zip = new ZipOutputStream(target, StandardCharsets.UTF_8)) {
-            put(zip, "CZYTAJ.txt", ("Eksport danych konta VoiceCraft AI\nWygenerowano: " + Instant.now() + "\n\n"
+            put(zip, "CZYTAJ.txt", ("Eksport danych konta Narrivy\nWygenerowano: " + Instant.now() + "\n\n"
                     + "konto.json — profil, ustawienia, plan i zużycie limitów\n"
                     + "projekty.json — projekty z fragmentami tekstu i ustawieniami\n"
                     + "foldery.json — foldery projektów\n"

@@ -1,4 +1,4 @@
-"""VoiceCraft AI — serwis silnika TTS (VoxCPM2).
+"""Narrivy — serwis silnika TTS (VoxCPM2).
 
 Uruchomienie:  uvicorn app.main:app --port 8808
 """
@@ -29,7 +29,7 @@ from .schemas import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("engine")
 
-app = FastAPI(title="VoiceCraft TTS Engine", version="0.1.0")
+app = FastAPI(title="Narrivy TTS Engine", version="0.1.0")
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["X-Engine-Mode", "X-Duration-Ms", "X-Sample-Rate"])
 

@@ -18,7 +18,7 @@ class AiContentLabelTest {
         var info = AiContentLabel.readWavInfo(labeled);
         assertThat(info.get("ICMT")).contains("wygenerowana przez AI").contains("AI-generated").contains("VoxCPM2");
         assertThat(info.get("INAM")).isEqualTo("Audiobook — rozdział 1");
-        assertThat(info.get("ISFT")).startsWith("VoiceCraft AI");
+        assertThat(info.get("ISFT")).startsWith("Narrivy");
         // Dane audio bez zmian, plik nadal poprawny
         assertThat(WavUtils.durationMs(labeled)).isEqualTo(WavUtils.durationMs(wav));
         assertThat(WavUtils.decode(labeled).samples()).hasSize(x.length);
@@ -34,7 +34,7 @@ class AiContentLabelTest {
         byte[] tagged = AiContentLabel.mp3(frames, label);
         var tags = AiContentLabel.readId3(tagged);
         assertThat(tags.get("TXXX:AI_GENERATED")).isEqualTo("true");
-        assertThat(tags.get("TXXX:AI_GENERATOR")).contains("VoiceCraft AI");
+        assertThat(tags.get("TXXX:AI_GENERATOR")).contains("Narrivy");
         assertThat(tags.get("COMM")).contains("AI-generated speech");
         assertThat(tags.get("TIT2")).isEqualTo("Audiobook — rozdział 1");
         // Po znaczniku następują niezmienione ramki MP3

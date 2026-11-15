@@ -191,8 +191,8 @@ public class AuthService {
             t.expiresAt = Instant.now().plus(RESET_TTL);
             resetTokens.save(t);
             String link = props.publicUrl() + "/reset-password?token=" + token;
-            mail.send(u.email, "VoiceCraft AI — ustaw nowe hasło",
-                    "Dzień dobry,\n\notrzymaliśmy prośbę o zmianę hasła do konta VoiceCraft AI.\n"
+            mail.send(u.email, "Narrivy — ustaw nowe hasło",
+                    "Dzień dobry,\n\notrzymaliśmy prośbę o zmianę hasła do konta Narrivy.\n"
                             + "Kliknij link, aby ustawić nowe hasło (ważny 1 godzinę):\n\n" + link
                             + "\n\nJeśli to nie Ty, zignoruj tę wiadomość — hasło pozostanie bez zmian.");
         });

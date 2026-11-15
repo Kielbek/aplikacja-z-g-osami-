@@ -1,4 +1,4 @@
-# VoiceCraft AI
+# Narrivy
 
 Aplikacja SaaS do generowania naturalnego głosu z tekstu (TTS). Po zalogowaniu użytkownik trafia od razu do edytora. Tekst dzieli się tam na fragmenty, które można generować, odsłuchiwać i poprawiać pojedynczo, a następnie połączyć w jedno nagranie MP3/WAV.
 
@@ -127,7 +127,7 @@ docker compose up -d --build tts-engine
 ```
 
 - Głosy (~60 MB każdy) pobierają się przy pierwszym użyciu z `huggingface.co/rhasspy/piper-voices` do wolumenu silnika i dalej działają offline. Można je pobrać przy starcie: `PIPER_PRELOAD=pl_PL-gosia-medium,pl_PL-darkman-medium`.
-- Głosy z biblioteki VoiceCraft są mapowane na głos Piper według języka i płci (`tts-engine/app/engines/piper.py`). Po polsku są dwie barwy — kobieca i męska — więc np. Anna, Julia i Zofia brzmią tak samo.
+- Głosy z biblioteki Narrivy są mapowane na głos Piper według języka i płci (`tts-engine/app/engines/piper.py`). Po polsku są dwie barwy — kobieca i męska — więc np. Anna, Julia i Zofia brzmią tak samo.
 - Piper **nie projektuje głosu z opisu i nie klonuje** — te funkcje są w interfejsie zablokowane z wyjaśnieniem. Działa tempo i ekspresja.
 - W trybie `auto` kolejność to VoxCPM2 → Piper → demo.
 - Licencja pakietu `piper-tts` to GPL-3.0 (działa jako osobny serwis). Głosy mają własne licencje — sprawdź je przed użyciem komercyjnym.

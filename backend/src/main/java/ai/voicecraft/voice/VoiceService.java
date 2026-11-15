@@ -244,7 +244,7 @@ public class VoiceService {
         v.categories = List.of("natural");
         v.description = "Głos sklonowany z nagrania (" + Math.round(ref.durationSec()) + " s).";
         v.referenceId = ref.referenceId();
-        v.sampleText = "To jest próbka mojego sklonowanego głosu, wygenerowana przez VoiceCraft AI.";
+        v.sampleText = "To jest próbka mojego sklonowanego głosu, wygenerowana przez Narrivy.";
         // Kopia nagrania w magazynie aplikacji — referencję można odtworzyć w silniku po jego restarcie
         v.referenceFile = storage.save("ref", file);
         v.referenceText = transcript == null || transcript.isBlank() ? null : transcript.trim();

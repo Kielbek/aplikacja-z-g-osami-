@@ -1,4 +1,4 @@
-# VoiceCraft AI — pełny stos: PostgreSQL, silnik TTS, backend, frontend.
+# Narrivy — pełny stos: PostgreSQL, silnik TTS, backend, frontend.
 # Nagrania domyślnie na wolumenie backendu (STORAGE_TYPE=local). Produkcyjnie: STORAGE_TYPE=s3 + S3_* (AWS, R2, B2…).
 #
 #   cp .env.example .env        # uzupełnij sekrety
@@ -73,7 +73,7 @@ services:
       SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
       SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
       SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
-      MAIL_FROM: ${MAIL_FROM:-VoiceCraft AI <no-reply@example.com>}
+      MAIL_FROM: ${MAIL_FROM:-Narrivy <no-reply@example.com>}
       # Konto demo i darmowa zmiana planu — tylko do lokalnych testów (w prod domyślnie wyłączone)
       SEED_DEMO_DATA: ${SEED_DEMO_DATA:-false}
       DEMO_PLAN_SWITCH: ${DEMO_PLAN_SWITCH:-false}

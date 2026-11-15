@@ -389,7 +389,7 @@ public class ProjectService {
     @Transactional
     public void createWelcomeProject(String userId) {
         CurrentUser.runAs(userId, () -> create(new CreateProject("Mój pierwszy projekt",
-                "Witaj w VoiceCraft AI! To jest pierwszy fragment Twojego projektu.\n\n"
+                "Witaj w Narrivy! To jest pierwszy fragment Twojego projektu.\n\n"
                         + "Każdy akapit to osobny fragment. Możesz go poprawić i wygenerować ponownie, nie generując całości od nowa.")));
     }
 

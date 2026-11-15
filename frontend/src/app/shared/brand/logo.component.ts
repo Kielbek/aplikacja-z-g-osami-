@@ -1,50 +1,54 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
-import { DomSanitizer } from '@angular/platform-browser';
-import { BRAND_LOGO, LOGO_CONCEPTS, LogoVariant } from './logo-marks';
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+
+/** Słupki fali pod napisem — stały „podpis” marki (deterministyczny). */
+export function waveBars(count: number): number[] {
+  return Array.from({ length: count }, (_, i) => 0.2 + 0.8 * Math.abs(Math.sin(i * 0.55) * Math.sin(i * 0.19 + 1)));
+}
 
 /**
- * Logo VoiceCraft AI.
- *  - `tile`: znak na grafitowym kafelku (ikona aplikacji),
- *  - `mark`: sam znak w kolorze tekstu,
- *  - `wordmark`: dodaje nazwę obok znaku.
+ * Logo Narrivy: sam napis (Inter Tight) z falą nagrania pod spodem — jak ścieżka audio na osi czasu.
+ * `size` = wielkość liter w pikselach. W małych rozmiarach fala ma mniej, grubszych słupków.
  */
 @Component({
   selector: 'vc-logo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { '[attr.aria-label]': 'wordmark() ? null : "VoiceCraft AI"', role: 'img' },
+  host: { role: 'img', 'aria-label': 'Narrivy', '[style.font-size.px]': 'size()' },
   styles: `
-    :host { display: inline-flex; align-items: center; gap: 10px; color: var(--text); }
-    .tile {
-      display: grid; place-items: center; flex-shrink: 0;
-      border-radius: 26%; background: var(--graphite);
-      color: color-mix(in srgb, var(--text-inverse) 58%, var(--graphite));
-      --logo-ac: var(--text-inverse);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 1px 2px rgba(20,22,26,.18);
+    :host {
+      display: inline-block;
+      position: relative;
+      padding-bottom: 0.3em;
+      color: var(--text);
+      line-height: 1;
     }
-    .bare { display: grid; place-items: center; flex-shrink: 0; color: var(--text-3); --logo-ac: var(--text); }
-    svg { width: 100%; height: 100%; display: block; }
-    .word { font-weight: 650; letter-spacing: -0.022em; line-height: 1; white-space: nowrap; }
-    .word span { color: var(--text-3); font-weight: 500; margin-left: .18em; }
+    .word {
+      display: block;
+      font-family: 'Inter Tight Variable', 'Inter Tight', var(--font-sans);
+      font-weight: 700;
+      letter-spacing: -0.025em;
+      white-space: nowrap;
+    }
+    svg {
+      position: absolute;
+      left: 0.02em;
+      bottom: 0;
+      width: calc(100% - 0.04em);
+      height: 0.17em;
+      fill: currentColor;
+    }
   `,
   template: `
-    <span [class.tile]="tile()" [class.bare]="!tile()" [style.width.px]="size()" [style.height.px]="size()">
-      <svg viewBox="0 0 32 32" aria-hidden="true" [innerHTML]="markup()"></svg>
-    </span>
-    @if (wordmark()) {
-      <span class="word" [style.font-size.px]="size() * 0.62">VoiceCraft<span>AI</span></span>
-    }
+    <span class="word" aria-hidden="true">narrivy</span>
+    <svg [attr.viewBox]="'0 0 ' + bars().length * 3 + ' 20'" preserveAspectRatio="none" aria-hidden="true">
+      @for (h of bars(); track $index) {
+        <rect [attr.x]="$index * 3 + (3 - barWidth()) / 2" [attr.y]="10 - h * 10" [attr.width]="barWidth()" [attr.height]="h * 20" [attr.rx]="barWidth() / 2" />
+      }
+    </svg>
   `,
 })
 export class LogoComponent {
-  private sanitizer = inject(DomSanitizer);
-  readonly variant = input<LogoVariant>(BRAND_LOGO);
-  readonly size = input(26);
-  readonly tile = input(true);
-  readonly wordmark = input(false);
-
-  // Znaczniki pochodzą wyłącznie ze statycznej listy LOGO_CONCEPTS.
-  protected markup = computed(() => {
-    const c = LOGO_CONCEPTS.find((x) => x.id === this.variant()) ?? LOGO_CONCEPTS[0];
-    return this.sanitizer.bypassSecurityTrustHtml(c.mark);
-  });
+  readonly size = input(24);
+  /** Mniej słupków w małych rozmiarach — fala pozostaje czytelna (nie zlewa się w linię). */
+  protected bars = computed(() => waveBars(this.size() >= 36 ? 34 : this.size() >= 24 ? 24 : 16));
+  protected barWidth = computed(() => (this.size() >= 36 ? 1.6 : 1.9));
 }

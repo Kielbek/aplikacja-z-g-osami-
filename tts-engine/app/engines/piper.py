@@ -2,7 +2,7 @@
 
 Przeznaczenie: testy i praca na komputerze bez karty graficznej. Piper ma gotowe głosy
 (po kilka na język) — nie projektuje głosu z opisu i nie klonuje głosu. Głosy z biblioteki
-VoiceCraft są mapowane na najbliższy głos Piper (język + płeć), więc kilka głosów
+Narrivy są mapowane na najbliższy głos Piper (język + płeć), więc kilka głosów
 biblioteki może mieć tę samą barwę.
 
 Modele (~60 MB każdy) są pobierane przy pierwszym użyciu z repozytorium rhasspy/piper-voices

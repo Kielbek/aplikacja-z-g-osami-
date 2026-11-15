@@ -15,7 +15,7 @@ import { IconComponent } from '../../shared/icon.component';
     <div class="auth">
       <main class="form-side">
         <div class="form-wrap">
-          <div class="brand"><vc-logo [size]="40" /></div>
+          <div class="brand"><vc-logo [size]="38" /></div>
           <h1>Ustaw nowe hasło</h1>
           <p class="lead">Po zapisaniu zalogujemy Cię automatycznie, a pozostałe urządzenia zostaną wylogowane.</p>
 

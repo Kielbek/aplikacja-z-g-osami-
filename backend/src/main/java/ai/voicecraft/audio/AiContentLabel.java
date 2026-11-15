@@ -21,7 +21,7 @@ import java.util.Map;
 public final class AiContentLabel {
     private AiContentLabel() {}
 
-    public static final String SOFTWARE = "VoiceCraft AI";
+    public static final String SOFTWARE = "Narrivy";
 
     /** @param generator model, który wygenerował mowę (np. "VoxCPM2"), @param title nazwa projektu */
     public record Label(String title, String generator, LocalDate date) {
