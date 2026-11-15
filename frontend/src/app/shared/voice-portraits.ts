@@ -22,6 +22,11 @@ const PORTRAITS: Record<string, string> = {
   voice_wise_grandpa: 'voice_wise_grandpa',
   voice_energetic_boy: 'voice_energetic_boy',
   voice_curious_girl: 'voice_curious_girl',
+  voice_mindfulness_m: 'voice_mindfulness_m',
+  voice_relax_velvet: 'voice_relax_velvet',
+  voice_gritty_veteran: 'voice_gritty_veteran',
+  voice_dark_villain: 'voice_dark_villain',
+  voice_elearning_m: 'voice_elearning_m',
 };
 
 export function hasPortrait(voiceId: string): boolean {
