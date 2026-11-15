@@ -244,8 +244,9 @@ Zmiana logo w całej aplikacji: ustaw `BRAND_LOGO` w `logo-marks.ts` i podmień 
 
 Tokeny są w `frontend/src/styles/_tokens.scss`, kontrolki w `_controls.scss`, wzorce układu w `_patterns.scss`.
 
-- **Kolory:** złamana biel `#FAF9F7` (tło), ciepłe szarości (powierzchnie, obramowania), grafit `#1F2430` (tekst, główne akcje), kobalt `#2C4BA3` (akcent: zaznaczenia, postęp, fokus). Kolory semantyczne są stonowane, a tryb demo ma osobną, ciepłą paletę. Dostępny jest też pełny motyw ciemny.
-- **Typografia:** Inter Variable w interfejsie, Source Serif 4 tylko w tytułach stron i projektów. Skala 11–32 px, cyfry tabelaryczne dla czasów i liczników.
+- **Kolory:** monochrom. Tło jest czystą bielą `#FFFFFF`, sidebar i pola pomocnicze mają neutralną szarość `#F6F6F5`. Czerń `#0A0A0A` to kolor akcji: przyciski główne, zaznaczenia, suwaki, przełączniki, postęp i waveform. Kolor pojawia się tylko tam, gdzie niesie informację: statusy (zielony, bursztynowy, czerwony), tryb demo i znaczniki mówców.
+- **Tryb ciemny:** odwrócony monochrom, czyli tło `#0F0F0F` i jasne przyciski. Komunikaty (toasty) są zawsze ciemne.
+- **Typografia:** Onest Variable (pełne polskie znaki). Tytuły mają wagę 600 i ciaśniejsze odstępy (`--display-weight`, `--display-tracking`). Skala 11–32 px, cyfry tabelaryczne dla czasów i liczników. Linki w treści są podkreślone, bo nie odróżniają się kolorem.
 - **Siatka 4 px**, promienie 4–16 px, cienie o niskim kontraście, animacje 120–220 ms (wyłączane przy `prefers-reduced-motion`).
 - **Układ:** sidebar 248 px, edytor o szerokości czytelnej kolumny (760 px), panel ustawień głosu 320 px, odtwarzacz 72 px. Poniżej 1280 px panel głosu staje się wysuwaną szufladą, poniżej 1024 px sidebar chowa się pod przyciskiem menu.
 

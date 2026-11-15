@@ -31,7 +31,7 @@
 }
 .sample-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
 .sample-body vc-waveform { height: 44px; }
-.sample-text { font-family: var(--font-serif); font-size: var(--text-md); color: var(--text-2); line-height: 1.55; }
+.sample-text { font-size: var(--text-md); color: var(--text-2); line-height: 1.55; }
 .demo-note { display: flex; align-items: center; gap: 6px; color: var(--demo-text); margin-bottom: 18px; }
 
 .section { margin-top: 18px; }

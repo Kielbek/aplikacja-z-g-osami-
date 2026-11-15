@@ -16,15 +16,15 @@ import { BRAND_LOGO, LOGO_CONCEPTS, LogoVariant } from './logo-marks';
     :host { display: inline-flex; align-items: center; gap: 10px; color: var(--text); }
     .tile {
       display: grid; place-items: center; flex-shrink: 0;
-      border-radius: 26%; background: var(--graphite); color: var(--bg);
-      --logo-ac: #8ea6f0;
+      border-radius: 26%; background: var(--graphite);
+      color: color-mix(in srgb, var(--text-inverse) 58%, var(--graphite));
+      --logo-ac: var(--text-inverse);
       box-shadow: inset 0 1px 0 rgba(255,255,255,.08), 0 1px 2px rgba(20,22,26,.18);
     }
-    .bare { display: grid; place-items: center; flex-shrink: 0; color: var(--text); --logo-ac: var(--accent); }
+    .bare { display: grid; place-items: center; flex-shrink: 0; color: var(--text-3); --logo-ac: var(--text); }
     svg { width: 100%; height: 100%; display: block; }
     .word { font-weight: 650; letter-spacing: -0.022em; line-height: 1; white-space: nowrap; }
     .word span { color: var(--text-3); font-weight: 500; margin-left: .18em; }
-    :host-context([data-theme='dark']) .tile { --logo-ac: #3b5bc0; }
   `,
   template: `
     <span [class.tile]="tile()" [class.bare]="!tile()" [style.width.px]="size()" [style.height.px]="size()">

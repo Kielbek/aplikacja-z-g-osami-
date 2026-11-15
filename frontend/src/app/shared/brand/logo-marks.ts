@@ -21,7 +21,7 @@ export const LOGO_CONCEPTS: LogoConcept[] = [
   {
     id: 'wave-v',
     name: 'Fala V',
-    idea: 'Pięć pasków korektora tworzy literę V — głos (Voice) zapisany falą dźwiękową. Najmocniejszy pasek w środku w kolorze akcentu.',
+    idea: 'Pięć pasków korektora tworzy literę V — głos (Voice) zapisany falą dźwiękową. Najdłuższy, środkowy pasek jest wyróżniony.',
     mark: `<g stroke-linecap="round" stroke-width="2.6">
       <path d="M8 9.5v4" stroke="currentColor"/>
       <path d="M12 9.5v8" stroke="currentColor"/>
@@ -60,7 +60,7 @@ export const LOGO_CONCEPTS: LogoConcept[] = [
 ];
 
 /** Pełny plik SVG (kafelek grafitowy) — używany do favicon i plików w public/brand. */
-export function tileSvg(concept: LogoConcept, bg = '#1F2430', fg = '#FAF9F7', ac = '#8EA6F0'): string {
+export function tileSvg(concept: LogoConcept, bg = '#0A0A0A', fg = '#A3A3A0', ac = '#FFFFFF'): string {
   const mark = concept.mark.replaceAll('currentColor', fg).replaceAll('var(--logo-ac)', ac);
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="8" fill="${bg}"/>${mark}</svg>`;
 }

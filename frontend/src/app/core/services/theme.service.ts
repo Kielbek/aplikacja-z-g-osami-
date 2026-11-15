@@ -28,6 +28,6 @@ export class ThemeService {
     }
     const dark = theme === 'dark' || (theme === 'system' && this.media.matches);
     document.documentElement.dataset['theme'] = dark ? 'dark' : 'light';
-    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#15171b' : '#faf9f7');
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#0f0f0f' : '#ffffff');
   }
 }

@@ -63,7 +63,7 @@
   padding: 20px;
 }
 .plan-main { display: flex; flex-direction: column; gap: 4px; }
-.plan-name { font-family: var(--font-serif); font-size: var(--text-2xl); font-weight: 500; }
+.plan-name { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--display-weight); letter-spacing: var(--display-tracking); }
 .plan-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 
 .usage { display: flex; flex-direction: column; gap: 18px; }

@@ -16,7 +16,7 @@ import { IconComponent } from './icon.component';
     .toast {
       pointer-events: auto; display: flex; gap: 10px; align-items: flex-start;
       padding: 12px 12px 12px 14px; border-radius: var(--radius-lg);
-      background: var(--graphite); color: var(--text-inverse); box-shadow: var(--shadow-lg);
+      background: #141414; color: #f5f5f4; box-shadow: var(--shadow-lg); border: 1px solid #2a2a2a;
       font-size: var(--text-sm); animation: vc-fade-in 180ms var(--ease);
     }
     .toast vc-icon { margin-top: 2px; }
@@ -25,8 +25,8 @@ import { IconComponent } from './icon.component';
     .success vc-icon.lead { color: #7fd1a8; }
     .danger vc-icon.lead { color: #f0938b; }
     .demo vc-icon.lead { color: #e7c27a; }
-    .plan vc-icon.lead { color: #9fb4f0; }
-    .action { display: inline-block; margin-top: 8px; color: #b9c8f5; font-weight: 600; font-size: var(--text-xs); }
+    .plan vc-icon.lead { color: #d4d4d0; }
+    .action { display: inline-block; margin-top: 8px; color: #ffffff; font-weight: 600; font-size: var(--text-xs); text-decoration: underline; text-underline-offset: 3px; }
     .x { all: unset; cursor: pointer; opacity: .6; padding: 2px; border-radius: 4px; }
     .x:hover { opacity: 1; }
   `,
