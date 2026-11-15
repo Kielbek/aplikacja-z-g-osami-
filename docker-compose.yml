@@ -49,7 +49,9 @@ services:
       CLEANUP_CRON: ${CLEANUP_CRON:-0 30 3 * * *}
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:4200}
       VOICECRAFT_CORS: ${PUBLIC_URL:-http://localhost:4200}
-      ENGINE_URL: http://tts-engine:8808
+      # Silnik na zewnętrznym GPU: ENGINE_URL=https://… i ENGINE_API_KEY w .env
+      ENGINE_URL: ${ENGINE_URL:-http://tts-engine:8808}
+      ENGINE_API_KEY: ${ENGINE_API_KEY:-}
       STORAGE_TYPE: ${STORAGE_TYPE:-local}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
       S3_PATH_STYLE: ${S3_PATH_STYLE:-false}

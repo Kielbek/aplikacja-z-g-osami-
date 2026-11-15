@@ -31,6 +31,7 @@ voicecraft:
   mail-from: ${MAIL_FROM:VoiceCraft AI <no-reply@voicecraft.local>}
   engine:
     url: ${ENGINE_URL:http://localhost:8808}
+    api-key: ${ENGINE_API_KEY:}
     connect-timeout: 3s
     read-timeout: 180s
   seed-demo-data: ${SEED_DEMO_DATA:true}

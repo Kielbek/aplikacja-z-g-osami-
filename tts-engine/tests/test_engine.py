@@ -55,3 +55,17 @@ def test_mp3_encoding():
     wav = client.post("/v1/synthesize", json={"text": "MP3.", "voice": {"id": "v1"}}).content
     res = client.post("/v1/encode/mp3", files={"file": ("a.wav", wav, "audio/wav")}, data={"bitrate": "128"})
     assert res.status_code == 200 and res.headers["content-type"] == "audio/mpeg"
+
+
+def test_api_key_required_when_configured(monkeypatch):
+    import dataclasses
+
+    from fastapi.testclient import TestClient
+
+    from app import main
+
+    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, api_key="tajny-klucz"))
+    c = TestClient(main.app)
+    assert c.get("/health").status_code == 401
+    assert c.get("/health", headers={"Authorization": "Bearer zly"}).status_code == 401
+    assert c.get("/health", headers={"Authorization": "Bearer tajny-klucz"}).status_code == 200

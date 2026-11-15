@@ -37,6 +37,20 @@ engine: TTSEngine
 load_error: str | None = None
 
 
+@app.middleware("http")
+async def require_api_key(request, call_next):
+    """Przy ustawionym ENGINE_API_KEY każde żądanie musi mieć nagłówek Authorization: Bearer <klucz>."""
+    if settings.api_key:
+        import hmac
+
+        from fastapi.responses import JSONResponse
+
+        got = request.headers.get("authorization", "")
+        if not hmac.compare_digest(got.encode(), f"Bearer {settings.api_key}".encode()):
+            return JSONResponse({"detail": "Brak lub niepoprawny klucz silnika (ENGINE_API_KEY)."}, status_code=401)
+    return await call_next(request)
+
+
 def _load_piper() -> TTSEngine:
     from .engines.piper import PiperEngine
 

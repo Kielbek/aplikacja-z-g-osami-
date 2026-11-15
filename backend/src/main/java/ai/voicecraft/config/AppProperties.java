@@ -10,7 +10,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record AppProperties(Path dataDir, List<String> corsOrigins, Engine engine, boolean seedDemoData, Auth auth,
                             Storage storage, Billing billing, String publicUrl, String mailFrom) {
 
-    public record Engine(String url, Duration connectTimeout, Duration readTimeout) {}
+    /** apiKey — klucz silnika (ENGINE_API_KEY), wymagany, gdy silnik działa poza siecią prywatną (np. wynajęte GPU). */
+    public record Engine(String url, Duration connectTimeout, Duration readTimeout, String apiKey) {}
 
     /**
      * googleClientId — identyfikator klienta OAuth 2.0 (Google Cloud Console).

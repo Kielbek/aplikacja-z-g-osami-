@@ -32,7 +32,10 @@ public class EngineClient {
         factory.setConnectTimeout(props.engine().connectTimeout());
         factory.setReadTimeout(props.engine().readTimeout());
         this.baseUrl = props.engine().url();
-        this.http = RestClient.builder().baseUrl(baseUrl).requestFactory(factory).build();
+        var builder = RestClient.builder().baseUrl(baseUrl).requestFactory(factory);
+        String key = props.engine().apiKey();
+        if (key != null && !key.isBlank()) builder.defaultHeader("Authorization", "Bearer " + key.trim());
+        this.http = builder.build();
     }
 
     public String baseUrl() {

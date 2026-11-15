@@ -36,6 +36,8 @@ class Settings:
         default_factory=lambda: os.getenv("ENGINE_CORS", "http://localhost:8080").split(",")
     )
     load_on_start: bool = _bool("VOXCPM_LOAD_ON_START", True)
+    # Klucz dostępu (nagłówek Authorization: Bearer …). Ustaw, gdy silnik jest dostępny z internetu.
+    api_key: str = os.getenv("ENGINE_API_KEY", "").strip()
     # Głosy Piper pobierane przy starcie (po przecinku), np. "pl_PL-gosia-medium,pl_PL-darkman-medium"
     piper_preload: list[str] = field(
         default_factory=lambda: [v.strip() for v in os.getenv("PIPER_PRELOAD", "").split(",") if v.strip()]

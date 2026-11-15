@@ -93,6 +93,14 @@ Projektowanie głosu z samego opisu daje przy każdym wywołaniu nieco inną bar
 - W trybie demo głos opisuje wyłącznie opis — tryb demo nie obsługuje nagrań referencyjnych.
 - **Nie zostało to odsłuchane na prawdziwych wagach** (brak GPU w środowisku deweloperskim). Przetestowano przepływ z atrapą silnika i adapter z atrapą biblioteki o identycznej sygnaturze.
 
+### VoxCPM2 na wynajętym GPU (aplikacja na własnym komputerze)
+
+1. Wynajmij maszynę z GPU (np. RunPod lub Vast.ai, karta z ≥ 16 GB VRAM, obraz PyTorch + CUDA 12) i wystaw port HTTP 8808.
+2. Skopiuj na nią katalog `tts-engine` i uruchom: `ENGINE_API_KEY=<długi-losowy-klucz> bash tts-engine/scripts/run-gpu.sh`.
+3. W `.env` aplikacji ustaw `ENGINE_URL=https://<adres-maszyny>` i ten sam `ENGINE_API_KEY`, potem `docker compose up -d backend`.
+
+Silnik z ustawionym `ENGINE_API_KEY` odrzuca żądania bez nagłówka `Authorization: Bearer <klucz>`, więc obcy nie skorzystają z wynajętego GPU.
+
 ## Bez GPU: silnik Piper
 
 Do testów na komputerze bez karty graficznej służy lekki silnik [Piper](https://github.com/OHF-Voice/piper1-gpl). Działa na zwykłym procesorze i generuje **prawdziwą mowę**.
