@@ -4,16 +4,15 @@
  * Głosy bez portretu (w tym własne głosy użytkowników) pokazują inicjały.
  */
 /** Głos katalogu → plik portretu (kilka głosów o tej samej barwie dzieli postać). */
+/** Głos katalogu → plik portretu. Każda postać występuje tylko raz. */
 const PORTRAITS: Record<string, string> = {
   voice_warm_velvet: 'pl-anna',
-  voice_relax_velvet: 'pl-anna',
   voice_warm_narrator: 'pl-tomasz',
   voice_kind_grandma: 'pl-zofia',
-  voice_relax_grandma: 'pl-zofia',
   voice_young_influencer: 'pl-julia',
   voice_radio_presenter_m: 'pl-marek',
   voice_gamer_hype: 'pl-kacper',
-  voice_luxury_sensual: 'pl-ewa',
+  voice_corporate_f: 'pl-ewa',
   voice_deep_trailer: 'pl-adam',
   voice_news_anchor_f: 'en-claire',
   voice_casual_podcast: 'en-james',
