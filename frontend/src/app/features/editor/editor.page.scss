@@ -84,9 +84,10 @@
 }
 
 .doc-inner {
-  max-width: var(--content-max);
-  margin: 0 auto;
-  padding: 28px 24px 96px;
+  /* Szeroki dokument wyrównany do lewej i do góry — wygodny na dużych ekranach, nie rozciąga się bez końca */
+  max-width: 1280px;
+  margin: 0;
+  padding: 24px 40px 96px 32px;
   animation: vc-fade-in 220ms var(--ease);
 }
 
@@ -124,15 +125,60 @@
   }
 }
 
+/* Tytuł i narzędzia w jednej linii (na węższych ekranach narzędzia przechodzą pod tytuł) */
+.doc-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  margin-bottom: 12px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.doc-title {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  .doc-meta { margin-bottom: 0; }
+}
+
+.title-fit {
+  display: inline-grid;
+  max-width: 100%;
+  &::after {
+    content: attr(data-value) ' ';
+    visibility: hidden;
+    white-space: pre;
+    overflow: hidden;
+  }
+  &::after, .title-input {
+    grid-area: 1 / 1;
+    font-family: var(--font-display);
+    font-size: 30px;
+    font-weight: var(--display-weight);
+    letter-spacing: var(--display-tracking);
+    line-height: 1.25;
+    padding: 0 4px 0 40px;
+  }
+  .title-input { width: 100%; min-width: 0; }
+}
+
 .doc-tools {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 4px;
   min-height: 36px;
-  margin: 0 0 8px 34px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--border);
+  margin-left: 34px;
+}
+
+.doc-head { container: dochead / inline-size; }
+
+/* Wąski edytor (np. laptop z otwartym panelem ustawień): same ikony, wszystko w jednym rzędzie */
+@container dochead (max-width: 640px) {
+  .doc-tools .tl { display: none; }
 }
 
 .history-btns {
@@ -276,9 +322,9 @@
   .topbar { padding: 0 10px 0 14px; gap: 8px; }
   .gen-all { padding: 0 10px; }
   .doc-inner { padding: 18px 10px 80px; }
-  .title-input { font-size: 24px; padding-left: 30px; }
+  .title-fit::after, .title-fit .title-input { font-size: 24px; padding-left: 30px; }
   .doc-meta, .add-block, .shortcuts { margin-left: 30px; }
-  .doc-tools { margin-left: 24px; }
+  .doc-tools { margin-left: 24px !important; }
   .shortcuts { display: none; }
   .batch { padding: 10px 14px; }
 }

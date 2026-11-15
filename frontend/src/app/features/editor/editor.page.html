@@ -84,37 +84,44 @@
             </div>
           }
 
-          <input
-            class="title-input"
-            [value]="store.name()"
-            (input)="store.setName($any($event.target).value)"
-            placeholder="Projekt bez tytułu"
-            aria-label="Nazwa projektu"
-            maxlength="200"
-          />
+          <div class="doc-head">
+            <div class="doc-title">
+              <!-- Pole tytułu rośnie razem z tekstem (ukryta kopia tekstu wyznacza szerokość) -->
+              <div class="title-fit" [attr.data-value]="store.name() || 'Projekt bez tytułu'">
+                <input
+                  class="title-input"
+                  [value]="store.name()"
+                  (input)="store.setName($any($event.target).value)"
+                  placeholder="Projekt bez tytułu"
+                  aria-label="Nazwa projektu"
+                  maxlength="200"
+                  size="1"
+                />
+              </div>
 
-          <div class="doc-meta">
-            <span>{{ pluralN(store.segments().length, 'fragment', 'fragmenty', 'fragmentów') }}</span>
-            <span class="sep">·</span>
-            @if (charPct() >= 80) {
-              <span class="tabular" [class.limit-warn]="charPct() < 100" [class.limit-over]="charPct() >= 100"
-                [title]="'Limit znaków w projekcie w planie ' + (account.plan()?.name ?? '')">
-                {{ store.characters().toLocaleString('pl-PL') }} / {{ store.projectCharLimit().toLocaleString('pl-PL') }} znaków
-              </span>
-            } @else {
-              <span class="tabular">{{ pluralN(store.characters(), 'znak', 'znaki', 'znaków') }}</span>
-            }
-            <span class="sep">·</span>
-            @if (store.allReady()) {
-              <span class="tabular">{{ fmt(store.readyDurationMs()) }} nagrania</span>
-            } @else {
-              <span class="tabular" title="Szacunkowy czas nagrania">≈ {{ fmt(store.estimatedDurationMs()) }}</span>
-            }
-            @if (store.pendingIds().length && store.nonEmpty().length) {
+            <div class="doc-meta">
+              <span>{{ pluralN(store.segments().length, 'fragment', 'fragmenty', 'fragmentów') }}</span>
               <span class="sep">·</span>
-              <button class="link" (click)="store.selectPending()">{{ store.pendingIds().length }} do wygenerowania</button>
-            }
-          </div>
+              @if (charPct() >= 80) {
+                <span class="tabular" [class.limit-warn]="charPct() < 100" [class.limit-over]="charPct() >= 100"
+                  [title]="'Limit znaków w projekcie w planie ' + (account.plan()?.name ?? '')">
+                  {{ store.characters().toLocaleString('pl-PL') }} / {{ store.projectCharLimit().toLocaleString('pl-PL') }} znaków
+                </span>
+              } @else {
+                <span class="tabular">{{ pluralN(store.characters(), 'znak', 'znaki', 'znaków') }}</span>
+              }
+              <span class="sep">·</span>
+              @if (store.allReady()) {
+                <span class="tabular">{{ fmt(store.readyDurationMs()) }} nagrania</span>
+              } @else {
+                <span class="tabular" title="Szacunkowy czas nagrania">≈ {{ fmt(store.estimatedDurationMs()) }}</span>
+              }
+              @if (store.pendingIds().length && store.nonEmpty().length) {
+                <span class="sep">·</span>
+                <button class="link" (click)="store.selectPending()">{{ store.pendingIds().length }} do wygenerowania</button>
+              }
+            </div>
+            </div>
 
           <div class="doc-tools">
             <div class="segmented view-switch" role="tablist" aria-label="Widok edytora">
@@ -143,17 +150,17 @@
               </div>
             } @else {
               <button class="btn btn-sm btn-ghost" (click)="store.resplitAll()" title="Podziel tekst na akapity, a zbyt długie akapity na grupy zdań">
-                <vc-icon name="scissors" [size]="14" />Podziel
+                <vc-icon name="scissors" [size]="14" /><span class="tl">Podziel</span>
               </button>
-              <button class="btn btn-sm btn-ghost" (click)="store.addSegment()"><vc-icon name="list-plus" [size]="14" />Dodaj fragment</button>
               <ng-container *ngTemplateOutlet="pauseMenu" />
               <ng-container *ngTemplateOutlet="importBtn" />
             }
           </div>
+          </div>
 
           <ng-template #pauseMenu>
             <vc-dropdown align="start" [width]="220">
-              <button trigger class="btn btn-sm btn-ghost" title="Wstaw pauzę w miejscu kursora"><vc-icon name="hourglass" [size]="14" />Pauza<vc-icon name="chevron-down" [size]="12" /></button>
+              <button trigger class="btn btn-sm btn-ghost" title="Wstaw pauzę w miejscu kursora"><vc-icon name="hourglass" [size]="14" /><span class="tl">Pauza</span><vc-icon name="chevron-down" [size]="12" /></button>
               <div menu>
                 <div class="menu-label">Wstaw w miejscu kursora</div>
                 @for (p of pauseOptions; track p.ms) {
@@ -164,7 +171,7 @@
           </ng-template>
           <ng-template #importBtn>
             <label class="btn btn-sm btn-ghost import" title="Importuj tekst z pliku TXT, MD, DOCX lub PDF">
-              <vc-icon name="upload" [size]="14" />Importuj
+              <vc-icon name="upload" [size]="14" /><span class="tl">Importuj</span>
               <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" (change)="onImport($event)" />
             </label>
           </ng-template>
