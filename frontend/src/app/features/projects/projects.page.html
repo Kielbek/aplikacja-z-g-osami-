@@ -2,8 +2,15 @@
   <div class="page-inner">
     <header class="page-header">
       <div class="page-header-text">
-        <h1 class="t-display">Projekty</h1>
-        <p>Wszystkie nagrania w jednym miejscu. Otwórz projekt, aby edytować tekst i ponownie wygenerować wybrane fragmenty.</p>
+        @if (currentFolder(); as f) {
+          <nav class="crumbs" aria-label="Ścieżka">
+            <a routerLink="/projects" [queryParams]="{}">Projekty</a><vc-icon name="chevron-right" [size]="13" /><span>{{ f.name }}</span>
+          </nav>
+          <h1 class="t-display folder-title"><vc-icon name="folder" [size]="26" />{{ f.name }}</h1>
+        } @else {
+          <h1 class="t-display">Projekty</h1>
+          <p>Wszystkie nagrania w jednym miejscu. Porządkuj projekty w folderach — przeciągnij projekt na folder albo użyj menu „Przenieś do”.</p>
+        }
         @if (account.usage(); as u) {
           @if (u.projectLimit >= 0) {
             <p class="limit" [class.is-full]="account.projectLimitReached()">
@@ -33,10 +40,28 @@
         <vc-icon name="search" [size]="14" />
         <input class="input" type="search" placeholder="Szukaj projektów lub głosów…" [value]="query()" (input)="query.set($any($event.target).value)" aria-label="Szukaj projektów" />
       </div>
+      <div class="toolbar-spacer"></div>
+      @if (view() === 'files' && !currentFolder()) {
+        @if (newFolderOpen()) {
+          <form class="new-folder" (submit)="saveNewFolder($event)">
+            <vc-icon name="folder" [size]="15" />
+            <input #newFolderInput class="input" placeholder="Nazwa folderu" maxlength="80" [value]="newFolderName()"
+              (input)="newFolderName.set($any($event.target).value)" (keydown.escape)="newFolderOpen.set(false)" aria-label="Nazwa nowego folderu" />
+            <button class="btn btn-sm btn-primary" type="submit">Utwórz</button>
+            <button class="btn btn-sm btn-ghost" type="button" (click)="newFolderOpen.set(false)">Anuluj</button>
+          </form>
+        } @else {
+          <button class="btn" (click)="openNewFolder()"><vc-icon name="folder" [size]="15" />Nowy folder</button>
+        }
+      }
       <div class="segmented">
         <button [class.is-active]="statusFilter() === 'all'" (click)="statusFilter.set('all')">Wszystkie <span class="t-muted">{{ counts().all }}</span></button>
         <button [class.is-active]="statusFilter() === 'ready'" (click)="statusFilter.set('ready')">Gotowe <span class="t-muted">{{ counts().ready }}</span></button>
         <button [class.is-active]="statusFilter() === 'pending'" (click)="statusFilter.set('pending')">W toku <span class="t-muted">{{ counts().pending }}</span></button>
+      </div>
+      <div class="segmented view-toggle" role="tablist" aria-label="Widok">
+        <button role="tab" [class.is-active]="view() === 'files'" [attr.aria-selected]="view() === 'files'" (click)="setView('files')" title="Foldery i pliki"><vc-icon name="folder" [size]="14" /><span class="hide-sm">Foldery</span></button>
+        <button role="tab" [class.is-active]="view() === 'list'" [attr.aria-selected]="view() === 'list'" (click)="setView('list')" title="Wszystkie projekty na jednej liście"><vc-icon name="rows" [size]="14" /><span class="hide-sm">Lista</span></button>
       </div>
     </div>
 
@@ -51,11 +76,103 @@
           <button class="btn btn-primary" (click)="create()"><vc-icon name="plus" />Nowy projekt</button>
         </div>
       </div>
+    } @else if (view() === 'files') {
+      @if (!currentFolder() && !query().trim() && (store.folders().length || newFolderOpen())) {
+        <h2 class="group-title">Foldery</h2>
+        <div class="tiles folders">
+          @for (f of store.folders(); track f.id) {
+            <div class="folder" tabindex="0" [class.drop]="dropTarget() === f.id" (click)="openFolder(f.id)" (keydown.enter)="openFolder(f.id)"
+              (dragover)="onDragOver($event, f.id)" (dragleave)="dropTarget.set(null)" (drop)="onDrop($event, f.id)">
+              <svg class="folder-icon" viewBox="0 0 48 40" aria-hidden="true">
+                <path d="M4 6a4 4 0 0 1 4-4h11l5 5h16a4 4 0 0 1 4 4v23a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" class="back" />
+                <path d="M4 14a3 3 0 0 1 3-3h34a3 3 0 0 1 3 3v20a4 4 0 0 1-4 4H8a4 4 0 0 1-4-4z" class="front" />
+              </svg>
+              @if (renaming() === f.id) {
+                <form class="rename" (submit)="saveRename($event, f.id)" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
+                  <input class="input" [value]="renameValue()" (input)="renameValue.set($any($event.target).value)" maxlength="80"
+                    (keydown.escape)="renaming.set(null)" (blur)="saveRename($event, f.id)" aria-label="Nowa nazwa folderu" />
+                </form>
+              } @else {
+                <div class="f-text">
+                  <span class="f-name">{{ f.name }}</span>
+                  <span class="f-meta">{{ pluralN(folderCounts()[f.id] ?? 0, 'projekt', 'projekty', 'projektów') }}</span>
+                </div>
+              }
+              <div class="f-menu" (click)="$event.stopPropagation()">
+                <vc-dropdown [width]="190">
+                  <button trigger class="btn btn-ghost btn-icon btn-sm" [attr.aria-label]="'Akcje folderu ' + f.name"><vc-icon name="more" /></button>
+                  <div menu>
+                    <button class="menu-item" (click)="openFolder(f.id)"><vc-icon name="folder" />Otwórz</button>
+                    <button class="menu-item" (click)="startRename(f.id, f.name)"><vc-icon name="pencil" />Zmień nazwę</button>
+                    <div class="menu-sep"></div>
+                    <button class="menu-item menu-item-danger" (click)="removeFolder(f.id, f.name)"><vc-icon name="trash" />Usuń folder</button>
+                  </div>
+                </vc-dropdown>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      @if (currentFolder()) {
+        <div class="tiles">
+          <div class="folder up" tabindex="0" [class.drop]="dropTarget() === 'root'" (click)="openFolder(null)" (keydown.enter)="openFolder(null)"
+            (dragover)="onDragOver($event, 'root')" (dragleave)="dropTarget.set(null)" (drop)="onDrop($event, null)" title="Upuść tutaj, aby wyjąć projekt z folderu">
+            <vc-icon name="arrow-left" [size]="18" />
+            <div class="f-text"><span class="f-name">Wszystkie projekty</span><span class="f-meta">Wróć lub upuść, aby wyjąć z folderu</span></div>
+          </div>
+        </div>
+      }
+
+      <h2 class="group-title">{{ query().trim() ? 'Wyniki wyszukiwania' : currentFolder() ? 'Projekty w folderze' : 'Projekty' }}</h2>
+      <div class="tiles files">
+        @for (p of fileRows(); track p.id) {
+          <article class="file" tabindex="0" draggable="true" [class.dragging]="dragging() === p.id"
+            (dragstart)="onDragStart($event, p.id)" (dragend)="dragging.set(null); dropTarget.set(null)"
+            (click)="open(p)" (keydown.enter)="open(p)">
+            <div class="thumb">
+              <svg viewBox="0 0 120 40" preserveAspectRatio="none" aria-hidden="true">
+                @for (b of bars(p.id); track $index) {
+                  <rect [attr.x]="$index * 4" [attr.y]="20 - b / 2" width="2.2" [attr.height]="b" rx="1.1" [class.on]="p.stats.status === 'ready'" />
+                }
+              </svg>
+              @if (p.voice; as v) { <vc-voice-avatar class="who" [id]="v.id" [name]="v.name" [size]="26" /> }
+              @if (p.stats.durationMs) { <span class="dur tabular">{{ formatDuration(p.stats.durationMs) }}</span> }
+            </div>
+            <div class="f-body">
+              <span class="p-name" [title]="p.name">{{ p.name }}</span>
+              <span class="p-meta">
+                <span class="dot" [class]="'dot-' + PROJECT_STATUS[p.stats.status].tone"></span>{{ PROJECT_STATUS[p.stats.status].label }}
+                · {{ formatRelative(p.updatedAt) }}
+              </span>
+              @if (query().trim() && p.folderId && folderName(p.folderId); as fn) {
+                <span class="p-folder"><vc-icon name="folder" [size]="12" />{{ fn }}</span>
+              }
+            </div>
+            <div class="p-menu" (click)="$event.stopPropagation()">
+              <ng-container *ngTemplateOutlet="projectMenu; context: { $implicit: p }" />
+            </div>
+          </article>
+        } @empty {
+          <div class="empty">
+            <div class="empty-icon"><vc-icon name="folder" [size]="20" /></div>
+            @if (query().trim()) {
+              <h3>Brak wyników</h3><p>Żaden projekt nie pasuje do wyszukiwania.</p>
+            } @else if (currentFolder()) {
+              <h3>Folder jest pusty</h3><p>Przeciągnij tu projekt z listy „Wszystkie projekty” albo utwórz nowy.</p>
+              <button class="btn btn-primary" (click)="create()"><vc-icon name="plus" />Nowy projekt w folderze</button>
+            } @else {
+              <h3>Wszystkie projekty są w folderach</h3><p>Otwórz folder, aby zobaczyć jego projekty.</p>
+            }
+          </div>
+        }
+      </div>
     } @else {
       <div class="list" role="table" aria-label="Lista projektów">
         <div class="list-head grid" role="row">
           <button role="columnheader" [class.is-sorted]="sort().key === 'name'" (click)="sortBy('name')">Nazwa @if (sort().key === 'name') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
           <span role="columnheader" class="c-voice">Głos</span>
+          <span role="columnheader" class="c-folder">Folder</span>
           <button role="columnheader" class="c-dur" [class.is-sorted]="sort().key === 'duration'" (click)="sortBy('duration')">Długość @if (sort().key === 'duration') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
           <span role="columnheader" class="c-status">Status</span>
           <button role="columnheader" class="c-date" [class.is-sorted]="sort().key === 'createdAt'" (click)="sortBy('createdAt')">Utworzono @if (sort().key === 'createdAt') { <vc-icon [name]="sort().dir === 1 ? 'chevron-up' : 'chevron-down'" [size]="12" /> }</button>
@@ -70,6 +187,9 @@
               <span class="cell-muted">{{ pluralN(p.stats.segmentCount, 'fragment', 'fragmenty', 'fragmentów') }} · {{ pluralN(p.stats.characters, 'znak', 'znaki', 'znaków') }}</span>
             </div>
             <div class="c-voice" role="cell">{{ p.voice?.name ?? '—' }}</div>
+            <div class="c-folder" role="cell">
+              @if (p.folderId && folderName(p.folderId); as fn) { <span class="folder-chip"><vc-icon name="folder" [size]="12" />{{ fn }}</span> } @else { <span class="cell-muted">—</span> }
+            </div>
             <div class="c-dur tabular" role="cell">{{ p.stats.durationMs ? formatDuration(p.stats.durationMs) : '—' }}</div>
             <div class="c-status" role="cell">
               @if (p.stats.status === 'partial' && p.stats.readyCount === 0) {
@@ -84,15 +204,7 @@
             <div class="c-date cell-muted" role="cell" [title]="p.createdAt">{{ formatDate(p.createdAt) }}</div>
             <div class="c-date cell-muted" role="cell" [title]="p.updatedAt">{{ formatRelative(p.updatedAt) }}</div>
             <div class="cell-actions" role="cell" (click)="$event.stopPropagation()">
-              <vc-dropdown [width]="200">
-                <button trigger class="btn btn-ghost btn-icon btn-sm" [attr.aria-label]="'Akcje projektu ' + p.name"><vc-icon name="more" /></button>
-                <div menu>
-                  <button class="menu-item" (click)="open(p)"><vc-icon name="pencil" />Otwórz w edytorze</button>
-                  <button class="menu-item" (click)="duplicate(p)"><vc-icon name="copy" />Duplikuj</button>
-                  <div class="menu-sep"></div>
-                  <button class="menu-item menu-item-danger" (click)="remove(p)"><vc-icon name="trash" />Usuń</button>
-                </div>
-              </vc-dropdown>
+              <ng-container *ngTemplateOutlet="projectMenu; context: { $implicit: p }" />
             </div>
           </div>
         } @empty {
@@ -102,3 +214,29 @@
     }
   </div>
 </div>
+
+<ng-template #projectMenu let-p>
+  <vc-dropdown [width]="230">
+    <button trigger class="btn btn-ghost btn-icon btn-sm" [attr.aria-label]="'Akcje projektu ' + p.name"><vc-icon name="more" /></button>
+    <div menu>
+      <button class="menu-item" (click)="open(p)"><vc-icon name="pencil" />Otwórz w edytorze</button>
+      <button class="menu-item" (click)="duplicate(p)"><vc-icon name="copy" />Duplikuj</button>
+      @if (store.folders().length) {
+        <div class="menu-sep"></div>
+        <div class="menu-label">Przenieś do</div>
+        <div class="move-list">
+          @if (p.folderId) {
+            <button class="menu-item" (click)="move(p, null)"><vc-icon name="arrow-left" />Bez folderu</button>
+          }
+          @for (f of store.folders(); track f.id) {
+            @if (f.id !== p.folderId) {
+              <button class="menu-item" (click)="move(p, f.id)"><vc-icon name="folder" />{{ f.name }}</button>
+            }
+          }
+        </div>
+      }
+      <div class="menu-sep"></div>
+      <button class="menu-item menu-item-danger" (click)="remove(p)"><vc-icon name="trash" />Usuń</button>
+    </div>
+  </vc-dropdown>
+</ng-template>

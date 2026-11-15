@@ -201,6 +201,15 @@ Jak to działa:
 - Anulowanie lub nieopłacenie subskrypcji przywraca plan Free. Przy statusie `past_due` plan zostaje na czas ponawiania płatności.
 - Do testów lokalnych możesz przekierować zdarzenia poleceniem `stripe listen --forward-to localhost:8080/api/billing/webhook`.
 
+## Projekty i foldery
+
+Strona projektów ma dwa widoki (wybór jest zapamiętywany):
+
+- **Foldery** — jak eksplorator plików: kafelki folderów i projektów. Projekt przenosisz, przeciągając go na folder (albo na kafelek „Wszystkie projekty”, żeby wyjąć go z folderu), lub z menu projektu → „Przenieś do”. Nowy projekt utworzony wewnątrz folderu od razu do niego trafia. Wyszukiwanie przeszukuje wszystkie foldery.
+- **Lista** — wszystkie projekty w jednej tabeli z kolumną „Folder”.
+
+Foldery mają jeden poziom (bez folderów w folderach), najwyżej 100 na konto. Usunięcie folderu nie usuwa projektów — wracają do „Wszystkich projektów”. API: `GET/POST /api/folders`, `PATCH/DELETE /api/folders/{id}`, `PUT /api/projects/{id}/folder`.
+
 ## Zgodność z prawem i porządek danych
 
 - **Oznaczanie treści AI (AI Act, art. 50 ust. 2):** eksportowane pliki i nagrania pobierane z historii mają oznaczenie w metadanych. WAV dostaje fragment `LIST/INFO` (`ICMT`, `ISFT`, `IGNR`, `ICRD`, `INAM`), a MP3 znacznik ID3v2.3 (`TXXX:AI_GENERATED=true`, `TXXX:AI_GENERATOR`, `COMM`, `TSSE`). Odpowiedź ma nagłówek `X-AI-Generated: true`, a menu eksportu o tym informuje. Metadane da się usunąć przy ponownym zapisie pliku — docelowo warto dodać znak wodny w sygnale audio (np. AudioSeal) lub manifest C2PA.
@@ -369,7 +378,7 @@ tts-engine/app/
 cd backend && mvn test
 ```
 
-Backend ma 51 testów:
+Backend ma 52 testy:
 
 - integracyjne: logowanie, sesje, izolacja danych, CSRF, limit prób, webhook Stripe;
 - zgodność: licznik zużycia odporny na czyszczenie historii, nagrania wzorcowe i ich odtwarzanie po utracie w silniku, oznaczenie AI w eksporcie, rejestr zgód, eksport danych ZIP, sprzątanie, potwierdzenie e-mail, limit rejestracji;

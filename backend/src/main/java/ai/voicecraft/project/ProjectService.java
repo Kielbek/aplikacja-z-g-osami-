@@ -34,10 +34,12 @@ public class ProjectService {
     private final GenerationService generation;
     private final EngineClient engine;
     private final PronunciationRepository dictionary;
+    private final ProjectFolderRepository folders;
 
     public ProjectService(ProjectRepository projects, VoiceRepository voices, HistoryRepository history,
                           AccountService account, AudioStorage storage, GenerationService generation, EngineClient engine,
-                          PronunciationRepository dictionary) {
+                          PronunciationRepository dictionary, ProjectFolderRepository folders) {
+        this.folders = folders;
         this.dictionary = dictionary;
         this.projects = projects;
         this.voices = voices;
@@ -76,6 +78,7 @@ public class ProjectService {
         p.name = req.name() == null || req.name().isBlank() ? "Projekt bez tytułu" : req.name().trim();
         p.settings.language = a.defaultLanguage;
         p.settings.voiceId = canUseVoice(a.defaultVoiceId) ? a.defaultVoiceId : null;
+        p.folderId = ownFolder(req.folderId());
         List<String> parts = req.text() == null ? List.of() : TextSplitter.segments(req.text(), TextSplitter.MAX_SEGMENT);
         if (parts.isEmpty()) parts = List.of("");
         account.requireProjectCharacters(parts.stream().mapToInt(SpeechText::spokenCharacters).sum());
@@ -126,6 +129,20 @@ public class ProjectService {
         return dto(projects.save(p));
     }
 
+    /** Przenosi projekt do folderu (null = bez folderu). Zmiana miejsca nie zmienia daty edycji. */
+    @Transactional
+    public ProjectDto move(String id, String folderId) {
+        Project p = find(id);
+        p.folderId = ownFolder(folderId);
+        return dto(projects.save(p));
+    }
+
+    private String ownFolder(String folderId) {
+        if (folderId == null || folderId.isBlank()) return null;
+        return folders.findByIdAndOwnerId(folderId, CurrentUser.id()).map(f -> f.id)
+                .orElseThrow(() -> ApiException.notFound("Folder"));
+    }
+
     @Transactional
     public void delete(String id) {
         projects.delete(find(id));
@@ -140,6 +157,7 @@ public class ProjectService {
         p.ownerId = src.ownerId;
         p.name = src.name + " (kopia)";
         p.settings = src.settings.copy();
+        p.folderId = src.folderId;
         p.lastGeneratedAt = src.lastGeneratedAt;
         for (Segment s : src.segments) {
             Segment c = addSegment(p, s.text);
@@ -379,6 +397,8 @@ public class ProjectService {
     @Transactional
     public void deleteAllOf(String userId) {
         projects.deleteAll(projects.findAllByOwnerIdOrderByUpdatedAtDesc(userId));
+        projects.flush();
+        folders.deleteAll(folders.findAllByOwnerIdOrderByNameAsc(userId));
     }
 
     private ProjectDto dto(Project p) {
@@ -448,7 +468,7 @@ public class ProjectService {
         return new ProjectDto(p.id, p.name, p.createdAt, p.updatedAt, p.lastGeneratedAt, p.settings,
                 v == null ? null : new VoiceRef(v.id, v.name),
                 new Stats(chars, p.segments.size(), ready, stale, draft, err, duration, status),
-                withSegments ? segs : List.of());
+                withSegments ? segs : List.of(), p.folderId);
     }
 
     private static String fileName(String pattern, String project) {

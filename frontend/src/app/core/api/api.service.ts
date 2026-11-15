@@ -5,6 +5,7 @@ import {
   Account,
   ApiError,
   BillingConfig,
+  ProjectFolder,
   ConsentText,
   VoiceConsent,
   GenerationJob,
@@ -70,12 +71,30 @@ export class ApiService {
   project(id: string) {
     return this.p(this.http.get<ProjectDto>(`${API}/projects/${id}`));
   }
-  createProject(body: { name?: string; text?: string } = {}) {
+  createProject(body: { name?: string; text?: string; folderId?: string | null } = {}) {
     return this.p(this.http.post<ProjectDto>(`${API}/projects`, body));
   }
   updateProject(id: string, body: { name?: string; settings?: VoiceSettings }) {
     return this.p(this.http.patch<ProjectDto>(`${API}/projects/${id}`, body));
   }
+  moveProject(id: string, folderId: string | null) {
+    return this.p(this.http.put<ProjectDto>(`${API}/projects/${id}/folder`, { folderId }));
+  }
+
+  // --- Foldery projektów ----------------------------------------------------
+  folders() {
+    return this.p(this.http.get<ProjectFolder[]>(`${API}/folders`));
+  }
+  createFolder(name: string) {
+    return this.p(this.http.post<ProjectFolder>(`${API}/folders`, { name }));
+  }
+  renameFolder(id: string, name: string) {
+    return this.p(this.http.patch<ProjectFolder>(`${API}/folders/${id}`, { name }));
+  }
+  deleteFolder(id: string) {
+    return this.p(this.http.delete<void>(`${API}/folders/${id}`));
+  }
+
   deleteProject(id: string) {
     return this.p(this.http.delete<void>(`${API}/projects/${id}`));
   }

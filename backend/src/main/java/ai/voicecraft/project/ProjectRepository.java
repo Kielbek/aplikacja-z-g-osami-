@@ -11,6 +11,11 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
 
     long countByOwnerId(String ownerId);
 
+    @org.springframework.transaction.annotation.Transactional
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("update Project p set p.folderId = null where p.folderId = ?1 and p.ownerId = ?2")
+    int clearFolder(String folderId, String ownerId);
+
     @org.springframework.data.jpa.repository.Query("select distinct s.audioFile from Segment s where s.audioFile is not null")
     List<String> allSegmentAudioFiles();
 }

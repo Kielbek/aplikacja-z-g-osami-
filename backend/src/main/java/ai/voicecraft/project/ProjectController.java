@@ -44,6 +44,12 @@ public class ProjectController {
         service.delete(id);
     }
 
+    /** Przeniesienie projektu do folderu ({"folderId": null} = bez folderu). */
+    @PutMapping("/{id}/folder")
+    public ProjectDtos.ProjectDto move(@PathVariable String id, @RequestBody ProjectDtos.MoveProject req) {
+        return service.move(id, req.folderId());
+    }
+
     @PostMapping("/{id}/duplicate")
     public ProjectDto duplicate(@PathVariable String id) {
         return service.duplicate(id);

@@ -105,6 +105,15 @@ export interface ProjectDto {
   voice: { id: string; name: string } | null;
   stats: ProjectStats;
   segments: SegmentDto[];
+  /** Folder projektu (null = bez folderu). */
+  folderId?: string | null;
+}
+
+/** Folder porządkujący projekty (jeden poziom). */
+export interface ProjectFolder {
+  id: string;
+  name: string;
+  createdAt: string;
 }
 
 export type VoiceKind = 'LIBRARY' | 'DESIGNED' | 'CLONED';

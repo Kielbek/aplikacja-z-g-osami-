@@ -21,6 +21,9 @@ public class Project {
     public Instant updatedAt = Instant.now();
     public Instant lastGeneratedAt;
 
+    /** Folder (null = bez folderu). */
+    public String folderId;
+
     @Embedded
     public VoiceSettings settings = new VoiceSettings();
 

@@ -47,11 +47,13 @@ public class DataExportService {
     private final VoiceConsentRepository consents;
     private final AudioStorage storage;
     private final JsonMapper json;
+    private final ai.voicecraft.project.ProjectFolderRepository folders;
 
     public DataExportService(UserRepository users, AccountService accounts, ProjectRepository projectRepo, ProjectService projects,
                              VoiceRepository voices, VoiceFavoriteRepository favorites, HistoryRepository history,
                              UsageRepository usage, PronunciationRepository dictionary, VoiceConsentRepository consents,
-                             AudioStorage storage, JsonMapper json) {
+                             AudioStorage storage, JsonMapper json, ai.voicecraft.project.ProjectFolderRepository folders) {
+        this.folders = folders;
         this.users = users;
         this.accounts = accounts;
         this.projectRepo = projectRepo;
@@ -99,6 +101,8 @@ public class DataExportService {
             }
         }
         docs.put("projekty.json", projectDocs);
+        docs.put("foldery.json", folders.findAllByOwnerIdOrderByNameAsc(uid).stream()
+                .map(f -> Map.of("id", f.id, "name", f.name, "createdAt", f.createdAt)).toList());
 
         List<Voice> own = voices.findAllByOwnerId(uid);
         docs.put("glosy.json", Map.of(
@@ -120,6 +124,7 @@ public class DataExportService {
             put(zip, "CZYTAJ.txt", ("Eksport danych konta VoiceCraft AI\nWygenerowano: " + Instant.now() + "\n\n"
                     + "konto.json — profil, ustawienia, plan i zużycie limitów\n"
                     + "projekty.json — projekty z fragmentami tekstu i ustawieniami\n"
+                    + "foldery.json — foldery projektów\n"
                     + "glosy.json — własne głosy (zaprojektowane i sklonowane) oraz ulubione\n"
                     + "historia.json — historia generowania\n"
                     + "zuzycie.json — zdarzenia zużycia limitów\n"
