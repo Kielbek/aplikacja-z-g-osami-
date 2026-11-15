@@ -6,7 +6,7 @@
       <div class="empty"><div class="empty-icon"><vc-icon name="circle-alert" [size]="20" /></div><h3>Nie znaleziono głosu</h3><p>{{ e }}</p></div>
     } @else if (voice(); as v) {
       <header class="hero">
-        <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="64" />
+        <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="96" />
         <div class="hero-text">
           @if (editing()) {
             <input class="input name-input" [value]="draftName()" (input)="draftName.set($any($event.target).value)" aria-label="Nazwa głosu" />
