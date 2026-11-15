@@ -47,7 +47,7 @@ Otwórz http://localhost:4200. Lokalnie powstaje konto demonstracyjne **marta@st
 
 Lokalnie backend używa H2 (plik w `./data`). Do pracy z PostgreSQL ustaw `DATABASE_URL`, `DATABASE_USER` i `DATABASE_PASSWORD`. Schemat tworzy Flyway przy starcie.
 
-Wszystko naraz w kontenerach (PostgreSQL, MinIO jako S3, silnik, backend w profilu `prod`, frontend):
+Wszystko naraz w kontenerach (PostgreSQL, silnik, backend w profilu `prod`, frontend). Nagrania trafiają domyślnie na wolumen backendu; S3 włącza się przez `STORAGE_TYPE=s3` i zmienne `S3_*`:
 
 ```bash
 cp .env.example .env
@@ -57,7 +57,7 @@ cp .env.example .env
 docker compose up --build
 ```
 
-W pliku `.env` uzupełnij co najmniej `POSTGRES_PASSWORD`, `JWT_SECRET` (min. 32 znaki), `S3_ACCESS_KEY` i `S3_SECRET_KEY`.
+W pliku `.env` uzupełnij co najmniej `POSTGRES_PASSWORD` i `JWT_SECRET` (min. 32 znaki).
 
 ## Podłączenie VoxCPM2
 
@@ -160,7 +160,7 @@ W produkcji plan zmienia się wyłącznie przez Stripe (zob. „Płatności”).
 ## Baza danych i magazyn plików
 
 - **Baza:** PostgreSQL 14+ w produkcji. Schemat jest zarządzany przez Flyway (`backend/src/main/resources/db/migration`), a Hibernate tylko go waliduje (`ddl-auto: validate`). Ta sama migracja działa na H2 w lokalnym developmencie. Sprawdzone na PostgreSQL 16.
-- **Nagrania:** `STORAGE_TYPE=local` (katalog danych) albo `STORAGE_TYPE=s3`. S3 działa z AWS, MinIO, Cloudflare R2 i Backblaze B2. Ustawia się je przez `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` i `S3_PATH_STYLE`. Bucket jest tworzony automatycznie, jeśli nie istnieje.
+- **Nagrania:** `STORAGE_TYPE=local` (katalog danych) albo `STORAGE_TYPE=s3`. S3 działa z AWS, Cloudflare R2, Backblaze B2 i innymi usługami zgodnymi z S3 (MinIO nie publikuje już obrazów w Docker Hub, dlatego nie ma go w docker-compose). Ustawia się je przez `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` i `S3_PATH_STYLE`. Bucket jest tworzony automatycznie, jeśli nie istnieje.
 
 ## Płatności (Stripe)
 
