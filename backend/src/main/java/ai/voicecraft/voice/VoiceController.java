@@ -14,9 +14,38 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/voices")
 public class VoiceController {
     private final VoiceService service;
+    private final VoicePreviewService previews;
+    private final VoiceCatalog catalog;
 
-    public VoiceController(VoiceService service) {
+    public VoiceController(VoiceService service, VoicePreviewService previews, VoiceCatalog catalog) {
         this.service = service;
+        this.previews = previews;
+        this.catalog = catalog;
+    }
+
+    /** Kategorie zastosowań biblioteki (Audiobooki, Social Media…). */
+    @GetMapping("/categories")
+    public List<VoiceCatalog.Category> categories() {
+        return catalog.categories();
+    }
+
+    public record PreviewLanguage(String code, String text) {}
+
+    /** Języki próbek (30 języków VoxCPM2) i zdanie, które wypowiada każdy głos. */
+    @GetMapping("/preview-languages")
+    public List<PreviewLanguage> previewLanguages() {
+        return PreviewTexts.TEXTS.entrySet().stream().map(e -> new PreviewLanguage(e.getKey(), e.getValue())).toList();
+    }
+
+    /** Próbka głosu w wybranym języku: gotowy plik (natychmiast) albo wygenerowana raz i zapamiętana. */
+    @GetMapping("/{id}/preview")
+    public ResponseEntity<byte[]> preview(@PathVariable String id, @RequestParam(defaultValue = "pl") String lang) {
+        var p = previews.get(id, lang);
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType("audio/wav"))
+                .header("X-Engine-Mode", p.engineMode())
+                .header("X-Preview-Source", p.source())
+                .header("Cache-Control", "private, max-age=3600")
+                .body(p.wav());
     }
 
     @GetMapping

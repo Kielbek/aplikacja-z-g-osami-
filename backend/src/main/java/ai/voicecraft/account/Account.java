@@ -38,7 +38,7 @@ public class Account {
     // Preferencje
     public String theme = "light";
     public String defaultLanguage = "pl";
-    public String defaultVoiceId = "pl-anna";
+    public String defaultVoiceId = "voice_warm_velvet";
     public boolean autoSplitOnPaste = true;
     public boolean confirmBeforeDelete = true;
     public boolean playAfterGenerate = true;

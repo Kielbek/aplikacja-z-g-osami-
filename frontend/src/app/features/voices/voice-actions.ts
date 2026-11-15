@@ -4,6 +4,7 @@ import { ApiService } from '../../core/api/api.service';
 import { Voice } from '../../core/api/models';
 import { PlayerTrack } from '../../core/services/player.service';
 import { ProjectsStore } from '../../core/services/projects.store';
+import { PreviewLanguageService } from '../../core/services/preview-language.service';
 import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { categoryLabel, languageLabel } from '../../core/util/labels';
@@ -16,14 +17,16 @@ export class VoiceActions {
   private toast = inject(ToastService);
   private voices = inject(VoicesStore);
   private projects = inject(ProjectsStore);
+  private previewLang = inject(PreviewLanguageService);
 
-  sampleTrack(v: Voice): PlayerTrack {
+  /** Próbka w wybranym języku (domyślnie: język próbek wybrany przez użytkownika). */
+  sampleTrack(v: Voice, lang: string = this.previewLang.language()): PlayerTrack {
     return {
-      id: `voice:${v.id}`,
+      id: `voice:${v.id}:${lang}`,
       title: `Próbka: ${v.name}`,
-      subtitle: [languageLabel(v.languages[0] ?? ''), ...v.categories.slice(0, 2).map(categoryLabel)].join(' · '),
-      url: this.api.voiceSampleUrl(v.id),
-      downloadName: `probka-${v.id}`,
+      subtitle: [languageLabel(lang), ...v.categories.slice(0, 1).map(categoryLabel)].join(' · '),
+      url: this.api.voicePreviewUrl(v.id, lang),
+      downloadName: `probka-${v.id}-${lang}`,
     };
   }
 
@@ -41,7 +44,8 @@ export class VoiceActions {
     try {
       const p = await this.api.createProject({ name: `Nowy projekt — ${v.name}` });
       const updated = await this.api.updateProject(p.id, {
-        settings: { ...p.settings, voiceId: v.id, language: v.languages[0] ?? p.settings.language },
+        // Głos jest wielojęzyczny — projekt dostaje język wybranych próbek
+        settings: { ...p.settings, voiceId: v.id, language: this.previewLang.language() },
       });
       this.projects.touch(updated);
       await this.router.navigate(['/editor', p.id]);

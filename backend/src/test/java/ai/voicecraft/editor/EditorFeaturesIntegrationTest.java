@@ -81,7 +81,7 @@ class EditorFeaturesIntegrationTest {
         String id = body.replaceAll(".*?\"id\":\"([^\"]+)\".*", "$1");
         mvc.perform(json(put("/api/projects/" + id + "/segments").cookie(c),
                 "[{\"id\":\"s1\",\"text\":\"Dzień dobry, tu Anna. [pauza 1s] Zaczynamy rozmowę o VoxCPM.\"},"
-                        + "{\"id\":\"s2\",\"text\":\"A ja jestem Tomasz i mówię innym głosem.\",\"voiceId\":\"pl-tomasz\"}]"))
+                        + "{\"id\":\"s2\",\"text\":\"A ja jestem Tomasz i mówię innym głosem.\",\"voiceId\":\"voice_warm_narrator\"}]"))
                 .andExpect(status().isOk());
         return id;
     }
@@ -99,12 +99,12 @@ class EditorFeaturesIntegrationTest {
 
         // Pauza: dwa wywołania silnika dla s1 (tekst przed i po znaczniku), s2 — głos fragmentu
         assertThat(calls).hasSize(3);
-        assertThat(calls.get(0).voice().id()).isEqualTo("pl-anna");
-        assertThat(calls.get(2).voice().id()).isEqualTo("pl-tomasz");
+        assertThat(calls.get(0).voice().id()).isEqualTo("voice_warm_velvet");
+        assertThat(calls.get(2).voice().id()).isEqualTo("voice_warm_narrator");
         var segs = segments(c, pid);
         // ~1 s + 1 s pauzy + ~1 s
         assertThat(((Number) segs.get(0).get("durationMs")).longValue()).isBetween(2900L, 3100L);
-        assertThat(segs.get(1).get("voiceId")).isEqualTo("pl-tomasz");
+        assertThat(segs.get(1).get("voiceId")).isEqualTo("voice_warm_narrator");
         assertThat(segs).extracting(m -> m.get("status")).containsOnly("ready");
 
         // Słownik: hasło występuje tylko w s1 → tylko s1 staje się nieaktualny

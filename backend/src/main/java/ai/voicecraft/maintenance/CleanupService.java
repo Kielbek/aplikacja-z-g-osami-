@@ -40,9 +40,12 @@ public class CleanupService {
     private final AudioStorage storage;
     private final PasswordResetTokenRepository resetTokens;
     private final EmailVerificationTokenRepository verificationTokens;
+    private final ai.voicecraft.voice.VoicePreviewRepository previews;
 
     public CleanupService(HistoryRepository history, ProjectRepository projects, VoiceRepository voices, AudioStorage storage,
-                          PasswordResetTokenRepository resetTokens, EmailVerificationTokenRepository verificationTokens) {
+                          PasswordResetTokenRepository resetTokens, EmailVerificationTokenRepository verificationTokens,
+                          ai.voicecraft.voice.VoicePreviewRepository previews) {
+        this.previews = previews;
         this.history = history;
         this.projects = projects;
         this.voices = voices;
@@ -82,6 +85,7 @@ public class CleanupService {
         referenced.addAll(voices.allSampleFiles());
         referenced.addAll(voices.allReferenceFiles());
         referenced.addAll(history.allAudioFiles());
+        referenced.addAll(previews.allAudioFiles());
 
         Instant graceLimit = now.minus(ORPHAN_GRACE);
         var scanned = new AtomicLong();

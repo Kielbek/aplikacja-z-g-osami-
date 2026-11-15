@@ -1,5 +1,6 @@
 import { Gender, ProjectStatus, SegmentStatus } from '../api/models';
 
+/** 30 języków VoxCPM2 (oraz kilka dodatkowych etykiet dla starszych danych). */
 export const LANGUAGES: Record<string, string> = {
   pl: 'Polski',
   en: 'Angielski',
@@ -9,12 +10,35 @@ export const LANGUAGES: Record<string, string> = {
   it: 'Włoski',
   pt: 'Portugalski',
   nl: 'Niderlandzki',
+  da: 'Duński',
+  sv: 'Szwedzki',
+  no: 'Norweski',
+  fi: 'Fiński',
+  ru: 'Rosyjski',
+  el: 'Grecki',
+  tr: 'Turecki',
+  ar: 'Arabski',
+  he: 'Hebrajski',
+  hi: 'Hindi',
+  id: 'Indonezyjski',
+  ms: 'Malajski',
+  tl: 'Tagalski',
+  vi: 'Wietnamski',
+  th: 'Tajski',
+  lo: 'Laotański',
+  km: 'Khmerski',
+  my: 'Birmański',
+  zh: 'Chiński',
+  ja: 'Japoński',
+  ko: 'Koreański',
+  sw: 'Suahili',
   cs: 'Czeski',
   uk: 'Ukraiński',
-  ja: 'Japoński',
-  zh: 'Chiński',
-  ko: 'Koreański',
 };
+
+/** Języki obsługiwane przez VoxCPM2 (zgodnie z silnikiem). */
+export const VOXCPM2_LANGUAGES = ['pl', 'en', 'de', 'fr', 'es', 'it', 'pt', 'nl', 'da', 'sv', 'no', 'fi', 'ru', 'el', 'tr',
+  'ar', 'he', 'hi', 'id', 'ms', 'tl', 'vi', 'th', 'lo', 'km', 'my', 'zh', 'ja', 'ko', 'sw'];
 
 export const languageLabel = (code: string) => LANGUAGES[code] ?? code.toUpperCase();
 
@@ -24,10 +48,11 @@ const LANGUAGE_COUNTRY: Record<string, string> = {
   ru: 'ru', ja: 'jp', zh: 'cn', ko: 'kr', ar: 'sa', hi: 'in', tr: 'tr', sv: 'se', da: 'dk', fi: 'fi', no: 'no',
   nb: 'no', el: 'gr', he: 'il', id: 'id', ms: 'my', th: 'th', vi: 'vn', hu: 'hu', ro: 'ro', bg: 'bg', hr: 'hr',
   sr: 'rs', sl: 'si', lt: 'lt', lv: 'lv', et: 'ee', fa: 'ir', ur: 'pk', bn: 'bd', tl: 'ph', sw: 'ke', ca: 'es-ct',
+  my: 'mm', km: 'kh', lo: 'la',
 };
 
 /** Głosy z akcentem innym niż domyślny kraj języka. */
-const VOICE_COUNTRY: Record<string, string> = { 'en-james': 'us', 'en-maya': 'us' };
+const VOICE_COUNTRY: Record<string, string> = {};
 
 export function flagCountry(lang: string, voiceId?: string | null): string | null {
   if (voiceId && VOICE_COUNTRY[voiceId]) return VOICE_COUNTRY[voiceId];
@@ -41,7 +66,14 @@ export function languageOptions(codes: string[]): { value: string; label: string
     .map((c) => ({ value: c, label: languageLabel(c), hint: c.toUpperCase(), flag: c }));
 }
 
+/** Kategorie zastosowań biblioteki (catalog.json). */
 export const CATEGORIES: { id: string; label: string }[] = [
+  { id: 'audiobooks', label: 'Audiobooki i Opowieści' },
+  { id: 'social_media', label: 'Social Media i Marketing' },
+  { id: 'media_business', label: 'Media i Biznes' },
+  { id: 'gaming_animation', label: 'Gry i Animacje' },
+  { id: 'wellness_relax', label: 'Relaks i Medytacja' },
+  // starsze kategorie (własne głosy utworzone wcześniej)
   { id: 'natural', label: 'Naturalny' },
   { id: 'professional', label: 'Profesjonalny' },
   { id: 'energetic', label: 'Energiczny' },
@@ -49,6 +81,16 @@ export const CATEGORIES: { id: string; label: string }[] = [
   { id: 'narrative', label: 'Narracyjny' },
   { id: 'advertising', label: 'Reklamowy' },
 ];
+
+/** Kategorie widoczne w filtrach biblioteki. */
+export const LIBRARY_CATEGORIES = CATEGORIES.slice(0, 5);
+
+/** Persona głosu: Kobieta / Mężczyzna / Dziecko / Starzec / Staruszka. */
+export function personaLabel(gender: string | null | undefined, age: number | null | undefined): string {
+  if (age != null && age < 14) return 'Dziecko';
+  if (age != null && age >= 65) return gender === 'female' ? 'Staruszka' : gender === 'male' ? 'Starzec' : 'Senior';
+  return gender === 'female' ? 'Kobieta' : gender === 'male' ? 'Mężczyzna' : 'Neutralny';
+}
 
 export const categoryLabel = (id: string) => CATEGORIES.find((c) => c.id === id)?.label ?? id;
 
@@ -72,7 +114,17 @@ export const PROJECT_STATUS: Record<ProjectStatus, { label: string; tone: string
   error: { label: 'Błąd', tone: 'danger' },
 };
 
-export const EMOTIONS = ['neutralny', 'radosny', 'spokojny', 'poważny', 'smutny', 'energiczny'];
+/** Emocja = control_instruction przekazywana do VoxCPM2 (wartość) z polską etykietą. */
+export const EMOTIONS: { label: string; value: string }[] = [
+  { label: 'Neutralnie', value: 'Neutral' },
+  { label: 'Radośnie', value: 'Happy' },
+  { label: 'Szeptem', value: 'Whisper' },
+  { label: 'Spokojnie', value: 'Calm' },
+  { label: 'Smutno', value: 'Sad' },
+  { label: 'Z ekscytacją', value: 'Excited' },
+  { label: 'Poważnie', value: 'Serious' },
+  { label: 'Groźnie', value: 'Menacing' },
+];
 
 export const STYLE_PRESETS: { label: string; value: string }[] = [
   { label: 'Naturalnie', value: 'naturalnie, swobodnie, jak w rozmowie' },

@@ -30,7 +30,7 @@ class SegmentStatusTest {
         var s = new VoiceSettings();
         var seg = generated("Tekst.", s);
         var changed = s.copy();
-        changed.voiceId = "pl-tomasz";
+        changed.voiceId = "voice_warm_narrator";
         assertEquals("stale", ProjectService.segmentStatus(seg, changed, "voxcpm2"));
     }
 

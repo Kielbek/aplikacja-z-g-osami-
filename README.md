@@ -101,6 +101,21 @@ Projektowanie głosu z samego opisu daje przy każdym wywołaniu nieco inną bar
 
 Silnik z ustawionym `ENGINE_API_KEY` odrzuca żądania bez nagłówka `Authorization: Bearer <klucz>`, więc obcy nie skorzystają z wynajętego GPU.
 
+## Biblioteka głosów i próbki w 30 językach
+
+Biblioteka to 21 głosów w 5 kategoriach (Audiobooki i Opowieści, Social Media i Marketing, Media i Biznes, Gry i Animacje, Relaks i Medytacja). Źródłem jest `backend/src/main/resources/voices/catalog.json`: identyfikator, nazwa, persona, kategoria, plik wzorcowy (`reference`), opis Voice Design (`designPrompt`) i opcjonalna domyślna instrukcja (`instruction`, np. wariant „Relaks”). Przy starcie backend synchronizuje bibliotekę z katalogiem, a dawne głosy (Anna, Tomasz…) przepina na najbliższe nowe w projektach, fragmentach i ulubionych.
+
+- **Jedno nagranie wzorcowe, 30 języków:** każdy głos ma jeden Master Prompt (`voices/prompts/…wav`). Synteza używa go jako `reference_wav_path` z `ultimate_cloning=false`: model zachowuje barwę, a akcent jest natywny dla języka docelowego. „Ultimate cloning” (dodatkowo `prompt_wav_path` + `prompt_text`) można włączyć w ustawieniach zaawansowanych projektu, gdy tekst jest w języku nagrania.
+- **Emocja = `control_instruction`:** gotowe ustawienia (Neutral, Happy, Whisper, Calm…) i własny opis stylu trafiają do VoxCPM2 jako prefiks `(instrukcja)tekst`. Domyślna instrukcja głosu działa, gdy projekt nie ustawia stylu ani emocji.
+- **Próbki w wybranym języku:** w bibliotece głosów wybierasz „Język próbek”, a przycisk odtwarzania każdego głosu mówi krótkie zdanie w tym języku. Źródło próbki, w tej kolejności:
+  1. gotowy plik `voices/samples/{voice_id}/{lang}.wav` — odtwarzany natychmiast (opcja B);
+  2. próbka wygenerowana wcześniej i zapamiętana;
+  3. generowanie przy pierwszym odsłuchu (opcja A), wynik jest zapamiętywany.
+
+  Komplet plików (21 × 30) generuje `PREGENERATE_SAMPLES=true` na maszynie z VoxCPM2 — zob. `voices/README.md`. Próbki nie zużywają limitu znaków.
+- **API:** `GET /api/voices/categories`, `GET /api/voices/preview-languages` (30 języków ze zdaniem próbki), `GET /api/voices/{id}/preview?lang=it` (nagłówek `X-Preview-Source: static|cache|generated`).
+- Zdania próbek w rzadszych językach (np. birmański, khmerski, laotański) warto sprawdzić z native speakerem (`PreviewTexts.java`).
+
 ## Bez GPU: silnik Piper
 
 Do testów na komputerze bez karty graficznej służy lekki silnik [Piper](https://github.com/OHF-Voice/piper1-gpl). Działa na zwykłym procesorze i generuje **prawdziwą mowę**.
@@ -380,7 +395,7 @@ tts-engine/app/
 cd backend && mvn test
 ```
 
-Backend ma 52 testy:
+Backend ma 55 testów:
 
 - integracyjne: logowanie, sesje, izolacja danych, CSRF, limit prób, webhook Stripe;
 - zgodność: licznik zużycia odporny na czyszczenie historii, nagrania wzorcowe i ich odtwarzanie po utracie w silniku, oznaczenie AI w eksporcie, rejestr zgód, eksport danych ZIP, sprzątanie, potwierdzenie e-mail, limit rejestracji;

@@ -21,7 +21,7 @@
 .vcard {
   position: relative;
   display: flex;
-  height: 184px;
+  height: 200px;
   border-radius: 18px;
   border: 1px solid var(--border);
   background: linear-gradient(135deg, var(--surface) 0%, #eef0f4 100%);
@@ -84,8 +84,11 @@
   padding: 18px 16px 14px 6px;
 }
 
-.name-row { display: flex; align-items: center; gap: 8px; padding-right: 26px; min-width: 0; }
-.name { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name-row { display: flex; align-items: flex-start; gap: 8px; padding-right: 30px; min-width: 0; max-width: 100%; }
+.name {
+  font-size: 17px; font-weight: 650; letter-spacing: -0.01em; line-height: 1.2;
+  overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+}
 
 .lang-pill {
   display: inline-flex;
@@ -157,7 +160,7 @@
 @media (max-width: 680px) {
   .filters { flex-wrap: wrap; .filter { flex: 1; width: auto; } .search { flex-basis: 100%; } }
   .grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
-  .vcard { height: 164px; }
+  .vcard { height: 184px; }
   .portrait { width: 128px; }
 }
 
@@ -170,4 +173,47 @@
     background: color-mix(in srgb, var(--avatar-fg, #888) 22%, var(--surface));
     color: color-mix(in srgb, var(--avatar-fg, #888) 45%, #fff);
   }
+}
+
+/* ---------- Język próbek i sekcje kategorii ---------- */
+
+.preview-lang {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  .pl-label { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-sm); font-weight: 600; color: var(--text); white-space: nowrap; }
+}
+
+.preview-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  q { color: var(--text-2); font-style: italic; }
+}
+
+.section-title {
+  margin: 26px 0 12px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  .t-muted { font-weight: 500; font-size: var(--text-sm); margin-left: 4px; }
+}
+
+.play-lang {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface) 80%, transparent);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+@media (max-width: 680px) {
+  .preview-lang { flex-basis: 100%; .filter { flex: 1; } }
 }

@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, signal } f
 import { Router, RouterLink } from '@angular/router';
 import { Voice } from '../../core/api/models';
 import { VoicesStore } from '../../core/services/voices.store';
-import { CATEGORIES, GENDERS, avatarStyle, categoryLabel, initials, languageLabel, languageOptions } from '../../core/util/labels';
+import { LIBRARY_CATEGORIES, avatarStyle, categoryLabel, initials, languageLabel, personaLabel } from '../../core/util/labels';
+import { PreviewLanguageService } from '../../core/services/preview-language.service';
 import { portraitUrl } from '../../shared/voice-portraits';
 import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { EngineBannerComponent } from '../../shared/engine-banner.component';
@@ -27,16 +28,16 @@ export class VoicesPage {
   readonly tab = input<'all' | 'favorites' | 'mine'>('all');
 
   protected query = signal('');
-  protected language = signal('');
+  /** Grupa persony: female | male | child | senior */
   protected gender = signal('');
   protected category = signal('');
+  /** Język próbek — przycisk „Posłuchaj” odtwarza zdanie w tym języku. */
+  protected preview = inject(PreviewLanguageService);
 
-  protected CATEGORIES = CATEGORIES;
-  protected GENDERS = Object.entries(GENDERS);
+  protected CATEGORIES = LIBRARY_CATEGORIES;
   protected categoryLabel = categoryLabel;
   protected languageLabel = languageLabel;
-
-  protected languages = computed(() => [...new Set(this.store.voices().flatMap((v) => v.languages))].sort((a, b) => (a === 'pl' ? -1 : b === 'pl' ? 1 : a.localeCompare(b))));
+  protected personaLabel = personaLabel;
 
   protected counts = computed(() => {
     const all = this.store.voices();
@@ -48,24 +49,32 @@ export class VoicesPage {
     return this.store.voices().filter((v) => {
       if (this.tab() === 'favorites' && !v.favorite) return false;
       if (this.tab() === 'mine' && v.kind === 'LIBRARY') return false;
-      if (this.language() && !v.languages.includes(this.language())) return false;
-      if (this.gender() && v.gender !== this.gender()) return false;
+      if (this.gender() && personaGroup(v) !== this.gender()) return false;
       if (this.category() && !v.categories.includes(this.category())) return false;
       if (q && !`${v.name} ${v.description} ${v.traits.join(' ')}`.toLowerCase().includes(q)) return false;
       return true;
     });
   });
 
-  protected languageOpts = computed<SelectOption[]>(() => [
-    { value: '', label: 'Wszystkie języki' },
-    ...languageOptions(this.languages()).map((o) => ({
-      ...o,
-      hint: `${this.store.voices().filter((v) => v.languages.includes(o.value)).length} gł.`,
-    })),
-  ]);
-  protected genderOpts: SelectOption[] = [{ value: '', label: 'Każda barwa' }, ...Object.entries(GENDERS).map(([value, label]) => ({ value, label }))];
+  protected genderOpts: SelectOption[] = [
+    { value: '', label: 'Każda persona' },
+    { value: 'female', label: 'Kobiety' },
+    { value: 'male', label: 'Mężczyźni' },
+    { value: 'child', label: 'Dzieci' },
+    { value: 'senior', label: 'Seniorzy' },
+  ];
 
-  protected hasFilters = computed(() => !!(this.query() || this.language() || this.gender() || this.category()));
+  protected hasFilters = computed(() => !!(this.query() || this.gender() || this.category()));
+
+  /** Sekcje według kategorii zastosowań (bez filtra kategorii i wyszukiwania); inaczej jedna lista wyników. */
+  protected sections = computed(() => {
+    const list = this.filtered();
+    if (this.category() || this.query().trim()) return [{ id: 'results', label: '', voices: list }];
+    const own = list.filter((v) => v.kind !== 'LIBRARY');
+    const groups = LIBRARY_CATEGORIES.map((c) => ({ id: c.id, label: c.label, voices: list.filter((v) => v.kind === 'LIBRARY' && v.categories[0] === c.id) }));
+    const rest = list.filter((v) => v.kind === 'LIBRARY' && !LIBRARY_CATEGORIES.some((c) => c.id === v.categories[0]));
+    return [{ id: 'own', label: 'Moje głosy', voices: own }, ...groups, { id: 'other', label: 'Pozostałe', voices: rest }].filter((g) => g.voices.length);
+  });
 
   constructor() {
     void this.store.load(true);
@@ -73,7 +82,6 @@ export class VoicesPage {
 
   clearFilters() {
     this.query.set('');
-    this.language.set('');
     this.gender.set('');
     this.category.set('');
   }
@@ -106,4 +114,11 @@ export class VoicesPage {
   kindLabel(v: Voice) {
     return v.kind === 'DESIGNED' ? 'Zaprojektowany' : v.kind === 'CLONED' ? 'Sklonowany' : null;
   }
+}
+
+/** Grupa persony do filtra: dzieci (< 14), seniorzy (65+), kobiety, mężczyźni. */
+function personaGroup(v: Voice): string {
+  if (v.age != null && v.age < 14) return 'child';
+  if (v.age != null && v.age >= 65) return 'senior';
+  return v.gender ?? '';
 }

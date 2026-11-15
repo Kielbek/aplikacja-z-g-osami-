@@ -8,7 +8,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "voicecraft")
 public record AppProperties(Path dataDir, List<String> corsOrigins, Engine engine, boolean seedDemoData, Auth auth,
-                            Storage storage, Billing billing, String publicUrl, String mailFrom) {
+                            Storage storage, Billing billing, String publicUrl, String mailFrom,
+                            Voices voices) {
 
     /** apiKey — klucz silnika (ENGINE_API_KEY), wymagany, gdy silnik działa poza siecią prywatną (np. wynajęte GPU). */
     public record Engine(String url, Duration connectTimeout, Duration readTimeout, String apiKey) {}
@@ -42,6 +43,20 @@ public record AppProperties(Path dataDir, List<String> corsOrigins, Engine engin
         public boolean stripeEnabled() {
             return stripeSecretKey != null && !stripeSecretKey.isBlank();
         }
+    }
+
+    /**
+     * promptsDir — nagrania wzorcowe (Master Prompt) z katalogu głosów, np. prompts/agnieszka_warm.wav.
+     * samplesDir — gotowe próbki odsłuchowe {voice_id}/{lang}.wav (opcja B, odtwarzane bez czekania).
+     * pregenerateSamples — przy starcie wygeneruj brakujące próbki wszystkich głosów biblioteki (wymaga VoxCPM2).
+     */
+    public record Voices(Path promptsDir, Path samplesDir, boolean pregenerateSamples) {}
+
+    public Voices voices() {
+        Path base = dataDir == null ? Path.of("./data") : dataDir;
+        if (voices == null) return new Voices(base.resolve("voices"), base.resolve("voices/samples"), false);
+        return new Voices(voices.promptsDir() == null ? base.resolve("voices") : voices.promptsDir(),
+                voices.samplesDir() == null ? base.resolve("voices/samples") : voices.samplesDir(), voices.pregenerateSamples());
     }
 
     public Auth auth() {

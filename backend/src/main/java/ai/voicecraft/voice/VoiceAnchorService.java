@@ -60,6 +60,15 @@ public class VoiceAnchorService {
         synchronized (locks.computeIfAbsent(voice.id, k -> new Object())) {
             Voice v = voices.findById(voice.id).orElse(voice);
             if (v.referenceId == null) {
+                // Wspólna barwa z katalogu (np. wariant „Relaks”): użyj nagrania wzorcowego głosu bazowego
+                if ((v.referenceFile == null || !storage.exists(v.referenceFile)) && v.referenceKey != null) {
+                    voices.findFirstByReferenceKeyAndReferenceFileIsNotNullAndIdNot(v.referenceKey, v.id)
+                            .filter(o -> storage.exists(o.referenceFile))
+                            .ifPresent(o -> {
+                                v.referenceFile = o.referenceFile;
+                                v.referenceText = o.referenceText;
+                            });
+                }
                 if (v.referenceFile != null && storage.exists(v.referenceFile)) {
                     register(v, storage.read(v.referenceFile));
                 } else if (v.enginePrompt != null && !v.enginePrompt.isBlank()) {

@@ -196,6 +196,13 @@ export class ApiService {
   voiceSampleUrl(id: string) {
     return `${API}/voices/${id}/sample`;
   }
+  /** Próbka głosu w wybranym języku (gotowy plik albo wygenerowana raz i zapamiętana). */
+  voicePreviewUrl(id: string, lang: string) {
+    return `${API}/voices/${id}/preview?lang=${encodeURIComponent(lang)}`;
+  }
+  previewLanguages() {
+    return this.p(this.http.get<{ code: string; text: string }[]>(`${API}/voices/preview-languages`));
+  }
   designPreview(body: { description: string; text: string; language: string; expressiveness?: number; seed?: number }) {
     return this.p(this.http.post<DesignPreview>(`${API}/voices/design/preview`, body));
   }

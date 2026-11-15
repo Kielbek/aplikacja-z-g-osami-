@@ -46,7 +46,8 @@ public final class EngineDtos {
             @JsonProperty("inference_timesteps") int inferenceTimesteps,
             boolean normalize,
             boolean denoise,
-            Integer seed) {}
+            Integer seed,
+            @JsonProperty("ultimate_cloning") boolean ultimateCloning) {}
 
     public record SynthesizeRequest(String text, String language, VoiceSpec voice, Params params) {}
 

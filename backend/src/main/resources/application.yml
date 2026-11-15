@@ -35,6 +35,13 @@ voicecraft:
     connect-timeout: 3s
     read-timeout: 180s
   seed-demo-data: ${SEED_DEMO_DATA:true}
+  voices:
+    # Katalog z nagraniami wzorcowymi; ścieżki z catalog.json ("prompts/....wav") są względne wobec niego
+    prompts-dir: ${VOICES_PROMPTS_DIR:${voicecraft.data-dir}/voices}
+    # Gotowe próbki {voice_id}/{lang}.wav — odtwarzane natychmiast (bez generowania)
+    samples-dir: ${VOICES_SAMPLES_DIR:${voicecraft.data-dir}/voices/samples}
+    # true = przy starcie wygeneruj brakujące próbki 30 języków dla całej biblioteki (wymaga VoxCPM2 na GPU)
+    pregenerate-samples: ${PREGENERATE_SAMPLES:false}
   auth:
     google-client-id: ${GOOGLE_CLIENT_ID:}
     jwt-secret: ${JWT_SECRET:}

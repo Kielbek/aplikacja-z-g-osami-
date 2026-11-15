@@ -56,6 +56,17 @@ public class Voice {
     @com.fasterxml.jackson.annotation.JsonIgnore
     public String referenceFile;
 
+    /**
+     * Klucz nagrania wzorcowego z katalogu (np. "prompts/agnieszka_warm.wav"). Głosy z tym samym kluczem
+     * dzielą jedną barwę (np. „Ciepły Aksamit” i jego wariant „Relaks”).
+     */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public String referenceKey;
+
+    /** Domyślna instrukcja sterująca (control_instruction), gdy projekt nie określa stylu ani emocji. */
+    @Column(length = 300)
+    public String defaultInstruction;
+
     /** Transkrypcja nagrania wzorcowego (prompt_text dla VoxCPM2). */
     @com.fasterxml.jackson.annotation.JsonIgnore
     @Column(length = 1000)

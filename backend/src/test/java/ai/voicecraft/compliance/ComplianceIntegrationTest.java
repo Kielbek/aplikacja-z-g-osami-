@@ -124,19 +124,19 @@ class ComplianceIntegrationTest {
     @Test
     void anchorVoiceUsageSurvivesHistoryClearAndExportIsLabeled() throws Exception {
         Cookie c = proUser("anchor@test.pl");
-        String pid = project(c, "pl-zofia", "Pierwsze zdanie nagrania.");
+        String pid = project(c, "voice_kind_grandma", "Pierwsze zdanie nagrania.");
 
         generate(c, pid);
         generate(c, pid);
 
         // Nagranie wzorcowe powstaje raz (stały seed), potem każda synteza idzie przez referencję
         verify(engine, times(1)).design(argThat(r -> r.params().seed() != null));
-        verify(engine, times(1)).createReference(any(), any(), any(), eq(true), eq("anchor-pl-zofia"), eq(true));
+        verify(engine, times(1)).createReference(any(), any(), any(), eq(true), eq("anchor-voice_kind_grandma"), eq(true));
         assertThat(calls).hasSize(2).allSatisfy(r -> {
-            assertThat(r.voice().referenceId()).isEqualTo("anchor-pl-zofia");
+            assertThat(r.voice().referenceId()).isEqualTo("anchor-voice_kind_grandma");
             assertThat(r.voice().description()).isNull();
         });
-        var v = voices.findById("pl-zofia").orElseThrow();
+        var v = voices.findById("voice_kind_grandma").orElseThrow();
         assertThat(v.referenceFile).isNotNull();
         assertThat(storage.exists(v.referenceFile)).isTrue();
         assertThat(v.sampleFile).isEqualTo(v.referenceFile); // próbka w bibliotece = nagranie wzorcowe
@@ -149,10 +149,10 @@ class ComplianceIntegrationTest {
 
         // Silnik utracił referencję (nowy kontener) → ponowna rejestracja z kopii i powtórzenie syntezy
         when(engine.synthesize(any()))
-                .thenThrow(new ApiException(HttpStatus.CONFLICT, "REFERENCE_MISSING:anchor-pl-zofia"))
+                .thenThrow(new ApiException(HttpStatus.CONFLICT, "REFERENCE_MISSING:anchor-voice_kind_grandma"))
                 .thenAnswer(inv -> new EngineDtos.Audio(tone(1), "voxcpm2", 1000));
         generate(c, pid);
-        verify(engine, times(2)).createReference(any(), any(), any(), eq(true), eq("anchor-pl-zofia"), eq(true));
+        verify(engine, times(2)).createReference(any(), any(), any(), eq(true), eq("anchor-voice_kind_grandma"), eq(true));
         verify(engine, times(1)).design(any());
 
         // Eksport WAV oznaczony jako treść AI
@@ -219,7 +219,7 @@ class ComplianceIntegrationTest {
     @Test
     void cleanupRemovesExpiredHistoryAndOrphanedFilesOnly() throws Exception {
         Cookie c = proUser("cleanup@test.pl");
-        String pid = project(c, "pl-anna", "Nagranie, które zostaje.");
+        String pid = project(c, "voice_warm_velvet", "Nagranie, które zostaje.");
         generate(c, pid);
         String uid = JsonParserFactory.getJsonParser().parseMap(mvc.perform(get("/api/auth/me").cookie(c))
                 .andReturn().getResponse().getContentAsString()).get("id").toString();

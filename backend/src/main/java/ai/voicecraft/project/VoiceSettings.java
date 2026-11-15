@@ -17,6 +17,12 @@ public class VoiceSettings {
     public boolean normalize = true;
     public boolean denoise = false;
     public Integer seed;
+    /**
+     * VoxCPM2 „ultimate cloning” (prompt_wav_path + prompt_text). Wyłączone (domyślnie): model zachowuje barwę
+     * z nagrania wzorcowego, ale mówi z natywnym akcentem języka docelowego.
+     */
+    @jakarta.persistence.Column(nullable = false)
+    public boolean ultimateCloning = false;
 
     public VoiceSettings copy() {
         var c = new VoiceSettings();
@@ -32,12 +38,15 @@ public class VoiceSettings {
         c.normalize = normalize;
         c.denoise = denoise;
         c.seed = seed;
+        c.ultimateCloning = ultimateCloning;
         return c;
     }
 
     public String fingerprint() {
         return String.join("|", engine, language, String.valueOf(voiceId), String.valueOf(style), String.valueOf(emotion),
                 String.valueOf(speed), String.valueOf(expressiveness), String.valueOf(cfgValue),
-                String.valueOf(inferenceTimesteps), String.valueOf(normalize), String.valueOf(denoise), String.valueOf(seed));
+                String.valueOf(inferenceTimesteps), String.valueOf(normalize), String.valueOf(denoise), String.valueOf(seed))
+                // Dopisywane tylko gdy włączone — dotychczasowe odciski (statusy fragmentów) pozostają bez zmian
+                + (ultimateCloning ? "|ultimate" : "");
     }
 }

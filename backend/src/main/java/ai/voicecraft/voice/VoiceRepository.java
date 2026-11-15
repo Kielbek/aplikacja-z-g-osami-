@@ -13,6 +13,9 @@ public interface VoiceRepository extends JpaRepository<Voice, String> {
 
     List<Voice> findAllByOwnerId(String ownerId);
 
+    /** Inny głos o tym samym nagraniu wzorcowym (klucz z katalogu), który już ma plik referencyjny. */
+    java.util.Optional<Voice> findFirstByReferenceKeyAndReferenceFileIsNotNullAndIdNot(String referenceKey, String id);
+
     @Query("select v.sampleFile from Voice v where v.sampleFile is not null")
     List<String> allSampleFiles();
 

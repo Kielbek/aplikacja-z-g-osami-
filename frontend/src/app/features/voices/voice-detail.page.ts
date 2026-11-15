@@ -9,17 +9,19 @@ import { PlayerService } from '../../core/services/player.service';
 import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
 import { formatDate, formatSeconds } from '../../core/util/format';
-import { categoryLabel, genderLabel, languageLabel } from '../../core/util/labels';
+import { categoryLabel, genderLabel, personaLabel, languageLabel } from '../../core/util/labels';
 import { FlagComponent } from '../../shared/flag.component';
 import { IconComponent } from '../../shared/icon.component';
 import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
 import { WaveformComponent } from '../../shared/waveform.component';
 import { VoiceActions } from './voice-actions';
+import { PreviewLanguageService } from '../../core/services/preview-language.service';
+import { SelectComponent } from '../../shared/select.component';
 
 @Component({
   selector: 'vc-voice-detail-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, VoiceAvatarComponent, WaveformComponent, FlagComponent],
+  imports: [RouterLink, IconComponent, VoiceAvatarComponent, WaveformComponent, FlagComponent, SelectComponent],
   styleUrl: './voice-detail.page.scss',
   templateUrl: './voice-detail.page.html',
 })
@@ -45,10 +47,13 @@ export class VoiceDetailPage {
   protected categoryLabel = categoryLabel;
   protected languageLabel = languageLabel;
   protected genderLabel = genderLabel;
+  protected personaLabel = personaLabel;
   protected formatDate = formatDate;
   protected fmt = formatSeconds;
 
-  protected track = computed(() => (this.voice() ? this.actions.sampleTrack(this.voice()!) : null));
+  /** Język próbki (wspólny z biblioteką głosów). */
+  protected preview = inject(PreviewLanguageService);
+  protected track = computed(() => (this.voice() ? this.actions.sampleTrack(this.voice()!, this.preview.language()) : null));
   protected active = computed(() => !!this.track() && this.player.isActive(this.track()!.id));
   protected isDefault = computed(() => this.account.account()?.defaultVoiceId === this.voice()?.id);
   protected kindLabel = computed(() => {

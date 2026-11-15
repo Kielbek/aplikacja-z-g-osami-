@@ -81,10 +81,13 @@
       <section class="group">
         <div class="label">Emocja</div>
         <div class="chips">
-          @for (e of EMOTIONS; track e) {
-            <button class="chip cap" [class.is-active]="s.emotion === e" (click)="toggleEmotion(e)">{{ e }}</button>
+          @for (e of EMOTIONS; track e.value) {
+            <button class="chip" [class.is-active]="s.emotion === e.value" (click)="toggleEmotion(e.value)" [title]="'Instrukcja dla modelu: ' + e.value">{{ e.label }}</button>
           }
         </div>
+        @if (voiceInstruction(); as vi) {
+          @if (!s.emotion && !s.style) { <p class="hint">Głos ma domyślną instrukcję: „{{ vi }}”.</p> }
+        }
       </section>
     }
 
@@ -136,6 +139,10 @@
           <label class="switch">
             <span class="switch-text">Odszumianie referencji<small>Dla głosów klonowanych</small></span>
             <input type="checkbox" [checked]="s.denoise" (change)="set('denoise', $any($event.target).checked)" />
+          </label>
+          <label class="switch">
+            <span class="switch-text">Maksymalne podobieństwo (ultimate cloning)<small>Wyłączone: barwa z nagrania wzorcowego i natywny akcent języka. Włącz tylko, gdy tekst jest w języku nagrania.</small></span>
+            <input type="checkbox" [checked]="!!s.ultimateCloning" (change)="set('ultimateCloning', $any($event.target).checked)" />
           </label>
           <div class="field">
             <label for="seed">Ziarno losowości</label>

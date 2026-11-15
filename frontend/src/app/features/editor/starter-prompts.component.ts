@@ -45,10 +45,10 @@ export const STARTER_PROMPTS: StarterPrompt[] = [
     label: 'Rozmowa dwóch osób',
     icon: 'rows',
     dialog: [
-      { voiceId: 'pl-anna', text: 'Słyszałeś, że w piątek otwierają nową kawiarnię na rogu?' },
-      { voiceId: 'pl-tomasz', text: 'Tę z zielonym szyldem? Mówią, że mają najlepsze croissanty w mieście.' },
-      { voiceId: 'pl-anna', text: 'To co, idziemy rano przed pracą?' },
-      { voiceId: 'pl-tomasz', text: 'Jestem za. Ale ty stawiasz kawę!' },
+      { voiceId: 'voice_young_influencer', text: 'Słyszałeś, że w piątek otwierają nową kawiarnię na rogu?' },
+      { voiceId: 'voice_casual_podcast', text: 'Tę z zielonym szyldem? Mówią, że mają najlepsze croissanty w mieście.' },
+      { voiceId: 'voice_young_influencer', text: 'To co, idziemy rano przed pracą?' },
+      { voiceId: 'voice_casual_podcast', text: 'Jestem za. Ale ty stawiasz kawę!' },
     ],
   },
 ];

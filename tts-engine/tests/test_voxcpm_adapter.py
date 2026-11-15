@@ -63,11 +63,24 @@ def test_clone_without_transcript_uses_reference_only(engine, tmp_path):
     assert call["prompt_wav_path"] is None and call["prompt_text"] is None
 
 
+def test_reference_with_transcript_keeps_native_accent_by_default(engine, tmp_path):
+    """ultimate_cloning=False (domyślnie): tylko reference_wav_path — natywny akcent języka docelowego."""
+    ref = tmp_path / "ref.wav"
+    ref.write_bytes(b"x")
+    engine.register_reference("r3", str(ref), "Polska transkrypcja nagrania wzorcowego.")
+    engine.synthesize("Ciao a tutti.", "it", VoiceSpec(id="c", reference_id="r3"), GenerationParams(emotion="Happy"))
+    call = FakeVoxCPM.calls[-1]
+    assert call["reference_wav_path"] == str(ref)
+    assert call["prompt_wav_path"] is None and call["prompt_text"] is None
+    assert call["text"] == "(Happy)Ciao a tutti."
+
+
 def test_clone_with_transcript_uses_ultimate_cloning(engine, tmp_path):
     ref = tmp_path / "ref.wav"
     ref.write_bytes(b"x")
     engine.register_reference("r2", str(ref), "Transkrypcja nagrania.")
-    engine.synthesize("Tekst.", "pl", VoiceSpec(id="c", reference_id="r2"), GenerationParams(style="szybciej"))
+    engine.synthesize("Tekst.", "pl", VoiceSpec(id="c", reference_id="r2"),
+                      GenerationParams(style="szybciej", ultimate_cloning=True))
     call = FakeVoxCPM.calls[-1]
     assert call["prompt_wav_path"] == str(ref) and call["prompt_text"] == "Transkrypcja nagrania."
     assert call["text"] == "(szybciej)Tekst."
@@ -119,7 +132,8 @@ def test_reference_endpoint_stable_id_trusted_and_409(engine, monkeypatch, tmp_p
     assert client.post("/v1/clone/references", files=files,
                        data={"consent": "true", "reference_id": "../etc", "trusted": "true"}).status_code == 400
 
-    body = {"text": "Cześć.", "language": "pl", "voice": {"id": "v", "reference_id": "anchor-v1"}, "params": {}}
+    body = {"text": "Cześć.", "language": "pl", "voice": {"id": "v", "reference_id": "anchor-v1"},
+            "params": {"ultimate_cloning": True}}
     assert client.post("/v1/synthesize", json=body).status_code == 200
     assert FakeVoxCPM.calls[-1]["prompt_text"] == "Tekst wzorcowy."
 

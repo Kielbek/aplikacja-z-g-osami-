@@ -47,7 +47,13 @@ public class GenerationService {
     private static SynthesizeRequest request(String text, VoiceSettings s, Voice voice, String referenceId) {
         // Z nagraniem wzorcowym opis barwy jest zbędny (a nawet szkodliwy) — barwę niesie referencja
         var spec = new VoiceSpec(voice.id, referenceId == null ? voice.enginePrompt : null, referenceId, voice.gender, voice.age);
-        return new SynthesizeRequest(text, s.language, spec, params(s));
+        Params p = params(s);
+        // Domyślna instrukcja głosu (control_instruction, np. wariant „Relaks”), gdy projekt nie określa stylu ani emocji
+        if (p.style() == null && p.emotion() == null && voice.defaultInstruction != null && !voice.defaultInstruction.isBlank()) {
+            p = new Params(voice.defaultInstruction.trim(), null, p.speed(), p.expressiveness(), p.cfgValue(),
+                    p.inferenceTimesteps(), p.normalize(), p.denoise(), p.seed(), p.ultimateCloning());
+        }
+        return new SynthesizeRequest(text, s.language, spec, p);
     }
 
     /**
@@ -88,7 +94,7 @@ public class GenerationService {
 
     public static Params params(VoiceSettings s) {
         return new Params(blank(s.style), blank(s.emotion), s.speed, s.expressiveness, s.cfgValue,
-                s.inferenceTimesteps, s.normalize, s.denoise, s.seed);
+                s.inferenceTimesteps, s.normalize, s.denoise, s.seed, s.ultimateCloning);
     }
 
     public static String hash(String text, VoiceSettings s) {

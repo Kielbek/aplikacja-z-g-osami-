@@ -39,6 +39,8 @@ export interface VoiceSettings {
   normalize: boolean;
   denoise: boolean;
   seed: number | null;
+  /** VoxCPM2 „ultimate cloning” — wyłączone: barwa z nagrania, natywny akcent języka docelowego. */
+  ultimateCloning?: boolean;
 }
 
 export interface SegmentDto {
@@ -131,6 +133,8 @@ export interface Voice {
   description: string;
   enginePrompt: string | null;
   referenceId: string | null;
+  /** Domyślna instrukcja sterująca (np. wariant „Relaks”). */
+  defaultInstruction?: string | null;
   /** Głos ma nagranie wzorcowe — stała barwa we wszystkich fragmentach. */
   anchored: boolean;
   sampleText: string | null;

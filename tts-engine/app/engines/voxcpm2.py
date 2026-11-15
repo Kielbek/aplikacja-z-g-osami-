@@ -6,7 +6,8 @@ Cała wiedza o API biblioteki jest zamknięta w tym pliku. Zweryfikowane z voxcp
     reference_wav_path, cfg_value, inference_timesteps, normalize, denoise, retry_badcase, ...)
   * Voice design / sterowanie stylem: opis w nawiasie na początku tekstu, np. "(spokojny lektor)Treść".
   * Klonowanie: reference_wav_path; „ultimate cloning” dodatkowo prompt_wav_path + prompt_text
-    (oba muszą być podane razem).
+    (oba muszą być podane razem). Domyślnie wyłączone (params.ultimate_cloning=False): model bierze z nagrania
+    barwę, a akcent jest natywny dla języka docelowego — jeden Master Prompt obsługuje 30 języków.
   * Częstotliwość próbkowania: model.tts_model.sample_rate (48 kHz).
 """
 from __future__ import annotations
@@ -96,8 +97,9 @@ class VoxCPM2Engine(TTSEngine):
             if not ref:
                 raise ReferenceMissing(voice.reference_id)
             path, transcript = ref
+            # Instrukcja sterująca (control_instruction: styl/emocja) trafia do modelu jako prefiks "(…)tekst"
             kwargs = dict(text=self._control_text(text, None, params), reference_wav_path=path)
-            if transcript:  # „ultimate cloning”: oba parametry muszą być podane razem
+            if params.ultimate_cloning and transcript:  # oba parametry muszą być podane razem
                 kwargs.update(prompt_wav_path=path, prompt_text=transcript)
             return self._generate(**kwargs, **self._common(params))
         return self._generate(text=self._control_text(text, voice.description, params), **self._common(params))

@@ -49,6 +49,9 @@ class GenerationParams(BaseModel):
     normalize: bool = True
     denoise: bool = False
     seed: Optional[int] = None
+    # VoxCPM2 „ultimate cloning” (prompt_wav_path + prompt_text). False = barwa z nagrania referencyjnego,
+    # ale natywny akcent języka docelowego (zalecane dla głosów wielojęzycznych).
+    ultimate_cloning: bool = False
 
 
 class SynthesizeRequest(BaseModel):

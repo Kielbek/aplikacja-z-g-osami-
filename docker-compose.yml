@@ -51,6 +51,10 @@ services:
       VOICECRAFT_CORS: ${PUBLIC_URL:-http://localhost:4200}
       # Silnik na zewnętrznym GPU: ENGINE_URL=https://… i ENGINE_API_KEY w .env
       ENGINE_URL: ${ENGINE_URL:-http://tts-engine:8808}
+      # Nagrania wzorcowe (Master Prompt) i gotowe próbki 30 języków — katalog ./voices (zob. voices/README.md)
+      VOICES_PROMPTS_DIR: /voices
+      VOICES_SAMPLES_DIR: /voices/samples
+      PREGENERATE_SAMPLES: ${PREGENERATE_SAMPLES:-false}
       ENGINE_API_KEY: ${ENGINE_API_KEY:-}
       STORAGE_TYPE: ${STORAGE_TYPE:-local}
       S3_ENDPOINT: ${S3_ENDPOINT:-}
@@ -75,6 +79,8 @@ services:
       DEMO_PLAN_SWITCH: ${DEMO_PLAN_SWITCH:-false}
     volumes:
       - backend-data:/data
+      # :z — etykieta SELinux (Fedora); bez niej kontener nie odczyta katalogu
+      - ./voices:/voices:z
     depends_on:
       postgres:
         condition: service_healthy

@@ -1,6 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { ApiService } from '../api/api.service';
 import { EngineStatus } from '../api/models';
+import { VOXCPM2_LANGUAGES } from '../util/labels';
 
 /** Stan silnika TTS (VoxCPM2 / tryb demo / offline), odświeżany cyklicznie. */
 @Injectable({ providedIn: 'root' })
@@ -20,7 +21,7 @@ export class EngineStatusService {
   /** Lekki silnik na CPU — gotowe głosy, bez projektowania i klonowania. */
   readonly isPiper = computed(() => this.mode() === 'piper');
   readonly caps = computed(() => this.status()?.capabilities ?? null);
-  readonly languages = computed(() => this.caps()?.languages ?? ['pl', 'en', 'de', 'fr', 'es', 'it', 'uk']);
+  readonly languages = computed(() => this.caps()?.languages ?? VOXCPM2_LANGUAGES);
 
   readonly label = computed(() => {
     switch (this.mode()) {

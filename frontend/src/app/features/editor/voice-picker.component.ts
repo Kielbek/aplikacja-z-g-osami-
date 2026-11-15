@@ -4,7 +4,7 @@ import { ApiService } from '../../core/api/api.service';
 import { Voice } from '../../core/api/models';
 import { PlayerTrack } from '../../core/services/player.service';
 import { VoicesStore } from '../../core/services/voices.store';
-import { categoryLabel, languageLabel } from '../../core/util/labels';
+import { LIBRARY_CATEGORIES, categoryLabel, personaLabel } from '../../core/util/labels';
 import { DropdownComponent } from '../../shared/dropdown.component';
 import { FlagComponent } from '../../shared/flag.component';
 import { IconComponent } from '../../shared/icon.component';
@@ -67,7 +67,7 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
           <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="34" />
           <span class="cur-text">
             <span class="cur-name">{{ v.name }}</span>
-            <span class="cur-sub"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" [size]="10" />{{ describe(v) }}</span>
+            <span class="cur-sub"><vc-flag [lang]="language()" [size]="10" />{{ describe(v) }}</span>
           </span>
         } @else {
           <span class="cur-text"><span class="cur-name">Wybierz głos</span><span class="cur-sub">Brak wybranego głosu</span></span>
@@ -97,7 +97,7 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
               <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="28" />
               <span class="it">
                 <span class="nm">{{ v.name }} @if (v.favorite) { <vc-icon name="star" [size]="11" [filled]="true" style="color:var(--warning)" /> }</span>
-                <span class="sb"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" [size]="10" />{{ describe(v) }}</span>
+                <span class="sb">{{ describe(v) }}</span>
               </span>
               @if (v.id === selectedId()) { <vc-icon class="check" name="check" [size]="14" /> }
               <vc-play-button [track]="sample(v)" label="Odsłuchaj próbkę" [iconSize]="10" (click)="$event.stopPropagation()" />
@@ -128,27 +128,33 @@ export class VoicePickerComponent {
 
   protected groups = computed(() => {
     const q = this.query().trim().toLowerCase();
-    const lang = this.language();
     const list = this.voices
       .voices()
       .filter((v) => !q || `${v.name} ${v.description} ${v.traits.join(' ')}`.toLowerCase().includes(q));
     const own = list.filter((v) => v.kind !== 'LIBRARY');
     const fav = list.filter((v) => v.kind === 'LIBRARY' && v.favorite);
-    const inLang = list.filter((v) => v.kind === 'LIBRARY' && !v.favorite && v.languages.includes(lang));
-    const other = list.filter((v) => v.kind === 'LIBRARY' && !v.favorite && !v.languages.includes(lang));
+    // Głosy biblioteki są wielojęzyczne (30 języków) — grupowane według zastosowania
+    const byCategory = LIBRARY_CATEGORIES.map((c) => ({
+      label: c.label,
+      voices: list.filter((v) => v.kind === 'LIBRARY' && !v.favorite && v.categories[0] === c.id),
+      lang: null as string | null,
+    }));
+    const rest = list.filter((v) => v.kind === 'LIBRARY' && !v.favorite && !LIBRARY_CATEGORIES.some((c) => c.id === v.categories[0]));
     return [
-      { label: 'Ulubione', voices: fav, lang: null },
-      { label: 'Moje głosy', voices: own, lang: null },
-      { label: languageLabel(lang), voices: inLang, lang },
-      { label: 'Inne języki', voices: other, lang: null },
+      { label: 'Ulubione', voices: fav, lang: null as string | null },
+      { label: 'Moje głosy', voices: own, lang: null as string | null },
+      ...byCategory,
+      { label: 'Pozostałe', voices: rest, lang: null as string | null },
     ].filter((g) => g.voices.length);
   });
 
   protected describe(v: Voice) {
-    return [languageLabel(v.languages[0] ?? ''), ...v.categories.slice(0, 2).map(categoryLabel)].join(' · ');
+    return [personaLabel(v.gender, v.age), ...v.categories.slice(0, 1).map(categoryLabel)].join(' · ');
   }
 
   protected sample(v: Voice): PlayerTrack {
-    return { id: `voice:${v.id}`, title: `Próbka: ${v.name}`, subtitle: this.describe(v), url: this.api.voiceSampleUrl(v.id) };
+    // Próbka w języku projektu — tak będzie brzmiał ten głos w tym projekcie
+    const lang = this.language();
+    return { id: `voice:${v.id}:${lang}`, title: `Próbka: ${v.name}`, subtitle: this.describe(v), url: this.api.voicePreviewUrl(v.id, lang) };
   }
 }

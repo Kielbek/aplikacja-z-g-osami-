@@ -56,6 +56,9 @@ export class VoicePanelComponent {
     return ((value - min) / (max - min)) * 100;
   }
 
+  /** Domyślna instrukcja wybranego głosu (np. „Relaks”), używana, gdy projekt nie ustawia stylu ani emocji. */
+  protected voiceInstruction = computed(() => this.voices.get(this.s()?.voiceId)?.defaultInstruction ?? null);
+
   toggleEmotion(e: string) {
     this.set('emotion', this.s()?.emotion === e ? null : e);
   }

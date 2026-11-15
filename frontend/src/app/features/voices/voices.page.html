@@ -24,12 +24,15 @@
         <vc-icon name="search" [size]="14" />
         <input class="input" type="search" placeholder="Szukaj po nazwie, barwie, zastosowaniu…" [value]="query()" (input)="query.set($any($event.target).value)" aria-label="Szukaj głosów" />
       </div>
-      <vc-select class="filter" label="Język" [options]="languageOpts()" [value]="language()" (valueChange)="language.set($event ?? '')" />
-      <vc-select class="filter" label="Barwa głosu" [options]="genderOpts" [value]="gender()" (valueChange)="gender.set($event ?? '')" />
+      <vc-select class="filter" label="Persona" [options]="genderOpts" [value]="gender()" (valueChange)="gender.set($event ?? '')" />
+      <div class="preview-lang" title="Próbki głosów odtwarzają się w tym języku — z natywnym akcentem">
+        <span class="pl-label"><vc-icon name="languages" [size]="14" />Język próbek</span>
+        <vc-select class="filter" label="Język próbek" [options]="preview.options()" [value]="preview.language()" (valueChange)="preview.set($event ?? 'pl')" />
+      </div>
     </div>
 
-    <div class="chips cats" role="group" aria-label="Charakter głosu">
-      <button class="chip" [class.is-active]="!category()" (click)="category.set('')">Każdy charakter</button>
+    <div class="chips cats" role="group" aria-label="Kategoria zastosowań">
+      <button class="chip" [class.is-active]="!category()" (click)="category.set('')">Wszystkie kategorie</button>
       @for (c of CATEGORIES; track c.id) {
         <button class="chip" [class.is-active]="category() === c.id" (click)="category.set(category() === c.id ? '' : c.id)">{{ c.label }}</button>
       }
@@ -38,8 +41,13 @@
     @if (!store.loaded()) {
       <div class="grid"><div class="empty"><span class="spinner"></span></div></div>
     } @else {
+      @if (preview.text()) {
+        <p class="preview-note"><vc-flag [lang]="preview.language()" [size]="12" />Każdy głos odtworzy: <q>{{ preview.text() }}</q></p>
+      }
+      @for (sec of sections(); track sec.id) {
+      @if (sec.label) { <h2 class="section-title">{{ sec.label }} <span class="t-muted">{{ sec.voices.length }}</span></h2> }
       <div class="grid">
-        @for (v of filtered(); track v.id; let i = $index) {
+        @for (v of sec.voices; track v.id; let i = $index) {
           <article class="vcard" tabindex="0" [style.--i]="i" (click)="open(v)" (keydown.enter)="open(v)" [attr.aria-label]="'Głos ' + v.name">
             <svg class="wave" viewBox="0 0 300 110" preserveAspectRatio="none" aria-hidden="true">
               @for (b of bars(v.id); track $index) {
@@ -56,11 +64,12 @@
                 <h3 class="name">{{ v.name }}</h3>
                 @if (kindLabel(v); as k) { <span class="badge badge-accent">{{ k }}</span> }
               </div>
-              <span class="lang-pill"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" />{{ languageLabel(v.languages[0] ?? '') }}</span>
+              <span class="lang-pill">{{ personaLabel(v.gender, v.age) }} · {{ v.languages.length > 1 ? v.languages.length + ' języków' : languageLabel(v.languages[0] ?? '') }}</span>
               <p class="desc">{{ v.description }}</p>
               <div class="foot" (click)="$event.stopPropagation()">
                 <button class="btn btn-sm use" (click)="actions.useInNewProject(v)" title="Utwórz nowy projekt z tym głosem">Użyj</button>
-                <vc-play-button [track]="actions.sampleTrack(v)" label="Odsłuchaj próbkę" [solid]="true" [iconSize]="14" />
+                <span class="play-lang" [title]="'Próbka: ' + languageLabel(preview.language())"><vc-flag [lang]="preview.language()" [size]="11" />{{ preview.language().toUpperCase() }}</span>
+                <vc-play-button [track]="actions.sampleTrack(v, preview.language())" label="Posłuchaj próbki" [solid]="true" [iconSize]="14" />
               </div>
             </div>
             <button class="fav" [class.is-fav]="v.favorite" (click)="$event.stopPropagation(); actions.toggleFavorite(v)"
@@ -69,7 +78,9 @@
               <vc-icon name="star" [size]="16" [filled]="v.favorite" />
             </button>
           </article>
-        } @empty {
+        }
+      </div>
+      } @empty {
           <div class="empty">
             <div class="empty-icon"><vc-icon [name]="tab() === 'favorites' ? 'star' : 'voices'" [size]="20" /></div>
             @if (hasFilters()) {
@@ -86,8 +97,7 @@
               <div class="row"><a class="btn btn-primary" routerLink="/voices/design">Stwórz głos</a><a class="btn" routerLink="/voices/clone">Klonuj głos</a></div>
             }
           </div>
-        }
-      </div>
+      }
     }
   </div>
 </div>
