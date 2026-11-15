@@ -9,6 +9,8 @@ import ai.voicecraft.engine.EngineClient;
 import ai.voicecraft.engine.EngineDtos.Audio;
 import ai.voicecraft.history.GenerationRecord;
 import ai.voicecraft.history.HistoryRepository;
+import ai.voicecraft.pronunciation.PronunciationEntry;
+import ai.voicecraft.pronunciation.PronunciationRepository;
 import ai.voicecraft.security.CurrentUser;
 import ai.voicecraft.project.ProjectDtos.*;
 import ai.voicecraft.voice.Voice;
@@ -31,9 +33,12 @@ public class ProjectService {
     private final AudioStorage storage;
     private final GenerationService generation;
     private final EngineClient engine;
+    private final PronunciationRepository dictionary;
 
     public ProjectService(ProjectRepository projects, VoiceRepository voices, HistoryRepository history,
-                          AccountService account, AudioStorage storage, GenerationService generation, EngineClient engine) {
+                          AccountService account, AudioStorage storage, GenerationService generation, EngineClient engine,
+                          PronunciationRepository dictionary) {
+        this.dictionary = dictionary;
         this.projects = projects;
         this.voices = voices;
         this.history = history;
@@ -49,7 +54,10 @@ public class ProjectService {
         String uid = CurrentUser.id();
         String mode = generation.currentMode();
         Map<String, Voice> vs = voices.findVisible(uid).stream().collect(Collectors.toMap(v -> v.id, Function.identity()));
-        return projects.findAllByOwnerIdOrderByUpdatedAtDesc(uid).stream().map(p -> toDto(p, mode, vs, false)).toList();
+        List<PronunciationEntry> all = dictionary.findAllOf(uid);
+        return projects.findAllByOwnerIdOrderByUpdatedAtDesc(uid).stream()
+                .map(p -> toDto(p, mode, vs, false, applicable(all, p.id)))
+                .toList();
     }
 
     public ProjectDto get(String id) {
@@ -68,9 +76,9 @@ public class ProjectService {
         p.name = req.name() == null || req.name().isBlank() ? "Projekt bez tytułu" : req.name().trim();
         p.settings.language = a.defaultLanguage;
         p.settings.voiceId = canUseVoice(a.defaultVoiceId) ? a.defaultVoiceId : null;
-        List<String> parts = req.text() == null ? List.of() : TextSplitter.paragraphs(req.text());
+        List<String> parts = req.text() == null ? List.of() : TextSplitter.segments(req.text(), TextSplitter.MAX_SEGMENT);
         if (parts.isEmpty()) parts = List.of("");
-        account.requireProjectCharacters(parts.stream().mapToInt(String::length).sum());
+        account.requireProjectCharacters(parts.stream().mapToInt(SpeechText::spokenCharacters).sum());
         for (String t : parts) addSegment(p, t);
         return dto(projects.save(p));
     }
@@ -108,6 +116,7 @@ public class ProjectService {
             }
             if (!Objects.equals(s.text, in.text())) s.error = null;
             s.text = in.text();
+            s.voiceId = in.voiceId() != null && canUseVoice(in.voiceId()) ? in.voiceId() : null;
             s.position = pos++;
             next.add(s);
         }
@@ -134,6 +143,7 @@ public class ProjectService {
         p.lastGeneratedAt = src.lastGeneratedAt;
         for (Segment s : src.segments) {
             Segment c = addSegment(p, s.text);
+            c.voiceId = s.voiceId;
             c.audioFile = s.audioFile; // pliki są niezmienne – można je współdzielić
             c.durationMs = s.durationMs;
             c.generatedHash = s.generatedHash;
@@ -151,11 +161,15 @@ public class ProjectService {
         Segment s = p.segments.stream().filter(x -> x.id.equals(segmentId)).findFirst()
                 .orElseThrow(() -> ApiException.notFound("Fragment"));
         String text = s.text.trim();
-        if (text.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "Fragment jest pusty.");
-        account.requireProjectCharacters(p.segments.stream().mapToInt(x -> x.text.trim().length()).sum());
-        account.requireGenerationQuota(text.length());
-        Voice voice = p.settings.voiceId == null || !canUseVoice(p.settings.voiceId) ? null
-                : voices.findById(p.settings.voiceId).orElse(null);
+        if (SpeechText.spokenCharacters(text) == 0) throw new ApiException(HttpStatus.BAD_REQUEST, "Fragment jest pusty.");
+        int characters = SpeechText.spokenCharacters(text);
+        account.requireProjectCharacters(p.segments.stream().mapToInt(x -> SpeechText.spokenCharacters(x.text)).sum());
+        account.requireGenerationQuota(characters);
+        List<PronunciationEntry> dict = dictionary.findApplicable(p.ownerId, p.id);
+        String effective = SpeechText.applyDictionary(text, dict);
+        String voiceOverride = s.voiceId != null && canUseVoice(s.voiceId) ? s.voiceId : null;
+        String voiceId = voiceOverride != null ? voiceOverride : p.settings.voiceId;
+        Voice voice = voiceId == null || !canUseVoice(voiceId) ? null : voices.findById(voiceId).orElse(null);
 
         var rec = new GenerationRecord();
         rec.userId = p.ownerId;
@@ -166,15 +180,17 @@ public class ProjectService {
         rec.voiceId = voice == null ? null : voice.id;
         rec.voiceName = voice == null ? null : voice.name;
         rec.textPreview = text.length() > 380 ? text.substring(0, 380) + "…" : text;
-        rec.characters = text.length();
+        rec.characters = characters;
+        rec.segmentText = text;
         try {
-            Audio audio = generation.synthesize(text, account.effectiveSettings(p.settings), voice);
+            Audio audio = generation.synthesizeSegment(effective, account.effectiveSettings(p.settings), voice);
             String file = storage.save("seg", audio.wav());
             s.audioFile = file;
             s.durationMs = audio.durationMs();
             s.engineMode = audio.engineMode();
             s.generatedAt = Instant.now();
-            s.generatedHash = GenerationService.hash(text, p.settings);
+            s.generatedHash = GenerationService.hash(effective, p.settings, voiceOverride);
+            rec.segmentHash = s.generatedHash;
             s.error = null;
             p.lastGeneratedAt = s.generatedAt;
             rec.status = "success";
@@ -196,8 +212,83 @@ public class ProjectService {
         projects.save(p);
         history.save(rec);
         Map<String, Voice> vs = voice == null ? Map.of() : Map.of(voice.id, voice);
-        return toDto(p, generation.currentMode(), vs, true).segments().stream()
+        return toDto(p, generation.currentMode(), vs, true, dict).segments().stream()
                 .filter(x -> x.id().equals(segmentId)).findFirst().orElseThrow();
+    }
+
+    // ------------------------------------------------------------ wersje fragmentu
+
+    public record SegmentVersion(Long id, Instant createdAt, long durationMs, String voiceName, String engineMode,
+                                 String text, boolean current, boolean matchesCurrentText) {}
+
+    /** Poprzednie nagrania fragmentu (każda generacja zapisuje nowy, niezmienny plik). */
+    public List<SegmentVersion> versions(String projectId, String segmentId) {
+        Project p = find(projectId);
+        Segment s = segment(p, segmentId);
+        String expected = expectedHash(s, p.settings, dictionary.findApplicable(p.ownerId, p.id));
+        return history.findTop30ByUserIdAndSegmentIdAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
+                        p.ownerId, segmentId, "success", account.historyCutoff()).stream()
+                .filter(r -> r.audioFile != null && storage.exists(r.audioFile))
+                .map(r -> new SegmentVersion(r.id, r.createdAt, r.durationMs, r.voiceName, r.engineMode,
+                        r.segmentText != null ? r.segmentText : r.textPreview,
+                        r.audioFile.equals(s.audioFile), expected.equals(r.segmentHash)))
+                .toList();
+    }
+
+    public byte[] versionAudio(String projectId, String segmentId, Long versionId) {
+        Project p = find(projectId);
+        var r = history.findByIdAndUserId(versionId, p.ownerId)
+                .filter(x -> segmentId.equals(x.segmentId) && x.audioFile != null)
+                .orElseThrow(() -> ApiException.notFound("Wersja"));
+        return storage.read(r.audioFile);
+    }
+
+    /**
+     * Przywraca wybraną wersję nagrania. Jeśli wersja powstała dla innego tekstu lub ustawień,
+     * fragment będzie oznaczony jako nieaktualny — dokładnie tak, jak było w chwili tamtej generacji.
+     */
+    public SegmentDto restoreVersion(String projectId, String segmentId, Long versionId) {
+        Project p = find(projectId);
+        Segment s = segment(p, segmentId);
+        var r = history.findByIdAndUserId(versionId, p.ownerId)
+                .filter(x -> segmentId.equals(x.segmentId) && "success".equals(x.status) && x.audioFile != null)
+                .orElseThrow(() -> ApiException.notFound("Wersja"));
+        if (!storage.exists(r.audioFile)) throw ApiException.notFound("Nagranie tej wersji");
+        s.audioFile = r.audioFile;
+        s.durationMs = r.durationMs;
+        s.engineMode = r.engineMode;
+        s.generatedAt = r.createdAt;
+        s.generatedHash = r.segmentHash;
+        s.error = null;
+        p.updatedAt = Instant.now();
+        projects.save(p);
+        return dto(p).segments().stream().filter(x -> x.id().equals(segmentId)).findFirst().orElseThrow();
+    }
+
+    public record Subtitles(String content, String filename, String contentType) {}
+
+    /** Napisy SRT/VTT z czasami gotowych fragmentów (zgodne z połączonym nagraniem i eksportem). */
+    public Subtitles subtitles(String id, String format) {
+        String fmt = "vtt".equals(format) ? "vtt" : "srt";
+        Project p = find(id);
+        ProjectDto dto = dto(p);
+        List<SegmentDto> nonEmpty = dto.segments().stream().filter(x -> !"empty".equals(x.status())).toList();
+        if (nonEmpty.isEmpty()) throw new ApiException(HttpStatus.CONFLICT, "Projekt nie zawiera tekstu.");
+        long pending = nonEmpty.stream().filter(x -> !"ready".equals(x.status())).count();
+        if (pending > 0) {
+            throw new ApiException(HttpStatus.CONFLICT, "Napisy wymagają wygenerowania wszystkich fragmentów (pozostało: " + pending + ").");
+        }
+        var timings = nonEmpty.stream()
+                .map(x -> new ai.voicecraft.subtitles.SubtitleBuilder.SegmentTiming(x.text(), x.durationMs())).toList();
+        var cues = ai.voicecraft.subtitles.SubtitleBuilder.cues(timings, account.get().pauseBetweenSegmentsMs);
+        String content = "vtt".equals(fmt) ? ai.voicecraft.subtitles.SubtitleBuilder.vtt(cues) : ai.voicecraft.subtitles.SubtitleBuilder.srt(cues);
+        return new Subtitles(content, fileName(account.get().fileNamePattern, p.name) + "." + fmt,
+                "vtt".equals(fmt) ? "text/vtt" : "application/x-subrip");
+    }
+
+    private static Segment segment(Project p, String segmentId) {
+        return p.segments.stream().filter(x -> x.id.equals(segmentId)).findFirst()
+                .orElseThrow(() -> ApiException.notFound("Fragment"));
     }
 
     public byte[] segmentAudio(String projectId, String segmentId) {
@@ -207,7 +298,7 @@ public class ProjectService {
         return storage.read(s.audioFile);
     }
 
-    public record Rendered(byte[] data, String contentType, String filename, String engineMode) {}
+    public record Rendered(byte[] data, String contentType, String filename, String engineMode, Double loudnessLufs) {}
 
     /** Łączy gotowe fragmenty w jedno nagranie (bez ponownej syntezy). */
     public Rendered render(String id, String format, boolean recordExport) {
@@ -225,6 +316,15 @@ public class ProjectService {
         List<byte[]> wavs = nonEmpty.stream().map(s -> storage.read(byId.get(s.id()).audioFile)).toList();
         Account a = account.get();
         byte[] wav = WavUtils.concat(wavs, a.pauseBetweenSegmentsMs);
+        Double loudness = null;
+        if (recordExport && a.exportLoudness != null && !"off".equals(a.exportLoudness)) {
+            // Normalizacja głośności (ITU-R BS.1770) z limitem szczytu −1 dBFS
+            var pcm = WavUtils.decode(wav);
+            var result = ai.voicecraft.audio.Loudness.normalize(pcm.samples(), pcm.format().getSampleRate(),
+                    Double.parseDouble(a.exportLoudness), -1.0);
+            wav = WavUtils.encode(result.samples(), pcm.format().getSampleRate());
+            loudness = Double.isInfinite(result.outputLufs()) ? null : Math.round(result.outputLufs() * 10) / 10.0;
+        }
         String mode = nonEmpty.stream().anyMatch(s -> "demo".equals(s.engineMode())) ? "demo" : "voxcpm2";
         String fmt = format == null ? a.exportFormat : format;
         if (recordExport) account.requireExportFormat(fmt);
@@ -243,7 +343,7 @@ public class ProjectService {
             rec.status = "success";
             history.save(rec);
         }
-        return new Rendered(out, "mp3".equals(fmt) ? "audio/mpeg" : "audio/wav", filename, mode);
+        return new Rendered(out, "mp3".equals(fmt) ? "audio/mpeg" : "audio/wav", filename, mode, loudness);
     }
 
     // ------------------------------------------------------------ pomocnicze
@@ -276,7 +376,16 @@ public class ProjectService {
     private ProjectDto dto(Project p) {
         Map<String, Voice> vs = p.settings.voiceId == null || !canUseVoice(p.settings.voiceId) ? Map.of()
                 : voices.findById(p.settings.voiceId).map(v -> Map.of(v.id, v)).orElse(Map.of());
-        return toDto(p, generation.currentMode(), vs, true);
+        return toDto(p, generation.currentMode(), vs, true, dictionary.findApplicable(p.ownerId, p.id));
+    }
+
+    /** Wpisy słownika dla projektu (globalne + projektu) z listy wszystkich wpisów użytkownika. */
+    private static List<PronunciationEntry> applicable(List<PronunciationEntry> all, String projectId) {
+        return all.stream().filter(e -> e.projectId == null || e.projectId.equals(projectId)).toList();
+    }
+
+    static String expectedHash(Segment s, VoiceSettings settings, List<PronunciationEntry> dict) {
+        return GenerationService.hash(SpeechText.applyDictionary(s.text.trim(), dict), settings, s.voiceId);
     }
 
     private static Segment addSegment(Project p, String text) {
@@ -290,20 +399,24 @@ public class ProjectService {
     }
 
     static String segmentStatus(Segment s, VoiceSettings settings, String currentMode) {
-        if (s.text == null || s.text.isBlank()) return "empty";
+        return segmentStatus(s, settings, currentMode, List.of());
+    }
+
+    static String segmentStatus(Segment s, VoiceSettings settings, String currentMode, List<PronunciationEntry> dict) {
+        if (s.text == null || s.text.isBlank() || SpeechText.spokenCharacters(s.text) == 0) return "empty";
         if (s.audioFile == null) return s.error != null ? "error" : "draft";
-        if (!GenerationService.hash(s.text, settings).equals(s.generatedHash)) return "stale";
+        if (!expectedHash(s, settings, dict).equals(s.generatedHash)) return "stale";
         if (currentMode != null && s.engineMode != null && !currentMode.equals(s.engineMode)) return "stale";
         return s.error != null ? "error" : "ready";
     }
 
-    private ProjectDto toDto(Project p, String mode, Map<String, Voice> vs, boolean withSegments) {
+    private ProjectDto toDto(Project p, String mode, Map<String, Voice> vs, boolean withSegments, List<PronunciationEntry> dict) {
         var segs = new ArrayList<SegmentDto>();
         int chars = 0, ready = 0, stale = 0, draft = 0, err = 0, nonEmpty = 0;
         long duration = 0;
         for (Segment s : p.segments) {
-            String st = segmentStatus(s, p.settings, mode);
-            chars += s.text.trim().length();
+            String st = segmentStatus(s, p.settings, mode, dict);
+            chars += SpeechText.spokenCharacters(s.text);
             switch (st) {
                 case "ready" -> { ready++; duration += s.durationMs; }
                 case "stale" -> stale++;
@@ -314,7 +427,7 @@ public class ProjectService {
             if (!"empty".equals(st)) nonEmpty++;
             if (withSegments) {
                 segs.add(new SegmentDto(s.id, s.position, s.text, st, s.durationMs, s.engineMode, s.generatedAt, s.error,
-                        s.audioFile == null ? null : s.audioFile.substring(Math.max(0, s.audioFile.length() - 20))));
+                        s.audioFile == null ? null : s.audioFile.substring(Math.max(0, s.audioFile.length() - 20)), s.voiceId));
             }
         }
         String status;

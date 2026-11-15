@@ -17,6 +17,9 @@ public class Segment {
     @Column(length = 5000, nullable = false)
     public String text = "";
 
+    /** Głos tego fragmentu; null = głos projektu. Pozwala na dialogi i wielu lektorów. */
+    public String voiceId;
+
     /** Plik ostatniej udanej generacji. */
     public String audioFile;
     public long durationMs;

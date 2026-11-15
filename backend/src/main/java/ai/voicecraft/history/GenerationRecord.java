@@ -34,5 +34,12 @@ public class GenerationRecord {
     public String error;
 
     public String audioFile;
+
+    /** Odcisk fragmentu z chwili generacji — pozwala przywrócić tę wersję nagrania. */
+    @Column(length = 64)
+    public String segmentHash;
+
+    @Column(length = 5000)
+    public String segmentText;
     public Instant createdAt = Instant.now();
 }

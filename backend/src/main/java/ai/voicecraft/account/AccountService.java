@@ -91,6 +91,7 @@ public class AccountService {
                 }
                 case "pauseBetweenSegmentsMs" -> a.pauseBetweenSegmentsMs = Math.max(0, Math.min(3000, ((Number) v).intValue()));
                 case "fileNamePattern" -> a.fileNamePattern = str(v);
+                case "exportLoudness" -> a.exportLoudness = oneOf(str(v), "off", "-14", "-16", "-19", "-23");
                 case "theme" -> a.theme = oneOf(str(v), "light", "dark", "system");
                 case "defaultLanguage" -> a.defaultLanguage = str(v);
                 case "defaultVoiceId" -> a.defaultVoiceId = str(v);

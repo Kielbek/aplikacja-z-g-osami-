@@ -8,14 +8,29 @@ import { DropdownComponent } from '../../shared/dropdown.component';
 import { EngineBannerComponent } from '../../shared/engine-banner.component';
 import { IconComponent } from '../../shared/icon.component';
 import { EditorStore } from './editor.store';
+import { CdkDrag, CdkDragPlaceholder, CdkDropList } from '@angular/cdk/drag-drop';
 import { SegmentRowComponent } from './segment-row.component';
+import { VersionsDialogComponent } from './versions-dialog.component';
 import { VoicePanelComponent } from './voice-panel.component';
+import { VoicePickerComponent } from './voice-picker.component';
 
 @Component({
   selector: 'vc-editor-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [EditorStore],
-  imports: [RouterLink, IconComponent, DropdownComponent, EngineBannerComponent, SegmentRowComponent, VoicePanelComponent],
+  imports: [
+    RouterLink,
+    IconComponent,
+    DropdownComponent,
+    EngineBannerComponent,
+    SegmentRowComponent,
+    VoicePanelComponent,
+    VoicePickerComponent,
+    VersionsDialogComponent,
+    CdkDropList,
+    CdkDrag,
+    CdkDragPlaceholder,
+  ],
   styleUrl: './editor.page.scss',
   templateUrl: './editor.page.html',
 })
@@ -32,6 +47,12 @@ export class EditorPage {
   readonly id = input.required<string>();
 
   protected inspectorOpen = signal(false);
+  protected pauseOptions = [
+    { ms: 500, label: 'Krótka — 0,5 s', token: '0.5s' },
+    { ms: 1000, label: 'Średnia — 1 s', token: '1s' },
+    { ms: 2000, label: 'Długa — 2 s', token: '2s' },
+    { ms: 3000, label: 'Bardzo długa — 3 s', token: '3s' },
+  ];
   protected fmt = formatDuration;
   protected pluralN = pluralN;
 
@@ -73,6 +94,13 @@ export class EditorPage {
     if (t) void this.player.play(t);
   }
 
+  protected onImport(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) void this.store.importFile(file);
+    input.value = '';
+  }
+
   protected generateSelected() {
     void this.store.generateMany(this.store.selectedIds());
   }
@@ -90,6 +118,13 @@ export class EditorPage {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') {
       e.preventDefault();
       void this.store.generateMany();
+    }
+    const target = e.target as HTMLElement;
+    const inField = !!target.closest('input, textarea, select, [contenteditable]');
+    if ((e.ctrlKey || e.metaKey) && !inField && ['z', 'y'].includes(e.key.toLowerCase())) {
+      e.preventDefault();
+      if (e.key.toLowerCase() === 'y' || e.shiftKey) this.store.redo();
+      else this.store.undo();
     }
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
       e.preventDefault();

@@ -13,24 +13,31 @@ import { AccountStore } from '../../core/services/account.store';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { PlayerService } from '../../core/services/player.service';
 import { formatDuration, formatNumber } from '../../core/util/format';
-import { SEGMENT_STATUS } from '../../core/util/labels';
+import { CdkDragHandle } from '@angular/cdk/drag-drop';
+import { SEGMENT_STATUS, avatarStyle } from '../../core/util/labels';
 import { DropdownComponent } from '../../shared/dropdown.component';
 import { IconComponent } from '../../shared/icon.component';
 import { EditorSegment, EditorStore } from './editor.store';
+import { VoicePickerComponent } from './voice-picker.component';
+
+const PAUSE_RE = /\[\s*(?:pauza|pause)\s+(\d+(?:[.,]\d+)?)\s*(ms|s)?\s*]/gi;
 
 @Component({
   selector: 'vc-segment-row',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, DropdownComponent],
+  imports: [IconComponent, DropdownComponent, VoicePickerComponent, CdkDragHandle],
   styleUrl: './segment-row.component.scss',
   host: {
     '[class.is-selected]': 'selected()',
     '[class.is-playing]': 'isPlaying()',
     '[class.is-busy]': 'seg().generating || seg().queued',
     '[attr.data-status]': 'seg().status',
+    '[class.has-speaker]': 'multiVoice()',
+    '[style.--speaker]': 'speakerColor()',
   },
   template: `
     <div class="gutter">
+      <span class="grip" cdkDragHandle title="Przeciągnij, aby zmienić kolejność" aria-label="Przeciągnij fragment"><vc-icon name="grip" [size]="14" /></span>
       <span class="index tabular">{{ index() + 1 }}</span>
       <label class="select" [title]="selected() ? 'Odznacz' : 'Zaznacz fragment'">
         <span class="checkbox"><input type="checkbox" [checked]="selected()" (change)="store.toggleSelect(seg().id)" [attr.aria-label]="'Zaznacz fragment ' + (index() + 1)" /></span>
@@ -47,11 +54,23 @@ import { EditorSegment, EditorStore } from './editor.store';
         [placeholder]="index() === 0 && total() === 1 ? 'Wpisz lub wklej tekst. Akapity zostaną automatycznie podzielone na fragmenty…' : 'Pusty fragment'"
         [attr.aria-label]="'Tekst fragmentu ' + (index() + 1)"
         (input)="onInput()"
+        (keyup)="rememberCaret()"
+        (click)="rememberCaret()"
+        (focus)="rememberCaret()"
         (keydown)="onKey($event)"
         (paste)="onPaste($event)"
       ></textarea>
 
       <div class="meta">
+        <vc-voice-picker
+          class="voice"
+          [class.voice-visible]="multiVoice() || !!seg().voiceId"
+          [compact]="true"
+          [selectedId]="seg().voiceId"
+          [fallbackId]="projectVoice()"
+          [language]="store.settings()?.language ?? 'pl'"
+          (select)="store.setSegmentVoice(targetIds(), $event)"
+        />
         @if (seg().generating) {
           <span class="state busy"><span class="spinner"></span>Generowanie…</span>
         } @else if (seg().queued) {
@@ -66,6 +85,9 @@ import { EditorSegment, EditorStore } from './editor.store';
           @if (seg().engineMode === 'demo' && seg().audioVersion) {
             <span class="badge badge-demo" title="Wygenerowano w trybie demonstracyjnym">Demo</span>
           }
+        }
+        @if (pauses(); as p) {
+          <span class="pauses" [title]="'Pauzy w tym fragmencie: ' + p.count"><vc-icon name="hourglass" [size]="11" />{{ p.label }}</span>
         }
         <span class="chars tabular">{{ chars() }} zn.</span>
         @if (seg().error && !seg().generating) {
@@ -97,6 +119,8 @@ import { EditorSegment, EditorStore } from './editor.store';
       <vc-dropdown [width]="230">
         <button trigger class="btn btn-ghost btn-icon btn-sm" aria-label="Więcej akcji"><vc-icon name="more" /></button>
         <div menu>
+          <button class="menu-item" [disabled]="!seg().audioVersion" (click)="store.openVersions(seg().id)"><vc-icon name="versions" />Wersje nagrania</button>
+          <div class="menu-sep"></div>
           <button class="menu-item" (click)="store.splitIntoSentences(seg().id)"><vc-icon name="scissors" />Podziel na zdania</button>
           <button class="menu-item" [disabled]="index() === total() - 1" (click)="store.mergeWithNext(seg().id)"><vc-icon name="merge" />Połącz z następnym</button>
           <button class="menu-item" (click)="store.addSegment(seg().id)"><vc-icon name="list-plus" />Dodaj fragment poniżej</button>
@@ -128,7 +152,31 @@ export class SegmentRowComponent {
   protected selected = computed(() => this.store.selection().has(this.seg().id));
   protected statusInfo = computed(() => SEGMENT_STATUS[this.seg().status]);
   protected duration = computed(() => formatDuration(this.seg().durationMs));
-  protected chars = computed(() => formatNumber(this.seg().text.trim().length));
+  protected chars = computed(() => formatNumber(this.seg().text.replace(PAUSE_RE, ' ').replace(/\s+/g, ' ').trim().length));
+  protected projectVoice = computed(() => this.store.settings()?.voiceId ?? null);
+  protected multiVoice = computed(() => this.store.voicesInUse().length > 1);
+  /** Kolor mówcy — ten sam dla wszystkich fragmentów jednego głosu. */
+  protected speakerColor = computed(() => {
+    const id = this.seg().voiceId ?? this.projectVoice();
+    return id ? avatarStyle(id)['--avatar-fg'] : 'transparent';
+  });
+  protected pauses = computed(() => {
+    const matches = [...this.seg().text.matchAll(PAUSE_RE)];
+    if (!matches.length) return null;
+    const ms = matches.reduce((sum, m) => sum + (m[2]?.toLowerCase() === 'ms' ? 1 : 1000) * parseFloat(m[1].replace(',', '.')), 0);
+    return { count: matches.length, label: `${(ms / 1000).toFixed(ms % 1000 ? 1 : 0).replace('.', ',')} s pauzy` };
+  });
+
+  /** Zmiana głosu dotyczy zaznaczonych fragmentów, jeśli ten fragment jest wśród nich. */
+  protected targetIds() {
+    const sel = this.store.selectedIds();
+    return sel.includes(this.seg().id) ? sel : [this.seg().id];
+  }
+
+  protected rememberCaret() {
+    const el = this.ta()?.nativeElement;
+    if (el) this.store.caret = { id: this.seg().id, pos: el.selectionStart };
+  }
   protected trackId = computed(() => `seg:${this.seg().id}`);
   protected isPlaying = computed(() => this.player.isPlaying(this.trackId()));
   protected isLoading = computed(() => this.player.isLoading(this.trackId()));
@@ -165,12 +213,21 @@ export class SegmentRowComponent {
   protected onInput() {
     this.autosize();
     this.store.setText(this.seg().id, this.ta().nativeElement.value);
+    this.rememberCaret();
   }
 
   protected onKey(e: KeyboardEvent) {
     const el = this.ta().nativeElement;
     const atStart = el.selectionStart === 0 && el.selectionEnd === 0;
     const atEnd = el.selectionStart === el.value.length;
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.altKey && (e.key.toLowerCase() === 'z' || e.key.toLowerCase() === 'y')) {
+      // Cofanie obejmuje cały dokument (także podział i łączenie fragmentów), nie tylko pole tekstowe
+      e.preventDefault();
+      if (e.key.toLowerCase() === 'y' || e.shiftKey) this.store.redo();
+      else this.store.undo();
+      return;
+    }
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       if (this.canGenerate()) void this.store.generateOne(this.seg().id);

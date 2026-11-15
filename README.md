@@ -170,14 +170,75 @@ Propozycje znaku są w `frontend/src/app/shared/brand/logo-marks.ts`, a ich plik
 
 Zmiana logo w całej aplikacji: ustaw `BRAND_LOGO` w `logo-marks.ts` i podmień `public/favicon.svg` na odpowiedni plik z `public/brand/`.
 
-## Kluczowe zachowanie edytora
+## Edytor
 
-- Każdy fragment ma odcisk: SHA-256 z tekstu, głosu, języka, stylu, emocji, tempa, ekspresji, CFG, kroków, normalizacji, odszumiania, ziarna oraz trybu silnika. Zmiana tekstu jednego zdania oznacza jako *Nieaktualny* tylko ten fragment. Zmiana parametrów projektu oznacza wszystkie.
-- Przycisk **„Generuj zmienione (n)”** generuje wyłącznie nowe i nieaktualne fragmenty. Można też zaznaczyć wybrane fragmenty albo ponowić pojedynczy (`Ctrl+Enter`).
-- Łączenie fragmentów w jedno nagranie odbywa się w backendzie bez ponownej syntezy (`WavUtils.concat`), z konfigurowalną pauzą.
-- Każda generacja zapisuje nowy, niezmienny plik. Historia pozwala odsłuchać także zastąpione wersje.
-- Skróty: `Enter` dzieli fragment w miejscu kursora, `Backspace` na początku łączy go z poprzednim, `Shift+Enter` wstawia nową linię, `Ctrl+Shift+Enter` generuje zmienione, `Ctrl+S` zapisuje, `Spacja` to play/pauza.
-- Wklejenie dłuższego tekstu dzieli go automatycznie na akapity, a zbyt długie akapity na grupy zdań (do ~400 znaków).
+**Generowanie tylko tego, co się zmieniło**
+
+- Każdy fragment ma odcisk: SHA-256 z tekstu po zastosowaniu słownika wymowy, parametrów projektu, głosu fragmentu i trybu silnika.
+- Zmiana jednego zdania, głosu jednego fragmentu albo hasła w słowniku oznacza jako *Nieaktualny* tylko fragmenty, których to dotyczy.
+- „Generuj zmienione (n)” generuje wyłącznie nowe i nieaktualne fragmenty (w tle, patrz „Generowanie w tle”).
+- Łączenie fragmentów odbywa się bez ponownej syntezy, z konfigurowalną pauzą między fragmentami.
+
+**Wiele głosów w projekcie (dialogi)**
+
+- Głos projektu jest domyślny. Każdy fragment może mieć własny głos: chip w wierszu fragmentu albo zbiorczo dla zaznaczonych fragmentów.
+- Gdy projekt ma kilka głosów, fragmenty dostają kolorowy znacznik mówcy.
+
+**Pauzy**
+
+- Znacznik `[pauza 1.5s]` albo `[pauza 500ms]` w tekście (przycisk „Pauza” wstawia go w miejscu kursora) jest zamieniany na ciszę o dokładnej długości, od 50 ms do 10 s.
+- Fragment z pauzami jest syntezowany w częściach i składany w jedno nagranie.
+- Znaczniki nie wliczają się do limitu znaków.
+
+**Słownik wymowy**
+
+- Hasło → wymowa (np. „VoxCPM” → „woks ce pe em”), zamieniane przed syntezą.
+- Dopasowanie obejmuje całe słowa, bez względu na wielkość liter (opcjonalnie z jej uwzględnieniem). Dłuższe hasła mają pierwszeństwo, a znaczniki pauz nie są zmieniane.
+- Wpisy mogą dotyczyć jednego projektu (panel „Głos i styl”) albo wszystkich projektów (*Ustawienia → Słownik wymowy*).
+
+**Cofnij i ponów**
+
+- Historia obejmuje tekst, podział i łączenie fragmentów, kolejność, głosy, pauzy oraz import.
+- Kolejne znaki wpisane w jednym fragmencie w krótkim czasie są łączone w jeden krok cofania.
+
+**Kolejność**
+
+- Fragmenty można przeciągać za uchwyt (Angular CDK, działa także na ekranach dotykowych).
+
+**Wersje nagrania**
+
+- Każde wygenerowanie zapisuje osobny plik. W menu fragmentu „Wersje nagrania” można odsłuchać i przywrócić wcześniejszą wersję, np. lepsze ujęcie.
+- Wersja nagrana dla innego tekstu lub ustawień jest wyraźnie oznaczona, a po przywróceniu fragment ma status *Nieaktualny*.
+
+**Import**
+
+- Obsługiwane formaty: TXT (UTF-8 lub Windows-1250), MD, DOCX i PDF z warstwą tekstową, do 10 MB.
+- Tekst jest dzielony na fragmenty: akapity, a zbyt długie akapity na grupy zdań do ok. 400 znaków.
+- Import do bieżącego projektu (przycisk „Importuj”) albo jako nowy projekt (*Projekty → Importuj z pliku*).
+- Parser DOCX blokuje DTD i encje zewnętrzne (ochrona przed XXE).
+
+**Napisy**
+
+- Eksport SRT albo WebVTT. Czasy wynikają z rzeczywistych długości nagrań fragmentów i pauz.
+- Napis ma najwyżej 2 linie po 42 znaki.
+
+**Normalizacja głośności**
+
+- Eksport jest mierzony według ITU-R BS.1770-4 (K-weighting, bramkowanie −70 LUFS i −10 LU) i doprowadzany do wybranej wartości: −14, −16 (domyślnie), −19 albo −23 LUFS, lub bez normalizacji.
+- Szczyt jest ograniczony do −1 dBFS.
+
+**Skróty klawiszowe**
+
+| Skrót | Działanie |
+|---|---|
+| `Enter` | dzieli fragment w miejscu kursora |
+| `Backspace` na początku fragmentu | łączy go z poprzednim |
+| `Shift+Enter` | nowa linia |
+| `Ctrl+Enter` | generuje fragment |
+| `Ctrl+Shift+Enter` | generuje zmienione |
+| `Ctrl+Z` / `Ctrl+Shift+Z` / `Ctrl+Y` | cofnij / ponów |
+| `Ctrl+S` | zapisz |
+| `Spacja` | play/pauza |
 
 ## System wizualny
 
@@ -218,11 +279,15 @@ tts-engine/app/
 | GET/POST | `/api/projects` | lista / nowy projekt |
 | GET/PATCH/DELETE | `/api/projects/{id}` | projekt, nazwa i ustawienia głosu |
 | POST | `/api/projects/{id}/duplicate` | kopia projektu |
-| PUT | `/api/projects/{id}/segments` | zapis listy fragmentów `[{id, text}]` |
+| PUT | `/api/projects/{id}/segments` | zapis listy fragmentów `[{id, text, voiceId}]` |
 | POST | `/api/projects/{id}/segments/{sid}/generate` | generowanie jednego fragmentu |
 | GET | `/api/projects/{id}/segments/{sid}/audio` | WAV fragmentu |
 | GET | `/api/projects/{id}/audio` | połączone nagranie (WAV) |
-| GET | `/api/projects/{id}/export?format=mp3\|wav` | eksport (409, jeśli są niewygenerowane fragmenty) |
+| GET | `/api/projects/{id}/export?format=mp3\|wav` | eksport z normalizacją LUFS (409, jeśli są niewygenerowane fragmenty) |
+| GET | `/api/projects/{id}/subtitles?format=srt\|vtt` | napisy |
+| GET/POST | `/api/projects/{id}/segments/{sid}/versions`, `…/versions/{vid}/audio`, `…/versions/{vid}/restore` | wersje nagrania fragmentu |
+| GET/POST/PUT/DELETE | `/api/pronunciation` | słownik wymowy (globalny i projektu) |
+| POST | `/api/import/text` | tekst z pliku TXT/MD/DOCX/PDF i proponowany podział |
 | GET | `/api/voices`, `/api/voices/{id}`, `/api/voices/{id}/sample` | biblioteka głosów, próbki |
 | PUT | `/api/voices/{id}/favorite` | ulubione |
 | POST | `/api/voices/design/preview`, `/api/voices/design` | projektowanie głosu |
@@ -243,7 +308,11 @@ tts-engine/app/
 cd backend && mvn test
 ```
 
-Backend ma 20 testów: integracyjne dla logowania, sesji, izolacji danych, CSRF i limitu prób, test webhooka Stripe z podpisami oraz testy jednostkowe.
+Backend ma 44 testy:
+
+- integracyjne: logowanie, sesje, izolacja danych, CSRF, limit prób, webhook Stripe;
+- funkcje edytora z atrapą silnika: głosy fragmentów, pauzy, słownik, wersje, napisy, eksport −16 LUFS, import;
+- jednostkowe: pauzy i słownik, LUFS (sinus 1 kHz 0 dBFS = −3,01 LUFS), napisy, ekstrakcja DOCX/PDF/TXT.
 
 ```bash
 cd tts-engine && pip install -r requirements-dev.txt && ENGINE_MODE=demo pytest
@@ -259,3 +328,4 @@ cd frontend && npx ng build
 - Redis dla kanału zdarzeń i limitu logowań przy wielu instancjach backendu.
 - Weryfikacja adresu e-mail przy rejestracji i opcjonalne 2FA.
 - Testy end-to-end frontendu w CI (Playwright).
+- OCR dla skanowanych PDF-ów i podgląd odsłuchu pojedynczego wpisu słownika.

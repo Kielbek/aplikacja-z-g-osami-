@@ -86,6 +86,22 @@
       </section>
     }
 
+    <!-- Słownik wymowy -->
+    <section class="group">
+      <div class="row-between">
+        <div class="label">Słownik wymowy</div>
+        <span class="t-xs t-muted tabular">{{ store.dictionary().length }}</span>
+      </div>
+      <vc-dictionary-panel />
+    </section>
+
+    @if (store.voicesInUse().length > 1) {
+      <section class="group">
+        <div class="label">Głosy w projekcie</div>
+        <p class="hint">Głos projektu jest domyślny. Fragmenty z własnym głosem mają kolorowy znacznik — zmienisz go w wierszu fragmentu lub dla kilku zaznaczonych naraz.</p>
+      </section>
+    }
+
     <!-- Zaawansowane -->
     <section class="group advanced">
       <button class="adv-toggle" (click)="advancedOpen.set(!advancedOpen())" [attr.aria-expanded]="advancedOpen()">

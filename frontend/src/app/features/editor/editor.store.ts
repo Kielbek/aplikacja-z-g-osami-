@@ -1,6 +1,16 @@
 import { Injectable, OnDestroy, computed, inject, signal } from '@angular/core';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, GenerationJob, ProjectDto, SegmentDto, SegmentStatus, VoiceSettings } from '../../core/api/models';
+import { moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+  ApiError,
+  GenerationJob,
+  ProjectDto,
+  PronunciationEntry,
+  SegmentDto,
+  SegmentStatus,
+  SegmentVersion,
+  VoiceSettings,
+} from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
 import { PlayerService, PlayerTrack } from '../../core/services/player.service';
 import { ProjectsStore } from '../../core/services/projects.store';
@@ -54,6 +64,19 @@ export class EditorStore implements OnDestroy {
   private events: EventSource | null = null;
   private jobIds: string[] = [];
 
+  // Historia zmian (cofnij / ponów)
+  private undoStack: EditorSegment[][] = [];
+  private redoStack: EditorSegment[][] = [];
+  private lastSnapshot = { key: '', at: 0 };
+  readonly canUndo = signal(false);
+  readonly canRedo = signal(false);
+
+  /** Ostatnia pozycja kursora — tam trafia wstawiana pauza. */
+  caret: { id: string; pos: number } | null = null;
+
+  readonly dictionary = signal<PronunciationEntry[]>([]);
+  readonly versions = signal<{ segmentId: string; list: SegmentVersion[]; loading: boolean } | null>(null);
+
   // ------------------------------------------------------------ wartości pochodne
 
   readonly nonEmpty = computed(() => this.segments().filter((s) => s.text.trim().length > 0));
@@ -81,6 +104,15 @@ export class EditorStore implements OnDestroy {
     return null;
   });
 
+  /** Głosy użyte w projekcie (projekt + nadpisania fragmentów) — do oznaczeń mówców. */
+  readonly voicesInUse = computed(() => {
+    const ids = new Set<string>();
+    const projectVoice = this.settings()?.voiceId;
+    if (projectVoice) ids.add(projectVoice);
+    for (const s of this.segments()) if (s.voiceId) ids.add(s.voiceId);
+    return [...ids];
+  });
+
   readonly selectedIds = computed(() => this.segments().filter((s) => this.selection().has(s.id)).map((s) => s.id));
 
   /** Klucz wersji połączonego nagrania — zmienia się po każdej generacji. */
@@ -100,8 +132,13 @@ export class EditorStore implements OnDestroy {
       this.name.set(p.name);
       this.settings.set({ ...p.settings });
       this.segments.set(p.segments.map((s) => ({ ...s, generating: false, queued: false })));
-      if (!p.segments.length) this.addSegment();
+      if (!p.segments.length) {
+        this.addSegment();
+        this.undoStack = [];
+        this.syncHistoryFlags();
+      }
       this.connectEvents(id);
+      void this.loadDictionary();
       // Podłączenie do zadania, które trwa w tle (np. po odświeżeniu strony)
       const job = await this.api.activeJob(id).catch(() => null);
       if (job) this.applyJob(job);
@@ -183,6 +220,10 @@ export class EditorStore implements OnDestroy {
   }
 
   private reset() {
+    this.undoStack = [];
+    this.redoStack = [];
+    this.syncHistoryFlags();
+    this.versions.set(null);
     this.project.set(null);
     this.segments.set([]);
     this.loadError.set(null);
@@ -191,9 +232,53 @@ export class EditorStore implements OnDestroy {
     this.saveState.set('saved');
   }
 
+  // ------------------------------------------------------------ historia zmian
+
+  /**
+   * Zapamiętuje stan przed zmianą. Kolejne zmiany tego samego rodzaju w krótkim czasie
+   * (np. pisanie w jednym fragmencie) są łączone w jeden krok cofania.
+   */
+  private snapshot(key: string, coalesce = false) {
+    const now = Date.now();
+    if (coalesce && key === this.lastSnapshot.key && now - this.lastSnapshot.at < 1500) {
+      this.lastSnapshot.at = now;
+      return;
+    }
+    this.undoStack.push(this.segments());
+    if (this.undoStack.length > 100) this.undoStack.shift();
+    this.redoStack = [];
+    this.lastSnapshot = { key, at: now };
+    this.syncHistoryFlags();
+  }
+
+  undo() {
+    if (this.batch() || !this.undoStack.length) return;
+    this.redoStack.push(this.segments());
+    this.restore(this.undoStack.pop()!);
+  }
+
+  redo() {
+    if (this.batch() || !this.redoStack.length) return;
+    this.undoStack.push(this.segments());
+    this.restore(this.redoStack.pop()!);
+  }
+
+  private restore(state: EditorSegment[]) {
+    this.segments.set(state.map((s) => ({ ...s, generating: false, queued: false })));
+    this.lastSnapshot = { key: '', at: 0 };
+    this.syncHistoryFlags();
+    this.markSegmentsDirty();
+  }
+
+  private syncHistoryFlags() {
+    this.canUndo.set(this.undoStack.length > 0);
+    this.canRedo.set(this.redoStack.length > 0);
+  }
+
   // ------------------------------------------------------------ edycja tekstu
 
   setText(id: string, text: string) {
+    this.snapshot('text:' + id, true);
     this.segments.update((list) =>
       list.map((s) => (s.id === id ? { ...s, text, status: localStatus(s, text), error: null } : s)),
     );
@@ -202,6 +287,7 @@ export class EditorStore implements OnDestroy {
 
   /** Dzieli fragment w miejscu kursora (Enter). */
   splitAt(id: string, caret: number) {
+    this.snapshot('splitAt');
     const list = this.segments();
     const idx = list.findIndex((s) => s.id === id);
     if (idx < 0) return;
@@ -232,6 +318,7 @@ export class EditorStore implements OnDestroy {
   }
 
   private mergePair(firstIdx: number) {
+    this.snapshot('mergePair');
     const list = [...this.segments()];
     const a = list[firstIdx];
     const b = list[firstIdx + 1];
@@ -246,6 +333,7 @@ export class EditorStore implements OnDestroy {
 
   /** Wstawia nowe fragmenty po wskazanym (np. przy wklejaniu wielu akapitów). */
   insertParagraphs(id: string, caret: number, selectionEnd: number, pasted: string) {
+    this.snapshot('insertParagraphs');
     const parts = splitIntoSegments(pasted);
     if (parts.length <= 1) return false;
     const list = [...this.segments()];
@@ -266,6 +354,7 @@ export class EditorStore implements OnDestroy {
   }
 
   addSegment(afterId?: string) {
+    this.snapshot('addSegment');
     const created = blank('');
     this.segments.update((list) => {
       if (!afterId) return [...list, created];
@@ -279,6 +368,7 @@ export class EditorStore implements OnDestroy {
   }
 
   duplicate(id: string) {
+    this.snapshot('duplicate');
     const list = [...this.segments()];
     const idx = list.findIndex((s) => s.id === id);
     if (idx < 0) return;
@@ -288,6 +378,7 @@ export class EditorStore implements OnDestroy {
   }
 
   remove(id: string) {
+    this.snapshot('remove');
     const list = this.segments();
     if (list.length === 1) {
       this.setText(id, '');
@@ -306,6 +397,7 @@ export class EditorStore implements OnDestroy {
   }
 
   move(id: string, delta: -1 | 1) {
+    this.snapshot('move');
     const list = [...this.segments()];
     const idx = list.findIndex((s) => s.id === id);
     const target = idx + delta;
@@ -317,6 +409,7 @@ export class EditorStore implements OnDestroy {
 
   /** Dzieli fragment na zdania. */
   splitIntoSentences(id: string) {
+    this.snapshot('splitIntoSentences');
     const list = [...this.segments()];
     const idx = list.findIndex((s) => s.id === id);
     if (idx < 0) return;
@@ -333,6 +426,7 @@ export class EditorStore implements OnDestroy {
 
   /** Ponowny podział całego tekstu (akapity, długie akapity po zdaniach). */
   resplitAll(maxChars = 400) {
+    this.snapshot('resplitAll');
     const text = this.segments().map((s) => s.text.trim()).filter(Boolean).join('\n\n');
     const parts = splitIntoSegments(text, maxChars);
     const old = this.segments();
@@ -349,6 +443,165 @@ export class EditorStore implements OnDestroy {
       }),
     );
     this.markSegmentsDirty();
+  }
+
+  /** Zmiana kolejności przeciąganiem. */
+  reorder(from: number, to: number) {
+    if (from === to) return;
+    this.snapshot('reorder');
+    const list = [...this.segments()];
+    moveItemInArray(list, from, to);
+    this.segments.set(list);
+    this.markSegmentsDirty();
+  }
+
+  /** Głos fragmentów (null = głos projektu). Nagrania tych fragmentów stają się nieaktualne. */
+  setSegmentVoice(ids: string[], voiceId: string | null) {
+    const projectVoice = this.settings()?.voiceId ?? null;
+    const value = voiceId === projectVoice ? null : voiceId;
+    if (!this.segments().some((s) => ids.includes(s.id) && s.voiceId !== value)) return;
+    this.snapshot('voice');
+    this.segments.update((list) =>
+      list.map((s) =>
+        ids.includes(s.id) && s.voiceId !== value
+          ? { ...s, voiceId: value, status: s.audioVersion && s.text.trim() ? 'stale' : s.status }
+          : s,
+      ),
+    );
+    this.markSegmentsDirty();
+  }
+
+  /** Wstawia znacznik pauzy w miejscu kursora (lub na końcu ostatniego fragmentu). */
+  insertPause(ms: number) {
+    const list = this.segments();
+    const target = (this.caret && list.find((s) => s.id === this.caret!.id)) || list[list.length - 1];
+    if (!target) return;
+    const pos = this.caret?.id === target.id ? Math.min(this.caret.pos, target.text.length) : target.text.length;
+    const label = ms >= 1000 ? `${(ms / 1000).toString().replace('.', ',')}s` : `${ms}ms`;
+    const before = target.text.slice(0, pos).replace(/\s+$/, '');
+    const after = target.text.slice(pos).replace(/^\s+/, '');
+    const token = `[pauza ${label.replace(',', '.')}]`;
+    const text = [before, token, after].filter(Boolean).join(' ');
+    this.snapshot('pause');
+    this.segments.update((l) => l.map((s) => (s.id === target.id ? { ...s, text, status: localStatus(s, text) } : s)));
+    const caretPos = (before ? before.length + 1 : 0) + token.length;
+    this.focusRequest.set({ id: target.id, caret: caretPos });
+    this.markSegmentsDirty();
+  }
+
+  /** Dołącza fragmenty (np. z importowanego pliku). Pusty projekt jest zastępowany. */
+  appendSegments(texts: string[]) {
+    if (!texts.length) return;
+    this.snapshot('append');
+    const created = texts.map((t) => blank(t));
+    this.segments.update((list) => (list.length === 1 && !list[0].text.trim() ? created : [...list, ...created]));
+    this.markSegmentsDirty();
+  }
+
+  async importFile(file: File) {
+    try {
+      const res = await this.api.importText(file);
+      this.appendSegments(res.segments);
+      this.toast.success(`Zaimportowano ${res.segments.length} ${res.segments.length === 1 ? 'fragment' : 'fragmentów'}`, file.name);
+    } catch (e) {
+      this.toast.apiError('Nie udało się zaimportować pliku', e);
+    }
+  }
+
+  // ------------------------------------------------------------ słownik wymowy
+
+  async loadDictionary() {
+    const p = this.project();
+    if (!p) return;
+    try {
+      this.dictionary.set(await this.api.pronunciation(p.id));
+    } catch {
+      /* słownik jest opcjonalny */
+    }
+  }
+
+  async addDictionaryEntry(term: string, replacement: string, global: boolean) {
+    const p = this.project();
+    if (!p) return false;
+    try {
+      await this.api.addPronunciation({ projectId: global ? null : p.id, term, replacement, caseSensitive: false });
+      await this.afterDictionaryChange();
+      return true;
+    } catch (e) {
+      this.toast.apiError('Nie dodano wpisu', e);
+      return false;
+    }
+  }
+
+  async updateDictionaryEntry(entry: PronunciationEntry) {
+    try {
+      await this.api.updatePronunciation(entry.id, { term: entry.term, replacement: entry.replacement, caseSensitive: entry.caseSensitive });
+      await this.afterDictionaryChange();
+    } catch (e) {
+      this.toast.apiError('Nie zapisano wpisu', e);
+    }
+  }
+
+  async deleteDictionaryEntry(id: string) {
+    try {
+      await this.api.deletePronunciation(id);
+      await this.afterDictionaryChange();
+    } catch (e) {
+      this.toast.apiError('Nie usunięto wpisu', e);
+    }
+  }
+
+  /** Zmiana słownika zmienia wymowę — odświeżamy statusy (nieaktualne będą tylko fragmenty z danym hasłem). */
+  private async afterDictionaryChange() {
+    await this.loadDictionary();
+    await this.flush();
+    const p = this.project();
+    if (p) this.applyServer(await this.api.project(p.id));
+  }
+
+  // ------------------------------------------------------------ wersje fragmentu
+
+  async openVersions(segmentId: string) {
+    const p = this.project();
+    if (!p) return;
+    this.versions.set({ segmentId, list: [], loading: true });
+    try {
+      const list = await this.api.segmentVersions(p.id, segmentId);
+      if (this.versions()?.segmentId === segmentId) this.versions.set({ segmentId, list, loading: false });
+    } catch (e) {
+      this.versions.set(null);
+      this.toast.apiError('Nie udało się wczytać wersji', e);
+    }
+  }
+
+  closeVersions() {
+    this.versions.set(null);
+  }
+
+  versionTrack(segmentId: string, v: SegmentVersion): PlayerTrack | null {
+    const p = this.project();
+    if (!p) return null;
+    const idx = this.segments().findIndex((s) => s.id === segmentId);
+    return {
+      id: `version:${v.id}`,
+      title: `Fragment ${idx + 1} — wersja`,
+      subtitle: new Date(v.createdAt).toLocaleString('pl-PL'),
+      url: this.api.segmentVersionAudioUrl(p.id, segmentId, v.id),
+    };
+  }
+
+  async restoreVersion(segmentId: string, versionId: number) {
+    const p = this.project();
+    if (!p) return;
+    try {
+      await this.flush();
+      const seg = await this.api.restoreSegmentVersion(p.id, segmentId, versionId);
+      this.patchSeg(segmentId, { ...seg, generating: false, queued: false });
+      this.toast.success('Przywrócono wersję nagrania', seg.status === 'stale' ? 'Ta wersja powstała dla innego tekstu lub ustawień — fragment jest oznaczony jako nieaktualny.' : undefined);
+      void this.openVersions(segmentId);
+    } catch (e) {
+      this.toast.apiError('Nie udało się przywrócić wersji', e);
+    }
   }
 
   // ------------------------------------------------------------ zaznaczanie
@@ -438,7 +691,7 @@ export class EditorStore implements OnDestroy {
       }
       if (this.segDirty) {
         this.segDirty = false;
-        const payload = this.segments().map((s) => ({ id: s.id, text: s.text }));
+        const payload = this.segments().map((s) => ({ id: s.id, text: s.text, voiceId: s.voiceId ?? null }));
         res = await this.api.saveSegments(p.id, payload);
       }
       if (res) this.applyServer(res);
@@ -451,14 +704,14 @@ export class EditorStore implements OnDestroy {
   }
 
   /** Scala odpowiedź serwera z lokalnym stanem (nie nadpisuje tekstu wpisanego w międzyczasie). */
-  private applyServer(res: ProjectDto) {
+  applyServer(res: ProjectDto) {
     this.project.set({ ...res, segments: [] });
     this.projectsStore.touch(res);
     const server = new Map(res.segments.map((s) => [s.id, s]));
     this.segments.update((list) =>
       list.map((s) => {
         const srv = server.get(s.id);
-        if (!srv || srv.text !== s.text) return s;
+        if (!srv || srv.text !== s.text || (srv.voiceId ?? null) !== (s.voiceId ?? null)) return s;
         return { ...srv, generating: s.generating, queued: s.queued };
       }),
     );
@@ -589,12 +842,35 @@ export class EditorStore implements OnDestroy {
       a.click();
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       if (res.engineMode === 'demo') {
-        this.toast.show('Pobrano plik demonstracyjny', 'demo', 'Plik zawiera sygnał zastępczy, nie mowę. W nazwie pliku dodano oznaczenie _DEMO.');
+        this.toast.show(
+          'Pobrano plik demonstracyjny',
+          'demo',
+          'Plik zawiera sygnał zastępczy, nie mowę. W nazwie pliku dodano oznaczenie _DEMO.' +
+            (res.loudness ? ` Głośność znormalizowana do ${res.loudness.replace('.', ',')} LUFS.` : ''),
+        );
       } else {
-        this.toast.success(`Pobrano ${format.toUpperCase()}`);
+        this.toast.success(`Pobrano ${format.toUpperCase()}`, res.loudness ? `Głośność znormalizowana do ${res.loudness.replace('.', ',')} LUFS.` : undefined);
       }
     } catch (e) {
       this.toast.apiError('Eksport nie powiódł się', e);
+    }
+  }
+
+  async exportSubtitles(format: 'srt' | 'vtt') {
+    const p = this.project();
+    if (!p) return;
+    await this.flush();
+    try {
+      const res = await this.api.exportSubtitles(p.id, format);
+      const a = document.createElement('a');
+      const url = URL.createObjectURL(res.blob);
+      a.href = url;
+      a.download = res.filename ?? `${this.name()}.${format}`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      this.toast.success(`Pobrano napisy ${format.toUpperCase()}`);
+    } catch (e) {
+      this.toast.apiError('Nie udało się wygenerować napisów', e);
     }
   }
 
@@ -614,6 +890,7 @@ function blank(text: string): EditorSegment {
     generatedAt: null,
     error: null,
     audioVersion: null,
+    voiceId: null,
     generating: false,
     queued: false,
   };

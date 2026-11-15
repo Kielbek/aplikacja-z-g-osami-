@@ -8,6 +8,7 @@ import ai.voicecraft.common.ApiException;
 import ai.voicecraft.config.AppProperties;
 import ai.voicecraft.history.HistoryRepository;
 import ai.voicecraft.jobs.JobRepository;
+import ai.voicecraft.pronunciation.PronunciationRepository;
 import ai.voicecraft.project.ProjectService;
 import ai.voicecraft.security.LoginRateLimiter;
 import ai.voicecraft.user.PasswordResetToken;
@@ -48,13 +49,15 @@ public class AuthService {
     private final MailService mail;
     private final AppProperties props;
     private final JobRepository jobs;
+    private final PronunciationRepository dictionary;
     private final SecureRandom random = new SecureRandom();
 
     public AuthService(UserRepository users, AccountRepository accounts, AccountService accountService, ProjectService projects,
                        VoiceService voices, HistoryRepository history, PasswordResetTokenRepository resetTokens,
                        PasswordEncoder encoder, LoginRateLimiter limiter, MailService mail, AppProperties props,
-                       JobRepository jobs) {
+                       JobRepository jobs, PronunciationRepository dictionary) {
         this.jobs = jobs;
+        this.dictionary = dictionary;
         this.users = users;
         this.accounts = accounts;
         this.accountService = accountService;
@@ -203,6 +206,7 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Najpierw anuluj aktywną subskrypcję w panelu płatności.");
         }
         jobs.deleteByUserId(userId);
+        dictionary.deleteByOwnerId(userId);
         projects.deleteAllOf(userId);
         voices.deleteAllOf(userId);
         history.deleteByUserId(userId);

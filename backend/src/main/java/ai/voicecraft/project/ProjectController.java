@@ -59,6 +59,23 @@ public class ProjectController {
         return service.generateSegment(id, segmentId);
     }
 
+    @GetMapping("/{id}/segments/{segmentId}/versions")
+    public List<ProjectService.SegmentVersion> versions(@PathVariable String id, @PathVariable String segmentId) {
+        return service.versions(id, segmentId);
+    }
+
+    @GetMapping("/{id}/segments/{segmentId}/versions/{versionId}/audio")
+    public ResponseEntity<byte[]> versionAudio(@PathVariable String id, @PathVariable String segmentId, @PathVariable Long versionId) {
+        return ResponseEntity.ok().contentType(MediaType.parseMediaType("audio/wav"))
+                .header(HttpHeaders.CACHE_CONTROL, "private, max-age=31536000, immutable")
+                .body(service.versionAudio(id, segmentId, versionId));
+    }
+
+    @PostMapping("/{id}/segments/{segmentId}/versions/{versionId}/restore")
+    public SegmentDto restoreVersion(@PathVariable String id, @PathVariable String segmentId, @PathVariable Long versionId) {
+        return service.restoreVersion(id, segmentId, versionId);
+    }
+
     @GetMapping("/{id}/segments/{segmentId}/audio")
     public ResponseEntity<byte[]> segmentAudio(@PathVariable String id, @PathVariable String segmentId) {
         return ResponseEntity.ok().contentType(MediaType.parseMediaType("audio/wav"))
@@ -74,6 +91,16 @@ public class ProjectController {
                 .header("X-Engine-Mode", r.engineMode()).body(r.data());
     }
 
+    @GetMapping("/{id}/subtitles")
+    public ResponseEntity<String> subtitles(@PathVariable String id, @RequestParam(defaultValue = "srt") String format) {
+        var r = service.subtitles(id, format);
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(r.contentType() + ";charset=UTF-8"))
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        ContentDisposition.attachment().filename(r.filename(), StandardCharsets.UTF_8).build().toString())
+                .body(r.content());
+    }
+
     @GetMapping("/{id}/export")
     public ResponseEntity<byte[]> export(@PathVariable String id, @RequestParam(required = false) String format) {
         if (format != null && !format.equals("mp3") && !format.equals("wav")) {
@@ -82,6 +109,7 @@ public class ProjectController {
         var r = service.render(id, format, true);
         return ResponseEntity.ok().contentType(MediaType.parseMediaType(r.contentType()))
                 .header("X-Engine-Mode", r.engineMode())
+                .header("X-Loudness-LUFS", r.loudnessLufs() == null ? "" : String.valueOf(r.loudnessLufs()))
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename(r.filename(), StandardCharsets.UTF_8).build().toString())
                 .body(r.data());

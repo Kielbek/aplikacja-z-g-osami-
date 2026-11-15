@@ -223,6 +223,13 @@
                 </div>
               </section>
               <section class="section">
+                <div class="section-head"><div><h2>Normalizacja głośności</h2><p>Eksport jest mierzony według ITU-R BS.1770 i doprowadzany do wybranej głośności (szczyt ograniczony do −1 dBFS).</p></div></div>
+                <div class="field narrow">
+                  <span class="field-label">Docelowa głośność</span>
+                  <vc-select label="Docelowa głośność" [options]="loudnessOptions" [value]="d.exportLoudness" [showHintInTrigger]="true" (valueChange)="setNow('exportLoudness', $event!)" />
+                </div>
+              </section>
+              <section class="section">
                 <div class="section-head"><div><h2>Łączenie fragmentów</h2><p>Pauza wstawiana między fragmentami w połączonym nagraniu.</p></div></div>
                 <div class="field narrow">
                   <div class="row-between"><label for="pause">Pauza między fragmentami</label><span class="t-xs tabular">{{ d.pauseBetweenSegmentsMs }} ms</span></div>
@@ -235,6 +242,40 @@
                 <div class="field narrow">
                   <input class="input t-mono" [value]="d.fileNamePattern" (input)="set('fileNamePattern', $any($event.target).value)" (change)="setNow('fileNamePattern', $any($event.target).value)" aria-label="Wzorzec nazwy pliku" />
                   <span class="field-hint">Podgląd: <code>{{ fileNamePreview() }}</code></span>
+                </div>
+              </section>
+            }
+
+            <!-- SŁOWNIK -->
+            @case ('dictionary') {
+              <section class="section">
+                <div class="section-head"><div><h2>Słownik wymowy</h2><p>Wpisy globalne działają we wszystkich projektach. Wpisy dla pojedynczego projektu dodasz w edytorze, w panelu „Głos i styl”@if (projectDictCount()) { (masz ich {{ projectDictCount() }})}.</p></div></div>
+                <form class="dict-form" (submit)="saveDict($event)">
+                  <div class="field"><label for="dt">Hasło</label><input id="dt" class="input" maxlength="100" placeholder="Np. VoxCPM" [value]="dictTerm()" (input)="dictTerm.set($any($event.target).value)" /></div>
+                  <div class="field"><label for="dr">Wymowa</label><input id="dr" class="input" maxlength="300" placeholder="Np. woks ce pe em" [value]="dictReplacement()" (input)="dictReplacement.set($any($event.target).value)" /></div>
+                  <div class="dict-actions">
+                    <label class="checkbox"><input type="checkbox" [checked]="dictCase()" (change)="dictCase.set($any($event.target).checked)" />Uwzględniaj wielkość liter</label>
+                    <span class="grow"></span>
+                    @if (dictEditing()) { <button type="button" class="btn btn-ghost" (click)="resetDict()">Anuluj</button> }
+                    <button class="btn btn-primary" type="submit" [disabled]="!dictTerm().trim() || !dictReplacement().trim()">{{ dictEditing() ? 'Zapisz' : 'Dodaj wpis' }}</button>
+                  </div>
+                </form>
+              </section>
+              <section class="section">
+                <div class="list">
+                  @for (e of globalDict(); track e.id) {
+                    <div class="list-row dict-row" [class.is-editing]="dictEditing() === e.id">
+                      <span class="t-small"><strong>{{ e.term }}</strong></span>
+                      <span class="t-small t-muted">→ {{ e.replacement }}</span>
+                      <span>@if (e.caseSensitive) { <span class="badge">Aa</span> }</span>
+                      <div class="cell-actions">
+                        <button class="btn btn-ghost btn-icon btn-sm" aria-label="Edytuj" (click)="editDict(e)"><vc-icon name="pencil" [size]="13" /></button>
+                        <button class="btn btn-ghost btn-icon btn-sm" aria-label="Usuń" (click)="deleteDict(e.id)"><vc-icon name="trash" [size]="13" /></button>
+                      </div>
+                    </div>
+                  } @empty {
+                    <div class="empty"><div class="empty-icon"><vc-icon name="book" [size]="20" /></div><h3>Słownik jest pusty</h3><p>Dodaj nazwy własne, skróty i terminy, które model wymawia niepoprawnie — np. „SaaS” → „sas”, „GPU” → „gie pe u”.</p></div>
+                  }
                 </div>
               </section>
             }

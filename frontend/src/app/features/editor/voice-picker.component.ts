@@ -38,10 +38,27 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
     .check { color: var(--accent); }
     vc-play-button { --pb: 26px; }
     .foot { display: block; padding: 8px 10px 6px; font-size: var(--text-xs); }
+    .chip-trigger {
+      all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+      height: 20px; padding: 0 7px 0 2px; border-radius: 999px; font-size: var(--text-2xs); font-weight: 550;
+      color: var(--text-2); background: var(--bg-sunken); border: 1px solid var(--border-subtle); white-space: nowrap;
+    }
+    .chip-trigger:hover { border-color: var(--border-strong); color: var(--text); }
+    .chip-trigger.inherited { color: var(--text-3); font-weight: 450; }
+    .chip-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
     .none { padding: 16px 10px; color: var(--text-3); font-size: var(--text-sm); text-align: center; }
   `,
   template: `
-    <vc-dropdown align="end" [width]="300">
+    <vc-dropdown [align]="compact() ? 'start' : 'end'" [width]="300">
+      @if (compact()) {
+        <button trigger class="chip-trigger" [class.inherited]="!selectedId()" [attr.aria-label]="'Głos fragmentu: ' + (current()?.name ?? 'głos projektu')"
+          [title]="selectedId() ? 'Głos tego fragmentu' : 'Fragment używa głosu projektu — kliknij, aby zmienić'">
+          @if (current(); as v) { <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="16" /> {{ v.name }} }
+          @else if (fallback(); as f) { <vc-voice-avatar [id]="f.id" [name]="f.name" [size]="16" /> {{ f.name }} }
+          @else { Wybierz głos }
+          <vc-icon name="chevron-down" [size]="10" />
+        </button>
+      } @else {
       <button trigger class="current" [attr.aria-label]="'Wybrany głos: ' + (current()?.name ?? 'brak')">
         @if (current(); as v) {
           <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="34" />
@@ -54,7 +71,16 @@ import { VoiceAvatarComponent } from '../../shared/voice-avatar.component';
         }
         <vc-icon name="chevron-down" [size]="14" />
       </button>
+      }
       <div menu>
+        @if (compact() && fallback(); as f) {
+          <button class="menu-item item" [class.sel]="!selectedId()" (click)="select.emit(null)">
+            <vc-voice-avatar [id]="f.id" [name]="f.name" [size]="28" />
+            <span class="it"><span class="nm">Głos projektu</span><span class="sb">{{ f.name }} — wspólny dla fragmentów bez własnego głosu</span></span>
+            @if (!selectedId()) { <vc-icon class="check" name="check" [size]="14" /> }
+          </button>
+          <div class="menu-sep"></div>
+        }
         <div class="search">
           <div class="input-group">
             <vc-icon name="search" [size]="14" />
@@ -88,10 +114,14 @@ export class VoicePickerComponent {
 
   readonly selectedId = input<string | null>(null);
   readonly language = input<string>('pl');
-  readonly select = output<string>();
+  /** Tryb kompaktowy (chip w wierszu fragmentu) z opcją „Głos projektu”. */
+  readonly compact = input(false);
+  readonly fallbackId = input<string | null>(null);
+  readonly select = output<string | null>();
   protected query = signal('');
 
   protected current = computed(() => this.voices.get(this.selectedId()));
+  protected fallback = computed(() => this.voices.get(this.fallbackId()));
 
   protected groups = computed(() => {
     const q = this.query().trim().toLowerCase();

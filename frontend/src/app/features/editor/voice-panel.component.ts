@@ -8,13 +8,14 @@ import { EMOTIONS, STYLE_PRESETS, languageLabel, languageOptions } from '../../c
 import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
 import { EditorStore } from './editor.store';
+import { DictionaryPanelComponent } from './dictionary-panel.component';
 import { VoicePickerComponent } from './voice-picker.component';
 
 /** Prawy panel: silnik, język, głos i parametry generowania projektu. */
 @Component({
   selector: 'vc-voice-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [IconComponent, VoicePickerComponent, RouterLink, SelectComponent],
+  imports: [IconComponent, VoicePickerComponent, RouterLink, SelectComponent, DictionaryPanelComponent],
   styleUrl: './voice-panel.component.scss',
   templateUrl: './voice-panel.component.html',
 })

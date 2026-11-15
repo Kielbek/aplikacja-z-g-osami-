@@ -85,6 +85,29 @@ export class ProjectsPage {
     }
   }
 
+  protected importing = signal(false);
+
+  /** Import pliku jako nowy projekt (podział na fragmenty po stronie serwera). */
+  async importFile(e: Event) {
+    const input = e.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file) return;
+    this.importing.set(true);
+    try {
+      const imported = await this.api.importText(file);
+      const p = await this.api.createProject({ name: imported.title, text: imported.segments.join('\n\n') });
+      this.store.touch(p);
+      void this.account.refreshUsage();
+      this.toast.success(`Utworzono projekt z pliku ${file.name}`, `${imported.segments.length} fragm. · ${imported.characters.toLocaleString('pl-PL')} znaków`);
+      await this.router.navigate(['/editor', p.id]);
+    } catch (err) {
+      this.toast.apiError('Nie udało się zaimportować pliku', err);
+    } finally {
+      this.importing.set(false);
+    }
+  }
+
   async duplicate(p: ProjectDto) {
     try {
       const copy = await this.api.duplicateProject(p.id);

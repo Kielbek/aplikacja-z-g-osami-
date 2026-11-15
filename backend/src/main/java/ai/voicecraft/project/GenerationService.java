@@ -27,6 +27,31 @@ public class GenerationService {
         return engine.synthesize(new SynthesizeRequest(text, s.language, spec, params(s)));
     }
 
+    /**
+     * Synteza fragmentu z pauzami: każda część tekstu jest syntezowana osobno, a w miejscu znaczników
+     * [pauza …] wstawiana jest cisza o dokładnej długości. Tekst bez znaczników = jedno wywołanie silnika.
+     */
+    public Audio synthesizeSegment(String effectiveText, VoiceSettings s, Voice voice) {
+        var parts = SpeechText.parts(effectiveText);
+        if (parts.stream().noneMatch(p -> !p.isPause())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Fragment zawiera tylko pauzy — dodaj tekst.");
+        }
+        if (parts.size() == 1) return synthesize(parts.getFirst().text(), s, voice);
+        var pieces = new java.util.ArrayList<Object>();
+        String mode = null;
+        for (var part : parts) {
+            if (part.isPause()) {
+                pieces.add(part.pauseMs());
+            } else {
+                Audio a = synthesize(part.text(), s, voice);
+                mode = a.engineMode();
+                pieces.add(a.wav());
+            }
+        }
+        byte[] wav = ai.voicecraft.audio.WavUtils.joinParts(pieces);
+        return new Audio(wav, mode, ai.voicecraft.audio.WavUtils.durationMs(wav));
+    }
+
     public Audio design(String description, String text, String language, VoiceSettings s) {
         engine.requireOnline();
         return engine.design(new VoiceDesignRequest(description, text, language, params(s)));
@@ -44,11 +69,20 @@ public class GenerationService {
     }
 
     public static String hash(String text, VoiceSettings s) {
+        return hash(text, s, null);
+    }
+
+    /**
+     * Odcisk fragmentu: tekst po zastosowaniu słownika, parametry projektu i (opcjonalnie) głos fragmentu.
+     * Bez głosu fragmentu wynik jest identyczny jak w poprzednich wersjach (zachowana zgodność statusów).
+     */
+    public static String hash(String effectiveText, VoiceSettings s, String segmentVoiceId) {
         try {
             var md = MessageDigest.getInstance("SHA-256");
-            md.update(text.trim().getBytes(StandardCharsets.UTF_8));
+            md.update(effectiveText.trim().getBytes(StandardCharsets.UTF_8));
             md.update((byte) 0);
             md.update(s.fingerprint().getBytes(StandardCharsets.UTF_8));
+            if (segmentVoiceId != null) md.update(("\u0000voice:" + segmentVoiceId).getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(md.digest());
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException(e);

@@ -15,6 +15,11 @@
         }
       </div>
       <div class="page-header-actions">
+        <label class="btn" [class.is-disabled]="importing() || account.projectLimitReached()" title="Utwórz projekt z pliku TXT, MD, DOCX lub PDF">
+          @if (importing()) { <span class="spinner"></span> } @else { <vc-icon name="upload" /> }
+          Importuj z pliku
+          <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" [disabled]="importing() || account.projectLimitReached()" (change)="importFile($event)" />
+        </label>
         <button class="btn btn-primary" (click)="create()" [disabled]="creating() || account.projectLimitReached()"
           [title]="account.projectLimitReached() ? 'Osiągnięto limit projektów w bieżącym planie' : ''">
           @if (creating()) { <span class="spinner"></span> } @else { <vc-icon name="plus" /> }

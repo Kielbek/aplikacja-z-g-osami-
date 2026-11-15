@@ -35,6 +35,36 @@
   padding-top: 5px;
 }
 
+.grip {
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 14px;
+  display: grid;
+  place-items: center;
+  color: var(--text-4);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+  &:hover { color: var(--text-2); }
+  &:active { cursor: grabbing; }
+}
+
+:host:hover .grip { opacity: 1; }
+
+/* Kolor mówcy — gdy projekt ma kilka głosów */
+:host(.has-speaker)::before {
+  content: '';
+  position: absolute;
+  left: 38px;
+  top: 12px;
+  bottom: 12px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--speaker);
+  opacity: 0.55;
+}
+
 .index {
   font-size: var(--text-xs);
   font-weight: 500;
@@ -45,6 +75,7 @@
 .select {
   position: absolute;
   top: 7px;
+  left: 19px;
   opacity: 0;
   transition: opacity var(--dur-fast) var(--ease);
 }
@@ -106,6 +137,21 @@
   &.busy { color: var(--accent-text); .spinner { width: 11px; height: 11px; } }
 }
 
+.voice {
+  display: none;
+}
+
+.voice.voice-visible { display: inline-flex; }
+:host:hover .voice,
+:host:focus-within .voice { display: inline-flex; }
+
+.pauses {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-3);
+}
+
 .error {
   flex-basis: 100%;
   color: var(--danger);
@@ -133,12 +179,17 @@
 
 @media (hover: none) {
   .actions { opacity: 1; }
+  .grip { opacity: 1; }
+  .voice { display: inline-flex; }
   .select { opacity: 1; }
   .index { opacity: 0; }
 }
 
 @media (max-width: 640px) {
   :host { grid-template-columns: 30px minmax(0, 1fr); padding-right: 6px; }
+  :host(.has-speaker)::before { left: 30px; }
+  .select { left: 7px; }
+  .grip { left: 8px; top: 34px; }
   .actions { grid-column: 2; justify-content: flex-end; }
   .gen-label { display: none; }
   .gen { width: 28px; padding: 0; }

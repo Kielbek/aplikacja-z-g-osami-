@@ -51,7 +51,38 @@ export interface SegmentDto {
   generatedAt: string | null;
   error: string | null;
   audioVersion: string | null;
+  /** Głos fragmentu (null = głos projektu). */
+  voiceId: string | null;
 }
+
+/** Poprzednie nagranie fragmentu. */
+export interface SegmentVersion {
+  id: number;
+  createdAt: string;
+  durationMs: number;
+  voiceName: string | null;
+  engineMode: EngineMode | null;
+  text: string;
+  current: boolean;
+  matchesCurrentText: boolean;
+}
+
+export interface PronunciationEntry {
+  id: string;
+  projectId: string | null;
+  term: string;
+  replacement: string;
+  caseSensitive: boolean;
+}
+
+export interface ImportedText {
+  title: string;
+  text: string;
+  characters: number;
+  segments: string[];
+}
+
+export type LoudnessTarget = 'off' | '-14' | '-16' | '-19' | '-23';
 
 export interface ProjectStats {
   characters: number;
@@ -151,6 +182,7 @@ export interface Account {
   mp3Bitrate: number;
   pauseBetweenSegmentsMs: number;
   fileNamePattern: string;
+  exportLoudness: LoudnessTarget;
   theme: 'light' | 'dark' | 'system';
   defaultLanguage: string;
   defaultVoiceId: string;

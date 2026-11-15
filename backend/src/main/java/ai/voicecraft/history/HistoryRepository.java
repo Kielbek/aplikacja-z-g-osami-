@@ -14,6 +14,9 @@ public interface HistoryRepository extends JpaRepository<GenerationRecord, Long>
 
     boolean existsByUserIdAndAudioFile(String userId, String audioFile);
 
+    List<GenerationRecord> findTop30ByUserIdAndSegmentIdAndStatusAndCreatedAtAfterOrderByCreatedAtDesc(
+            String userId, String segmentId, String status, Instant after);
+
     @Transactional
     void deleteByUserId(String userId);
 

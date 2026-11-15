@@ -8,6 +8,10 @@
       </nav>
 
       <div class="top-actions">
+        <div class="history-btns">
+          <button class="btn btn-ghost btn-icon btn-sm" [disabled]="!store.canUndo() || !!store.batch()" (click)="store.undo()" title="Cofnij (Ctrl+Z)" aria-label="Cofnij"><vc-icon name="undo" [size]="15" /></button>
+          <button class="btn btn-ghost btn-icon btn-sm" [disabled]="!store.canRedo() || !!store.batch()" (click)="store.redo()" title="Ponów (Ctrl+Shift+Z)" aria-label="Ponów"><vc-icon name="redo" [size]="15" /></button>
+        </div>
         <span class="save" [class.is-error]="store.saveState() === 'error'" [attr.aria-live]="'polite'">
           @if (store.saveState() === 'saving') { <span class="spinner"></span> }
           @else if (store.saveState() === 'saved') { <vc-icon name="check" [size]="13" /> }
@@ -36,9 +40,13 @@
               <div class="menu-note demo">Nagranie demonstracyjne — plik otrzyma oznaczenie _DEMO.</div>
             }
             <button class="menu-item" [disabled]="!store.allReady()" (click)="store.export('mp3')"><vc-icon name="file-audio" />Pobierz MP3<span class="menu-hint">kompresja</span></button>
-            <button class="menu-item" [disabled]="!store.allReady() || !wavAllowed()" (click)="store.export('wav')">
+            <button class="menu-item" [disabled]="!store.allReady() || !wavAllowed()" (click)="store.export('wav')" data-wav>
               <vc-icon [name]="wavAllowed() ? 'file-audio' : 'lock'" />Pobierz WAV<span class="menu-hint">{{ wavAllowed() ? 'bezstratnie' : 'od planu ' + wavPlan() }}</span>
             </button>
+            <div class="menu-sep"></div>
+            <div class="menu-label">Napisy</div>
+            <button class="menu-item" [disabled]="!store.allReady()" (click)="store.exportSubtitles('srt')"><vc-icon name="subtitles" />Napisy SRT<span class="menu-hint">wideo, YouTube</span></button>
+            <button class="menu-item" [disabled]="!store.allReady()" (click)="store.exportSubtitles('vtt')"><vc-icon name="subtitles" />Napisy WebVTT<span class="menu-hint">przeglądarki</span></button>
           </div>
         </vc-dropdown>
 
@@ -114,6 +122,8 @@
                 <button class="btn btn-sm btn-accent" [disabled]="store.isGenerating() || engine.isOffline() || !!store.planBlock()" (click)="generateSelected()">
                   <vc-icon name="refresh" [size]="13" />Generuj zaznaczone
                 </button>
+                <vc-voice-picker [compact]="true" [selectedId]="null" [fallbackId]="store.settings()?.voiceId ?? null"
+                  [language]="store.settings()?.language ?? 'pl'" (select)="store.setSegmentVoice(store.selectedIds(), $event)" title="Zmień głos zaznaczonych fragmentów" />
                 <button class="btn btn-sm btn-ghost" (click)="store.clearSelection()">Odznacz</button>
               </div>
             } @else {
@@ -121,12 +131,28 @@
                 <vc-icon name="scissors" [size]="14" />Podziel automatycznie
               </button>
               <button class="btn btn-sm btn-ghost" (click)="store.addSegment()"><vc-icon name="list-plus" [size]="14" />Dodaj fragment</button>
+              <vc-dropdown align="start" [width]="220">
+                <button trigger class="btn btn-sm btn-ghost" title="Wstaw pauzę w miejscu kursora"><vc-icon name="hourglass" [size]="14" />Pauza<vc-icon name="chevron-down" [size]="12" /></button>
+                <div menu>
+                  <div class="menu-label">Wstaw w miejscu kursora</div>
+                  @for (p of pauseOptions; track p.ms) {
+                    <button class="menu-item" (mousedown)="$event.preventDefault()" (click)="store.insertPause(p.ms)">{{ p.label }}<span class="menu-hint">[pauza {{ p.token }}]</span></button>
+                  }
+                </div>
+              </vc-dropdown>
+              <label class="btn btn-sm btn-ghost import" title="Importuj tekst z pliku TXT, MD, DOCX lub PDF">
+                <vc-icon name="upload" [size]="14" />Importuj
+                <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" (change)="onImport($event)" />
+              </label>
             }
           </div>
 
-          <div class="segments" role="list">
+          <div class="segments" role="list" cdkDropList (cdkDropListDropped)="store.reorder($event.previousIndex, $event.currentIndex)"
+            [cdkDropListDisabled]="!!store.batch()">
             @for (seg of store.segments(); track seg.id; let i = $index) {
-              <vc-segment-row role="listitem" [seg]="seg" [index]="i" [total]="store.segments().length" />
+              <vc-segment-row role="listitem" cdkDrag [cdkDragData]="seg.id" [seg]="seg" [index]="i" [total]="store.segments().length">
+                <div class="drag-placeholder" *cdkDragPlaceholder></div>
+              </vc-segment-row>
             }
           </div>
 
@@ -139,6 +165,7 @@
             <span><kbd class="kbd">Shift</kbd>+<kbd class="kbd">Enter</kbd> nowa linia</span>
             <span><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Enter</kbd> generuj fragment</span>
             <span><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Shift</kbd>+<kbd class="kbd">Enter</kbd> generuj zmienione</span>
+            <span><kbd class="kbd">Ctrl</kbd>+<kbd class="kbd">Z</kbd> cofnij</span>
           </div>
         </div>
       }
@@ -155,6 +182,10 @@
       </div>
     }
   </section>
+
+  @if (store.versions(); as v) {
+    <vc-versions-dialog [segmentId]="v.segmentId" />
+  }
 
   <div class="inspector-scrim" (click)="inspectorOpen.set(false)"></div>
   <vc-voice-panel class="inspector" (close)="inspectorOpen.set(false)" />

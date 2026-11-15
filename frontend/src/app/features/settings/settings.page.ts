@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, BillingConfig } from '../../core/api/models';
+import { ApiError, BillingConfig, LoudnessTarget, PronunciationEntry } from '../../core/api/models';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { Account, Plan } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
@@ -14,13 +14,14 @@ import { categoryLabel, initials, languageLabel, languageOptions } from '../../c
 import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
 
-type Tab = 'profile' | 'account' | 'subscription' | 'export' | 'preferences' | 'engine';
+type Tab = 'profile' | 'account' | 'subscription' | 'export' | 'dictionary' | 'preferences' | 'engine';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profil', icon: 'user' },
   { id: 'account', label: 'Konto i bezpieczeństwo', icon: 'shield' },
   { id: 'subscription', label: 'Subskrypcja i limity', icon: 'gauge' },
   { id: 'export', label: 'Eksport', icon: 'download' },
+  { id: 'dictionary', label: 'Słownik wymowy', icon: 'book' },
   { id: 'preferences', label: 'Preferencje', icon: 'settings' },
   { id: 'engine', label: 'Silnik TTS', icon: 'plug' },
 ];
@@ -44,6 +45,20 @@ export class SettingsPage {
   private confirm = inject(ConfirmService);
 
   protected billing = signal<BillingConfig | null>(null);
+  protected dict = signal<PronunciationEntry[]>([]);
+  protected dictTerm = signal('');
+  protected dictReplacement = signal('');
+  protected dictCase = signal(false);
+  protected dictEditing = signal<string | null>(null);
+  protected globalDict = computed(() => this.dict().filter((e) => !e.projectId));
+  protected projectDictCount = computed(() => this.dict().filter((e) => e.projectId).length);
+  protected loudnessOptions: SelectOption<LoudnessTarget>[] = [
+    { value: 'off', label: 'Bez normalizacji', hint: 'Głośność jak z silnika' },
+    { value: '-14', label: '−14 LUFS', hint: 'Spotify, YouTube, platformy streamingowe' },
+    { value: '-16', label: '−16 LUFS', hint: 'Podcasty (zalecane)' },
+    { value: '-19', label: '−19 LUFS', hint: 'Audiobooki i treści mówione' },
+    { value: '-23', label: '−23 LUFS', hint: 'Radio i telewizja (EBU R128)' },
+  ];
   protected pwCurrent = signal('');
   protected pwNew = signal('');
   protected pwRepeat = signal('');
@@ -131,6 +146,7 @@ export class SettingsPage {
     void this.store.refreshUsage();
     void this.voices.load();
     void this.api.billingConfig().then((b) => this.billing.set(b)).catch(() => null);
+    void this.loadDict();
     this.handleCheckoutReturn();
   }
 
@@ -144,6 +160,54 @@ export class SettingsPage {
       this.toast.show('Płatność anulowana — plan nie został zmieniony.');
     }
     if (status) void this.router.navigate([], { queryParams: {}, replaceUrl: true });
+  }
+
+  async loadDict() {
+    try {
+      this.dict.set(await this.api.pronunciation());
+    } catch {
+      /* ignoruj */
+    }
+  }
+
+  editDict(e: PronunciationEntry) {
+    this.dictEditing.set(e.id);
+    this.dictTerm.set(e.term);
+    this.dictReplacement.set(e.replacement);
+    this.dictCase.set(e.caseSensitive);
+  }
+
+  resetDict() {
+    this.dictEditing.set(null);
+    this.dictTerm.set('');
+    this.dictReplacement.set('');
+    this.dictCase.set(false);
+  }
+
+  async saveDict(e?: Event) {
+    e?.preventDefault();
+    const term = this.dictTerm().trim();
+    const replacement = this.dictReplacement().trim();
+    if (!term || !replacement) return;
+    try {
+      const id = this.dictEditing();
+      if (id) await this.api.updatePronunciation(id, { term, replacement, caseSensitive: this.dictCase() });
+      else await this.api.addPronunciation({ projectId: null, term, replacement, caseSensitive: this.dictCase() });
+      this.resetDict();
+      await this.loadDict();
+    } catch (err) {
+      this.toast.apiError('Nie zapisano wpisu', err);
+    }
+  }
+
+  async deleteDict(id: string) {
+    try {
+      await this.api.deletePronunciation(id);
+      if (this.dictEditing() === id) this.resetDict();
+      await this.loadDict();
+    } catch (err) {
+      this.toast.apiError('Nie usunięto wpisu', err);
+    }
   }
 
   canChoose(p: Plan) {

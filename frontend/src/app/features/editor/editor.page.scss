@@ -127,12 +127,43 @@
 .doc-tools {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 4px;
   min-height: 36px;
   margin: 0 0 8px 34px;
   padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
+
+.history-btns {
+  display: flex;
+  gap: 2px;
+  margin-right: 4px;
+}
+
+.import { cursor: pointer; }
+
+.drag-placeholder {
+  min-height: 56px;
+  margin: 2px 0;
+  border: 1.5px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+}
+
+.segments.cdk-drop-list-dragging vc-segment-row:not(.cdk-drag-placeholder) {
+  transition: transform 200ms var(--ease);
+}
+
+:host ::ng-deep .cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+  opacity: 0.96;
+}
+
+:host ::ng-deep .cdk-drag-animating { transition: transform 200ms var(--ease); }
 
 .selection-bar {
   display: flex;
@@ -241,6 +272,7 @@
 
 @media (max-width: 640px) {
   .hide-sm { display: none; }
+  .history-btns { display: none; }
   .topbar { padding: 0 10px 0 14px; gap: 8px; }
   .gen-all { padding: 0 10px; }
   .doc-inner { padding: 18px 10px 80px; }

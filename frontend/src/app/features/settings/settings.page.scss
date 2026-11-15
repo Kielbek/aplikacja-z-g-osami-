@@ -168,3 +168,12 @@
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--danger-soft) 50%, transparent);
 }
+
+.dict-form { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 16px; }
+.dict-actions { grid-column: span 2; display: flex; align-items: center; gap: 8px; }
+.dict-row { grid-template-columns: minmax(120px, 0.6fr) minmax(0, 1fr) auto auto; min-height: 46px; }
+.dict-row.is-editing { background: var(--accent-soft); }
+@media (max-width: 640px) {
+  .dict-form { grid-template-columns: 1fr; }
+  .dict-actions { grid-column: auto; flex-wrap: wrap; }
+}

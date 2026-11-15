@@ -32,6 +32,8 @@ public class Account {
     public int mp3Bitrate = 192;
     public int pauseBetweenSegmentsMs = 350;
     public String fileNamePattern = "{project}_{date}";
+    /** Docelowa głośność eksportu w LUFS (np. "-16") lub "off". */
+    public String exportLoudness = "-16";
 
     // Preferencje
     public String theme = "light";

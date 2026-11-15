@@ -6,6 +6,10 @@ import {
   ApiError,
   BillingConfig,
   GenerationJob,
+  ImportedText,
+  PronunciationEntry,
+  SegmentDto,
+  SegmentVersion,
   Plan,
   PlanId,
   AudioAnalysis,
@@ -13,7 +17,6 @@ import {
   EngineStatus,
   HistoryItem,
   ProjectDto,
-  SegmentDto,
   Usage,
   Voice,
   VoiceSettings,
@@ -37,6 +40,8 @@ export interface AudioBlob {
   blob: Blob;
   engineMode: string | null;
   filename: string | null;
+  /** Głośność eksportu po normalizacji (LUFS), jeśli włączona. */
+  loudness: string | null;
 }
 
 /**
@@ -75,7 +80,7 @@ export class ApiService {
   duplicateProject(id: string) {
     return this.p(this.http.post<ProjectDto>(`${API}/projects/${id}/duplicate`, {}));
   }
-  saveSegments(id: string, segments: { id: string; text: string }[]) {
+  saveSegments(id: string, segments: { id: string; text: string; voiceId: string | null }[]) {
     return this.p(this.http.put<ProjectDto>(`${API}/projects/${id}/segments`, segments));
   }
   generateSegment(projectId: string, segmentId: string) {
@@ -87,6 +92,41 @@ export class ApiService {
   projectAudioUrl(projectId: string, version: string) {
     return `${API}/projects/${projectId}/audio?v=${encodeURIComponent(version)}`;
   }
+  // --- Wersje fragmentu ------------------------------------------------------
+  segmentVersions(projectId: string, segmentId: string) {
+    return this.p(this.http.get<SegmentVersion[]>(`${API}/projects/${projectId}/segments/${segmentId}/versions`));
+  }
+  segmentVersionAudioUrl(projectId: string, segmentId: string, versionId: number) {
+    return `${API}/projects/${projectId}/segments/${segmentId}/versions/${versionId}/audio`;
+  }
+  restoreSegmentVersion(projectId: string, segmentId: string, versionId: number) {
+    return this.p(this.http.post<SegmentDto>(`${API}/projects/${projectId}/segments/${segmentId}/versions/${versionId}/restore`, {}));
+  }
+
+  // --- Napisy i import -----------------------------------------------------------
+  exportSubtitles(projectId: string, format: 'srt' | 'vtt') {
+    return this.audio(`${API}/projects/${projectId}/subtitles?format=${format}`);
+  }
+  importText(file: File) {
+    const form = new FormData();
+    form.append('file', file);
+    return this.p(this.http.post<ImportedText>(`${API}/import/text`, form));
+  }
+
+  // --- Słownik wymowy -------------------------------------------------------------
+  pronunciation(projectId?: string) {
+    return this.p(this.http.get<PronunciationEntry[]>(`${API}/pronunciation`, { params: projectId ? { projectId } : {} }));
+  }
+  addPronunciation(entry: Omit<PronunciationEntry, 'id'>) {
+    return this.p(this.http.post<PronunciationEntry>(`${API}/pronunciation`, entry));
+  }
+  updatePronunciation(id: string, entry: Omit<PronunciationEntry, 'id' | 'projectId'>) {
+    return this.p(this.http.put<PronunciationEntry>(`${API}/pronunciation/${id}`, entry));
+  }
+  deletePronunciation(id: string) {
+    return this.p(this.http.delete<void>(`${API}/pronunciation/${id}`));
+  }
+
   // --- Kolejka generowania (zadania w tle + SSE) -----------------------------
   startJob(projectId: string, segmentIds?: string[]) {
     return this.p(this.http.post<GenerationJob>(`${API}/projects/${projectId}/jobs`, segmentIds ? { segmentIds } : {}));
@@ -207,7 +247,12 @@ export class ApiService {
       );
       const cd = res.headers.get('Content-Disposition');
       const match = cd ? /filename="?([^";]+)"?/.exec(cd) : null;
-      return { blob: res.body!, engineMode: res.headers.get('X-Engine-Mode'), filename: match ? match[1] : null };
+      return {
+        blob: res.body!,
+        engineMode: res.headers.get('X-Engine-Mode'),
+        filename: match ? decodeURIComponent(match[1]) : null,
+        loudness: res.headers.get('X-Loudness-LUFS') || null,
+      };
     } catch (e) {
       // Przy responseType=blob treść błędu jest Blobem — odczytaj komunikat backendu
       if (e instanceof HttpErrorResponse && e.error instanceof Blob) {
