@@ -36,37 +36,39 @@
     </div>
 
     @if (!store.loaded()) {
-      <div class="list"><div class="empty"><span class="spinner"></span></div></div>
+      <div class="grid"><div class="empty"><span class="spinner"></span></div></div>
     } @else {
-      <div class="list">
-        @for (v of filtered(); track v.id) {
-          <div class="list-row voice is-clickable" tabindex="0" (click)="open(v)" (keydown.enter)="open(v)">
-            <div class="who">
-              <vc-voice-avatar [id]="v.id" [name]="v.name" [size]="44" />
-              <div class="who-text">
-                <div class="name-row">
-                  <span class="name">{{ v.name }}</span>
-                  @if (kindLabel(v); as k) { <span class="badge badge-accent">{{ k }}</span> }
-                </div>
-                <span class="desc">{{ v.description }}</span>
+      <div class="grid">
+        @for (v of filtered(); track v.id; let i = $index) {
+          <article class="vcard" tabindex="0" [style.--i]="i" (click)="open(v)" (keydown.enter)="open(v)" [attr.aria-label]="'Głos ' + v.name">
+            <svg class="wave" viewBox="0 0 300 110" preserveAspectRatio="none" aria-hidden="true">
+              @for (b of bars(v.id); track $index) {
+                <rect [attr.x]="$index * 5" [attr.y]="55 - b / 2" width="2.6" [attr.height]="b" rx="1.3" />
+              }
+            </svg>
+            @if (portrait(v.id); as src) {
+              <img class="portrait" [src]="src" alt="" loading="lazy" decoding="async" draggable="false" />
+            } @else {
+              <div class="portrait initials" [style]="avatar(v.id)"><span>{{ initials(v.name) }}</span></div>
+            }
+            <div class="body">
+              <div class="name-row">
+                <h3 class="name">{{ v.name }}</h3>
+                @if (kindLabel(v); as k) { <span class="badge badge-accent">{{ k }}</span> }
+              </div>
+              <span class="lang-pill"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" />{{ languageLabel(v.languages[0] ?? '') }}</span>
+              <p class="desc">{{ v.description }}</p>
+              <div class="foot" (click)="$event.stopPropagation()">
+                <button class="btn btn-sm use" (click)="actions.useInNewProject(v)" title="Utwórz nowy projekt z tym głosem">Użyj</button>
+                <vc-play-button [track]="actions.sampleTrack(v)" label="Odsłuchaj próbkę" [solid]="true" [iconSize]="14" />
               </div>
             </div>
-            <div class="lang">
-              <span class="t-small lang-name"><vc-flag [lang]="v.languages[0] ?? ''" [voiceId]="v.id" />{{ languageLabel(v.languages[0] ?? '') }}</span>
-              <span class="cell-muted">{{ v.gender === 'female' ? 'Kobiecy' : v.gender === 'male' ? 'Męski' : 'Neutralny' }}@if (v.age) { · ~{{ v.age }} lat }</span>
-            </div>
-            <div class="cats-cell">
-              @for (c of v.categories; track c) { <span class="badge">{{ categoryLabel(c) }}</span> }
-            </div>
-            <div class="cell-actions" (click)="$event.stopPropagation()">
-              <vc-play-button [track]="actions.sampleTrack(v)" label="Odsłuchaj próbkę" />
-              <button class="btn btn-ghost btn-icon btn-sm fav" [class.is-fav]="v.favorite" (click)="actions.toggleFavorite(v)"
-                [attr.aria-label]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'" [title]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'" [attr.aria-pressed]="v.favorite">
-                <vc-icon name="star" [filled]="v.favorite" />
-              </button>
-              <button class="btn btn-sm use" (click)="actions.useInNewProject(v)" title="Utwórz nowy projekt z tym głosem">Użyj</button>
-            </div>
-          </div>
+            <button class="fav" [class.is-fav]="v.favorite" (click)="$event.stopPropagation(); actions.toggleFavorite(v)"
+              [attr.aria-label]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'" [attr.aria-pressed]="v.favorite"
+              [title]="v.favorite ? 'Usuń z ulubionych' : 'Dodaj do ulubionych'">
+              <vc-icon name="star" [size]="16" [filled]="v.favorite" />
+            </button>
+          </article>
         } @empty {
           <div class="empty">
             <div class="empty-icon"><vc-icon [name]="tab() === 'favorites' ? 'star' : 'voices'" [size]="20" /></div>
