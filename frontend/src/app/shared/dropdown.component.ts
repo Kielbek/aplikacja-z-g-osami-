@@ -3,6 +3,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  afterNextRender,
   HostListener,
   inject,
   input,
@@ -14,19 +15,22 @@ import { isMobile } from './viewport';
 /**
  * Menu rozwijane. Użycie:
  *   <vc-dropdown> <button trigger>…</button> <div menu>…<button class="menu-item">…</button></div> </vc-dropdown>
- * Desktop: panel „fixed” przy przycisku (nie jest przycinany przez przewijane kontenery).
- * Telefon: panel wysuwany od dołu ekranu.
+ * Desktop: panel „fixed” przy przycisku. Telefon: panel wysuwany od dołu ekranu.
+ *
+ * Panel jest przenoszony do <body>: element-przodek z transform/filter (np. kafelek unoszony przy najechaniu)
+ * albo z overflow: hidden i przezroczystością nie może go przyciąć ani ukryć.
  */
 @Component({
   selector: 'vc-dropdown',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.is-open]': 'open()' },
   styles: `
     :host { display: inline-flex; position: relative; }
-    .menu { position: fixed; max-height: min(420px, calc(100vh - 24px)); overflow-y: auto; }
-    .scrim { position: fixed; inset: 0; z-index: 84; background: var(--scrim); animation: vc-fade 160ms var(--ease); }
+    .menu { position: fixed; z-index: 95; max-height: min(420px, calc(100vh - 24px)); overflow-y: auto; }
     .menu.sheet {
       left: 0 !important; right: 0; bottom: 0; top: auto !important; min-width: 0 !important;
-      max-height: 75vh; z-index: 85; border-radius: 18px 18px 0 0;
+      max-height: 75vh; z-index: 95; border-radius: 18px 18px 0 0;
+      box-shadow: 0 0 0 100vmax var(--scrim);
       padding: 6px 8px calc(10px + env(safe-area-inset-bottom));
       animation: vc-sheet-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
     }
@@ -37,7 +41,6 @@ import { isMobile } from './viewport';
   `,
   template: `
     <span class="trigger" (click)="toggle($event)" style="display:contents"><ng-content select="[trigger]" /></span>
-    @if (open() && mobile()) { <div class="scrim" (click)="close()"></div> }
     <div
       #panel
       class="menu"
@@ -62,6 +65,8 @@ export class DropdownComponent {
   private panel = viewChild.required<ElementRef<HTMLElement>>('panel');
 
   constructor(private el: ElementRef<HTMLElement>) {
+    afterNextRender(() => document.body.appendChild(this.panel().nativeElement));
+    inject(DestroyRef).onDestroy(() => this.panel().nativeElement.remove());
     const onScroll = (e: Event) => {
       if (this.open() && !this.mobile() && !this.panel().nativeElement.contains(e.target as Node)) this.close();
     };
@@ -102,7 +107,8 @@ export class DropdownComponent {
 
   @HostListener('document:pointerdown', ['$event'])
   onDoc(e: PointerEvent) {
-    if (this.open() && !this.el.nativeElement.contains(e.target as Node)) this.close();
+    const t = e.target as Node;
+    if (this.open() && !this.el.nativeElement.contains(t) && !this.panel().nativeElement.contains(t)) this.close();
   }
 
   @HostListener('document:keydown.escape')
