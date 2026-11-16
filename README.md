@@ -22,6 +22,8 @@ Aplikacja obsługuje wielu użytkowników. Logowanie odbywa się hasłem lub prz
 | **backend** | użytkownicy i sesje, domena (projekty, fragmenty, głosy, historia, konto), kolejka generowania, limity planów, płatności, łączenie fragmentów, eksport | szczegółach modelu (jeden klient: `EngineClient`) |
 | **tts-engine** | synteza, projektowanie głosu, klonowanie, analiza audio, kodowanie MP3 | projektach i użytkownikach |
 
+> **Wdrożenie produkcyjne** (HTTPS, serwer GPU, zabezpieczenie silnika, kopie bazy): [`deploy/README.md`](deploy/README.md).
+
 ## Szybki start (tryb demonstracyjny, bez GPU)
 
 Wymagania: Node 22+, Java 21, Maven, Python 3.11+.

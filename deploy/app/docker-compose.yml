@@ -1,0 +1,96 @@
+# Narrivy — serwer aplikacji (produkcja): HTTPS (Caddy + Let's Encrypt), frontend, backend, PostgreSQL.
+# Silnik mowy działa na osobnym serwerze z GPU (deploy/engine) — tu podajesz tylko jego adres i klucz.
+#
+#   cd deploy/app && cp .env.example .env   # uzupełnij
+#   docker compose up -d --build
+#
+# Na zewnątrz otwarte są tylko porty 80 i 443 (Caddy). Backend, baza i frontend są w sieci wewnętrznej Dockera.
+name: narrivy
+
+services:
+  caddy:
+    image: caddy:2.10.0
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN:?Ustaw DOMAIN w .env (np. app.narrivy.pl)}
+      ACME_EMAIL: ${ACME_EMAIL:?Ustaw ACME_EMAIL w .env (powiadomienia o certyfikacie)}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - frontend
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: voicecraft
+      POSTGRES_USER: voicecraft
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Ustaw POSTGRES_PASSWORD w .env}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voicecraft"]
+      interval: 5s
+      retries: 10
+
+  backend:
+    build: ../../backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/voicecraft
+      DATABASE_USER: voicecraft
+      DATABASE_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?Ustaw JWT_SECRET (openssl rand -base64 48)}
+      COOKIE_SECURE: "true"
+      REQUIRE_EMAIL_VERIFICATION: "true"
+      PUBLIC_URL: https://${DOMAIN}
+      VOICECRAFT_CORS: https://${DOMAIN}
+      # Silnik na serwerze GPU: adres w sieci prywatnej (http://10.0.0.3:8808) albo HTTPS (RunPod)
+      ENGINE_URL: ${ENGINE_URL:?Ustaw ENGINE_URL — adres silnika na serwerze GPU}
+      ENGINE_API_KEY: ${ENGINE_API_KEY:?Ustaw ENGINE_API_KEY — ten sam klucz co na serwerze GPU}
+      ENGINE_CONCURRENCY: ${ENGINE_CONCURRENCY:-1}
+      VOICES_PROMPTS_DIR: /voices
+      VOICES_SAMPLES_DIR: /voices/samples
+      PREGENERATE_SAMPLES: ${PREGENERATE_SAMPLES:-false}
+      STORAGE_TYPE: ${STORAGE_TYPE:-s3}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      S3_PATH_STYLE: ${S3_PATH_STYLE:-false}
+      S3_REGION: ${S3_REGION:-auto}
+      S3_BUCKET: ${S3_BUCKET:-narrivy-audio}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      SPRING_MAIL_HOST: ${SPRING_MAIL_HOST:?Ustaw SMTP — potrzebne do potwierdzania adresów e-mail}
+      SPRING_MAIL_PORT: ${SPRING_MAIL_PORT:-587}
+      SPRING_MAIL_USERNAME: ${SPRING_MAIL_USERNAME:-}
+      SPRING_MAIL_PASSWORD: ${SPRING_MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-Narrivy <no-reply@example.com>}
+      # Produkcja: bez konta demo i bez darmowej zmiany planu
+      SEED_DEMO_DATA: "false"
+      DEMO_PLAN_SWITCH: "false"
+    volumes:
+      - backend-data:/data
+      - ../../voices:/voices:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build: ../../frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+volumes:
+  pg-data:
+  backend-data:
+  caddy-data:
+  caddy-config:

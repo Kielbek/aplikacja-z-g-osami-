@@ -38,6 +38,28 @@ public class EngineClient {
         String key = props.engine().apiKey();
         if (key != null && !key.isBlank()) builder.defaultHeader("Authorization", "Bearer " + key.trim());
         this.http = builder.build();
+        warnIfInsecure(baseUrl, key);
+    }
+
+    /** Ostrzeżenia przy starcie: silnik poza siecią prywatną bez klucza albo bez szyfrowania (HTTPS). */
+    static void warnIfInsecure(String url, String key) {
+        var log = org.slf4j.LoggerFactory.getLogger(EngineClient.class);
+        String host;
+        try {
+            host = java.net.URI.create(url).getHost();
+        } catch (IllegalArgumentException e) {
+            return;
+        }
+        if (host == null) return;
+        boolean internal = host.equals("localhost") || !host.contains(".") || host.startsWith("127.") || host.startsWith("10.")
+                || host.startsWith("192.168.") || host.matches("172\\.(1[6-9]|2\\d|3[01])\\..*");
+        if (internal) return;
+        if (key == null || key.isBlank()) {
+            log.warn("Silnik TTS ({}) jest poza siecią prywatną, a ENGINE_API_KEY nie jest ustawiony — ustaw klucz.", url);
+        }
+        if (url.startsWith("http://")) {
+            log.warn("Połączenie z silnikiem TTS ({}) nie jest szyfrowane — przez internet używaj https:// albo sieci prywatnej.", url);
+        }
     }
 
     public String baseUrl() {

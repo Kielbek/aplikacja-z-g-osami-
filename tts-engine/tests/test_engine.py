@@ -103,3 +103,30 @@ def test_model_calls_are_serialized_under_concurrent_requests(monkeypatch):
     assert all(r.status_code == 200 for r in results)
     assert peak[0] == 1
     assert any(int(r.headers["x-queue-wait-ms"]) > 0 for r in results)
+
+
+def test_security_config_is_fail_closed():
+    """Produkcja: bez silnego klucza silnik nie startuje (zamiast działać otwarty)."""
+    import dataclasses
+
+    from app.config import security_problem, settings as base
+
+    assert security_problem(dataclasses.replace(base, api_key="", require_key=False)) is None  # sieć lokalna
+    assert "nie jest ustawiony" in security_problem(dataclasses.replace(base, api_key="", require_key=True))
+    assert "za krótki" in security_problem(dataclasses.replace(base, api_key="tajne", require_key=True))
+    assert security_problem(dataclasses.replace(base, api_key="a" * 64, require_key=True)) is None
+
+
+def test_api_key_and_upload_limit_are_enforced(monkeypatch):
+    import dataclasses
+
+    from app import main
+
+    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, api_key="k" * 40))
+    assert client.get("/health").status_code == 401
+    assert client.get("/health", headers={"Authorization": "Bearer zly"}).status_code == 401
+    assert client.get("/health", headers={"Authorization": "Bearer " + "k" * 40}).status_code == 200
+    monkeypatch.setattr(main, "settings", dataclasses.replace(main.settings, max_upload_mb=1))
+    big = client.post("/v1/clone/analyze", content=b"0" * 1_200_000,
+                      headers={"Authorization": "Bearer " + "k" * 40, "Content-Type": "application/octet-stream"})
+    assert big.status_code == 413

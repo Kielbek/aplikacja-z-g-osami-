@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 
 from . import audio
-from .config import settings
+from .config import security_problem, settings
 from .engines.base import EngineUnavailable, ReferenceMissing, TTSEngine
 from .engines.demo import DemoEngine
 from .schemas import (
@@ -30,7 +30,19 @@ from .schemas import (
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("engine")
 
-app = FastAPI(title="Narrivy TTS Engine", version="0.1.0")
+_problem = security_problem(settings)
+if _problem:
+    raise SystemExit(f"Silnik nie wystartuje: {_problem}")
+
+# Z kluczem (produkcja) dokumentacja interaktywna jest wyłączona — silnik ma tylko jednego klienta: backend Narrivy
+_public_docs = not settings.api_key
+app = FastAPI(title="Narrivy TTS Engine", version="0.1.0",
+              docs_url="/docs" if _public_docs else None,
+              redoc_url="/redoc" if _public_docs else None,
+              openapi_url="/openapi.json" if _public_docs else None)
+if not settings.api_key:
+    log.warning("Silnik działa BEZ klucza ENGINE_API_KEY — dopuszczalne tylko w sieci prywatnej (np. docker compose). "
+                "Na serwerze dostępnym z internetu ustaw ENGINE_API_KEY i ENGINE_REQUIRE_KEY=true.")
 app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["*"], allow_headers=["*"],
                    expose_headers=["X-Engine-Mode", "X-Duration-Ms", "X-Sample-Rate"])
 
@@ -53,7 +65,13 @@ def _locked(fn, *args):
 
 @app.middleware("http")
 async def require_api_key(request, call_next):
-    """Przy ustawionym ENGINE_API_KEY każde żądanie musi mieć nagłówek Authorization: Bearer <klucz>."""
+    """Przy ustawionym ENGINE_API_KEY każde żądanie musi mieć nagłówek Authorization: Bearer <klucz>.
+    Zbyt duże żądania są odrzucane, zanim cokolwiek zostanie odczytane."""
+    length = request.headers.get("content-length")
+    if length and length.isdigit() and int(length) > settings.max_upload_mb * 1_000_000:
+        from fastapi.responses import JSONResponse
+
+        return JSONResponse({"detail": f"Żądanie przekracza {settings.max_upload_mb} MB."}, status_code=413)
     if settings.api_key:
         import hmac
 

@@ -38,10 +38,27 @@ class Settings:
     load_on_start: bool = _bool("VOXCPM_LOAD_ON_START", True)
     # Klucz dostępu (nagłówek Authorization: Bearer …). Ustaw, gdy silnik jest dostępny z internetu.
     api_key: str = os.getenv("ENGINE_API_KEY", "").strip()
+    # Produkcja: silnik nie wystartuje bez silnego klucza (zamiast działać otwarty dla każdego)
+    require_key: bool = _bool("ENGINE_REQUIRE_KEY", False)
+    # Maksymalny rozmiar treści żądania (np. nagrania do klonowania), MB
+    max_upload_mb: int = int(os.getenv("ENGINE_MAX_UPLOAD_MB", "30"))
     # Głosy Piper pobierane przy starcie (po przecinku), np. "pl_PL-gosia-medium,pl_PL-darkman-medium"
     piper_preload: list[str] = field(
         default_factory=lambda: [v.strip() for v in os.getenv("PIPER_PRELOAD", "").split(",") if v.strip()]
     )
+
+
+MIN_KEY_LENGTH = 32
+
+
+def security_problem(s: "Settings") -> str | None:
+    """Błąd konfiguracji bezpieczeństwa, przy którym silnik nie powinien wystartować (None = w porządku)."""
+    if s.api_key and len(s.api_key) < MIN_KEY_LENGTH:
+        return (f"ENGINE_API_KEY jest za krótki ({len(s.api_key)} znaków, minimum {MIN_KEY_LENGTH}). "
+                "Wygeneruj klucz: openssl rand -hex 32")
+    if s.require_key and not s.api_key:
+        return "ENGINE_REQUIRE_KEY=true, a ENGINE_API_KEY nie jest ustawiony. Wygeneruj klucz: openssl rand -hex 32"
+    return None
 
 
 settings = Settings()

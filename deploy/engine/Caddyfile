@@ -1,0 +1,20 @@
+# Silnik Narrivy przez HTTPS — wpuszczany jest wyłącznie serwer aplikacji (APP_SERVER_IP).
+{
+	email {$ACME_EMAIL}
+}
+
+{$ENGINE_DOMAIN} {
+	@app remote_ip {$APP_SERVER_IP}
+	handle @app {
+		reverse_proxy tts-engine:8808 {
+			transport http {
+				read_timeout 300s
+			}
+		}
+	}
+	# Każdy inny adres: odmowa bez ujawniania, co działa pod spodem
+	handle {
+		respond 403
+	}
+	header -Server
+}

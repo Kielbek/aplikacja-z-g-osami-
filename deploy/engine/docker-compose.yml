@@ -1,0 +1,58 @@
+# Narrivy — silnik mowy VoxCPM2 na serwerze z GPU (np. Hetzner GEX).
+# Wymaga sterownika NVIDIA i NVIDIA Container Toolkit (deploy/server-setup.sh engine …).
+#
+#   cd deploy/engine && cp .env.example .env   # uzupełnij
+#   docker compose up -d --build
+#
+# Dostęp do silnika — dwa warianty:
+#   A) HTTPS (domyślny, najprostszy):  docker compose --profile https up -d --build
+#      Caddy z certyfikatem Let's Encrypt; wpuszcza wyłącznie adres IP serwera aplikacji (APP_SERVER_IP),
+#      a sam silnik słucha tylko na 127.0.0.1.
+#   B) Sieć prywatna Hetznera:          ENGINE_BIND=10.0.0.3  docker compose up -d --build
+# W obu wariantach każde żądanie wymaga klucza ENGINE_API_KEY (bez klucza silnik w ogóle nie wystartuje).
+name: narrivy-engine
+
+services:
+  tts-engine:
+    build:
+      context: ../../tts-engine
+      args:
+        WITH_VOXCPM: "true"
+    restart: unless-stopped
+    environment:
+      ENGINE_MODE: voxcpm2
+      VOXCPM_MODEL_ID: ${VOXCPM_MODEL_ID:-openbmb/VoxCPM2}
+      ENGINE_API_KEY: ${ENGINE_API_KEY:?Ustaw ENGINE_API_KEY (openssl rand -hex 32)}
+      ENGINE_REQUIRE_KEY: "true"
+      # Model (kilka GB) pobierany raz do wolumenu
+      HF_HOME: /data/hf
+    ports:
+      # Domyślnie tylko lokalnie (dostęp przez Caddy); w sieci prywatnej: prywatny adres IP serwera
+      - "${ENGINE_BIND:-127.0.0.1}:8808:8808"
+    volumes:
+      - engine-data:/data
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: 1, capabilities: [gpu] }]
+
+  caddy:
+    image: caddy:2.10.0
+    profiles: ["https"]
+    restart: unless-stopped
+    ports:
+      - "443:443"
+      - "80:80"
+    environment:
+      ENGINE_DOMAIN: ${ENGINE_DOMAIN:-}
+      APP_SERVER_IP: ${APP_SERVER_IP:-}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on:
+      - tts-engine
+
+volumes:
+  engine-data:
+  caddy-data:

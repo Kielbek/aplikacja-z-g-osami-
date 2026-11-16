@@ -19,5 +19,7 @@ pip install -q -r requirements-voxcpm.txt
 python3 -c "import torch; print('CUDA dostępne:', torch.cuda.is_available(), '|', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'brak GPU')"
 
 export ENGINE_MODE=voxcpm2
+# Bez silnego klucza silnik nie wystartuje (jest dostępny z internetu)
+export ENGINE_REQUIRE_KEY=true
 export ENGINE_DATA_DIR="${ENGINE_DATA_DIR:-$PWD/engine-data}"
 exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8808}"
