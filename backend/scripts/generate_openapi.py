@@ -6,7 +6,7 @@ Walidacja: pip install openapi-spec-validator && python3 -c "import json; from o
 import json, sys
 ERR = ["missing_api_key","invalid_api_key","plan_required","rate_limit_exceeded","concurrency_limit_exceeded","invalid_request",
        "invalid_json","text_too_long","voice_not_found","quota_exceeded","email_not_verified","engine_busy","engine_unavailable",
-       "job_not_found","job_not_ready","too_many_pending_jobs","internal_error"]
+       "job_not_found","job_not_ready","too_many_pending_jobs","storage_full","internal_error"]
 def err(desc, codes=None):
     ex = {}
     for c in (codes or []):
@@ -83,7 +83,7 @@ spec = {
   "/v1/text-to-speech/jobs": {"post": {
    "tags": ["Jobs"], "operationId": "createSpeechJob", "summary": "Create a speech job",
    "description": "Queues background synthesis for long texts — up to the per-project character limit of your plan "
-                  "(**Pro: 100,000**, **Business: 500,000**). Results are kept for 7 days. "
+                  "(**Pro: 200,000**, **Business: 500,000**). Results are kept for 7 days. "
                   "Provide `callback_url` to receive a webhook when the job finishes. "
                   "Background jobs yield GPU priority to synchronous requests.",
    "parameters": [{"name": "Idempotency-Key", "in": "header", "required": False, "schema": {"type": "string", "maxLength": 255},
@@ -168,7 +168,7 @@ spec = {
    "TooManyRequests": {**err("Rate limit, concurrency limit or job queue limit exceeded. Wait for `Retry-After` seconds when present.",
                             ["rate_limit_exceeded", "concurrency_limit_exceeded", "too_many_pending_jobs"]),
                        "headers": {"Retry-After": {"$ref": "#/components/headers/RetryAfter"}, **RL}},
-   "QuotaExceeded": err("Monthly plan characters and purchased packs are used up.", ["quota_exceeded"]),
+   "QuotaExceeded": err("Monthly plan characters and purchased packs are used up, or the storage for recordings is full.", ["quota_exceeded", "storage_full"]),
    "EngineBusy": {**err("The speech engine is busy (retry after `Retry-After`) or unavailable.", ["engine_busy", "engine_unavailable"]),
                   "headers": {"Retry-After": {"$ref": "#/components/headers/RetryAfter"}}}},
   "schemas": {

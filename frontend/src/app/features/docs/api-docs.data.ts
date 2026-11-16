@@ -151,7 +151,7 @@ X-RateLimit-Remaining: 59
       method: 'POST',
       path: '/v1/text-to-speech/jobs',
       title: 'Utwórz zadanie',
-      summary: 'Synteza w tle dla długich tekstów — audiobooków, kursów, artykułów — do limitu znaków w projekcie z Twojego planu (**Pro: 100 000**, **Business: 500 000**). Odpowiedź przychodzi od razu; nagranie pobierzesz, gdy zadanie się zakończy.',
+      summary: 'Synteza w tle dla długich tekstów — audiobooków, kursów, artykułów — do limitu znaków w projekcie z Twojego planu (**Pro: 200 000**, **Business: 500 000**). Odpowiedź przychodzi od razu; nagranie pobierzesz, gdy zadanie się zakończy.',
       headers: [{ name: 'Idempotency-Key', type: 'string', desc: 'Unikalny klucz operacji (np. UUID lub identyfikator rozdziału). Ponowione żądanie z tym samym kluczem zwraca istniejące zadanie zamiast tworzyć drugie.' }],
       body: [...speechBody, { name: 'callback_url', type: 'string', desc: 'Adres `https://`, na który wyślemy [webhook](#webhooki) po zakończeniu zadania.' }],
       responseNote: '`202 Accepted` — obiekt zadania i nagłówek `Location`.',
@@ -309,7 +309,7 @@ ${voiceJson.split('\n').map((l) => '    ' + l).join('\n')}
     "requests_per_minute": 60,
     "concurrent_requests": 2,
     "max_sync_characters": 5000,
-    "max_job_characters": 100000
+    "max_job_characters": 200000
   }
 }` }],
       errors: [],
@@ -323,6 +323,7 @@ export const ERRORS: { http: number; code: string; desc: string; retry?: boolean
   { http: 401, code: 'missing_api_key', desc: 'Brak nagłówka z kluczem.' },
   { http: 401, code: 'invalid_api_key', desc: 'Klucz jest nieprawidłowy lub unieważniony.' },
   { http: 402, code: 'quota_exceeded', desc: 'Wyczerpany miesięczny limit znaków planu i dokupionych pakietów.' },
+  { http: 402, code: 'storage_full', desc: 'Brak miejsca na nagrania w Twoim planie — usuń niepotrzebne projekty lub historię albo zmień plan.' },
   { http: 403, code: 'plan_required', desc: 'Plan bez dostępu do API — wymagany Pro lub Business.' },
   { http: 403, code: 'email_not_verified', desc: 'Adres e-mail konta nie jest potwierdzony.' },
   { http: 404, code: 'voice_not_found', desc: 'Nieznany głos albo głos innego użytkownika.' },

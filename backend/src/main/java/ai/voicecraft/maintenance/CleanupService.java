@@ -43,11 +43,14 @@ public class CleanupService {
     private final ai.voicecraft.voice.VoicePreviewRepository previews;
     private final ai.voicecraft.publicapi.ApiJobService apiJobs;
     private final ai.voicecraft.publicapi.ApiJobRepository apiJobRepo;
+    private final ai.voicecraft.audio.StoredFileRepository storedFiles;
 
     public CleanupService(HistoryRepository history, ProjectRepository projects, VoiceRepository voices, AudioStorage storage,
                           PasswordResetTokenRepository resetTokens, EmailVerificationTokenRepository verificationTokens,
                           ai.voicecraft.voice.VoicePreviewRepository previews,
-                          ai.voicecraft.publicapi.ApiJobService apiJobs, ai.voicecraft.publicapi.ApiJobRepository apiJobRepo) {
+                          ai.voicecraft.publicapi.ApiJobService apiJobs, ai.voicecraft.publicapi.ApiJobRepository apiJobRepo,
+                          ai.voicecraft.audio.StoredFileRepository storedFiles) {
+        this.storedFiles = storedFiles;
         this.apiJobs = apiJobs;
         this.apiJobRepo = apiJobRepo;
         this.previews = previews;
@@ -78,6 +81,8 @@ public class CleanupService {
         int removed = 0;
         for (SubscriptionPlan plan : SubscriptionPlan.values()) {
             removed += history.deleteExpired(plan, now.minus(Duration.ofDays(plan.historyRetentionDays)));
+            // Plan Free: nagrania fragmentów przechowujemy rok od wygenerowania (tekst projektu zostaje)
+            if (plan.audioRetentionDays > 0) projects.expireAudio(plan, now.minus(Duration.ofDays(plan.audioRetentionDays)));
         }
         int tokens = resetTokens.deleteExpired(now) + verificationTokens.deleteExpired(now);
         // Puste projekty (np. „Nowy projekt” zamknięty bez wpisania tekstu) — po dobie bez zmian
@@ -100,8 +105,10 @@ public class CleanupService {
         var deleted = new AtomicLong();
         var bytes = new AtomicLong();
         var firstError = new AtomicReference<RuntimeException>();
+        Set<String> existing = new HashSet<>();
         storage.forEachObject(o -> {
             scanned.incrementAndGet();
+            existing.add(o.key());
             if (referenced.contains(o.key()) || o.lastModified().isAfter(graceLimit)) return;
             try {
                 storage.delete(o.key());
@@ -112,6 +119,8 @@ public class CleanupService {
             }
         });
         if (firstError.get() != null) log.warn("Nie udało się usunąć części plików: {}", firstError.get().getMessage());
+        // Ewidencja miejsca: wpisy plików, których już nie ma w magazynie (np. usuniętych ręcznie)
+        storedFiles.findAll().stream().filter(f -> !existing.contains(f.key)).forEach(f -> storedFiles.deleteByKey(f.key));
         return new Report(removed, scanned.get(), deleted.get(), bytes.get(), tokens, empty.size());
     }
 }

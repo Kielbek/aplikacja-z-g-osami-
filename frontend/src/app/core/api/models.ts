@@ -217,7 +217,10 @@ export interface Plan {
   name: string;
   monthlyCharacters: number;
   monthlyMinutes: number;
-  maxProjects: number;
+  /** Miejsce na nagrania w MB (liczba projektów jest nieograniczona). */
+  storageMb: number;
+  /** Ile dni przechowujemy nagrania fragmentów (-1 = bez limitu czasu). */
+  audioRetentionDays: number;
   maxCharactersPerProject: number;
   maxCustomVoices: number;
   voiceCloning: boolean;
@@ -275,7 +278,9 @@ export interface Usage {
   minuteLimit: number;
   generations: number;
   projectsUsed: number;
-  projectLimit: number;
+  /** Zajęte i dostępne miejsce na nagrania (bajty). */
+  storageUsedBytes: number;
+  storageLimitBytes: number;
   customVoicesUsed: number;
   customVoiceLimit: number;
 }

@@ -146,21 +146,29 @@ Limity zależą od planu. Są zdefiniowane w jednym miejscu, `backend/.../accoun
 
 | Limit | Free | Starter | Pro | Business |
 |---|---|---|---|---|
-| Znaki miesięcznie | 10 000 | 50 000 | 200 000 | 1 000 000 |
-| Minuty audio miesięcznie | 10 | 60 | 240 | 1 200 |
-| Projekty | 3 | 20 | 100 | bez limitu |
-| Znaki w jednym projekcie | 5 000 | 20 000 | 100 000 | 500 000 |
+| Cena (miesięcznie, brutto) | 0 zł | 19 zł | 69 zł | 299 zł |
+| Znaki miesięcznie | 10 000 | 40 000 | 200 000 | 1 000 000 |
+| Minuty audio miesięcznie | 20 | 80 | 400 | 2 000 |
+| **Miejsce na nagrania** | 250 MB | 3 GB | 15 GB | 75 GB |
+| Przechowywanie nagrań | 12 miesięcy | bez limitu | bez limitu | bez limitu |
+| Projekty | bez limitu | bez limitu | bez limitu | bez limitu |
+| Znaki w jednym projekcie / zadaniu API | 5 000 | 40 000 | 200 000 | 500 000 |
 | Własne głosy (zaprojektowane + sklonowane) | 1 | 5 | 20 | 100 |
 | Klonowanie głosu | — | — | ✓ | ✓ |
 | Ustawienia zaawansowane (CFG, kroki, ziarno…) | — | ✓ | ✓ | ✓ |
 | Eksport | MP3 | MP3 + WAV | MP3 + WAV | MP3 + WAV |
 | Maks. jakość MP3 | 128 kb/s | 192 kb/s | 320 kb/s | 320 kb/s |
 | Historia generowania | 7 dni | 30 dni | 90 dni | 365 dni |
+| API | — | — | 60 żądań/min | 300 żądań/min |
+
+Dla porównania ElevenLabs (XI 2026, przeliczone po ok. 3,7 zł/$): Free 10 000 znaków; Starter ok. 22 zł / 30 000; Creator ok. 81 zł / 121 000; Pro ok. 366 zł / 600 000. Narrivy daje więcej znaków za mniej (Starter 0,48 zł, Pro 0,35 zł, Business 0,30 zł za 1000 znaków wobec 0,67–0,74 zł).
+
+**Miejsce na nagrania** zastępuje limit liczby projektów. Każdy zapis pliku audio trafia do ewidencji `stored_files` (właściciel, rozmiar) przez `AccountedAudioStorage`; usunięcie pliku (także przez sprzątanie osieroconych plików) zwalnia miejsce. Pliki wspólne (nagrania wzorcowe głosów biblioteki, próbki w 30 językach) nie liczą się do limitu. Przy pełnym miejscu generowanie zwraca 402 `STORAGE_FULL`. Limity miejsca odpowiadają ok. 10 miesiącom pełnego wykorzystania planu (WAV 48 kHz ≈ 7 MB na 1000 znaków). W planie Free nagrania fragmentów starsze niż rok są nocą usuwane — tekst projektu zostaje i można go wygenerować ponownie. Przy pierwszym starcie po aktualizacji ewidencja jest uzupełniana dla istniejących plików (`StorageLedgerBackfill`).
 
 Gdzie limity są sprawdzane:
 
 - **Generowanie fragmentu i próbki głosu:** miesięczne znaki i minuty, a także limit znaków w projekcie.
-- **Tworzenie i duplikowanie projektu:** liczba projektów.
+- **Każde generowanie (edytor, próbki, API):** miejsce na nagrania.
 - **Zapis głosu zaprojektowanego lub sklonowanego:** liczba własnych głosów. Klonowanie wymaga planu Pro lub wyższego.
 - **Eksport i ustawienia eksportu:** dozwolone formaty i maksymalny bitrate.
 - **Zmiana ustawień zaawansowanych projektu:** odrzucana w planie Free. Generowanie w tym planie używa wartości domyślnych.

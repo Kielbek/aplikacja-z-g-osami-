@@ -27,6 +27,7 @@ public class AccountService {
     private final UserRepository users;
     private final ai.voicecraft.auth.EmailVerificationService verification;
     private final CharacterCreditRepository credits;
+    private final ai.voicecraft.audio.StoredFileRepository storedFiles;
     private final ai.voicecraft.jobs.JobRepository genJobs;
     private final ai.voicecraft.publicapi.ApiJobRepository apiJobs;
 
@@ -36,7 +37,8 @@ public class AccountService {
     public AccountService(AccountRepository repo, UsageRepository usage, ProjectRepository projects,
                           VoiceRepository voices, UserRepository users, ai.voicecraft.auth.EmailVerificationService verification,
                           CharacterCreditRepository credits, ai.voicecraft.jobs.JobRepository genJobs,
-                          ai.voicecraft.publicapi.ApiJobRepository apiJobs) {
+                          ai.voicecraft.publicapi.ApiJobRepository apiJobs, ai.voicecraft.audio.StoredFileRepository storedFiles) {
+        this.storedFiles = storedFiles;
         this.genJobs = genJobs;
         this.apiJobs = apiJobs;
         this.credits = credits;
@@ -155,7 +157,8 @@ public class AccountService {
         out.put("minuteLimit", p.monthlyMinutes);
         out.put("generations", usage.countSince(uid, since));
         out.put("projectsUsed", projects.countByOwnerId(uid));
-        out.put("projectLimit", p.maxProjects);
+        out.put("storageUsedBytes", storedFiles.sumBytes(uid));
+        out.put("storageLimitBytes", p.storageBytes());
         out.put("customVoicesUsed", voices.countByOwnerId(uid));
         out.put("customVoiceLimit", p.maxCustomVoices);
         return out;
@@ -263,6 +266,7 @@ public class AccountService {
     public void requireGenerationQuota(int characters) {
         Account a = get();
         verification.requireVerified(a.userId);
+        requireStorage();
         long available = availableCharacters(a.userId);
         if (characters <= available) return;
         SubscriptionPlan p = a.planId;
@@ -288,12 +292,23 @@ public class AccountService {
         }
     }
 
-    public void requireProjectSlot() {
-        SubscriptionPlan p = plan();
-        if (p.maxProjects >= 0 && projects.countByOwnerId(CurrentUser.id()) >= p.maxProjects) {
-            throw ApiException.plan("Plan " + p.displayName + " pozwala na " + p.maxProjects + " "
-                    + plural(p.maxProjects, "projekt", "projekty", "projektów") + ". Usuń nieużywany projekt lub zmień plan.");
+    /** Miejsce na nagrania: przy pełnym limicie nowe nagrania nie powstają (zajęte miejsce widać w ustawieniach). */
+    public void requireStorage() {
+        Account a = get();
+        SubscriptionPlan p = a.planId;
+        long used = storedFiles.sumBytes(a.userId);
+        if (used >= p.storageBytes()) {
+            throw new ApiException(org.springframework.http.HttpStatus.PAYMENT_REQUIRED, "Brak miejsca na nagrania: wykorzystano "
+                    + fmtMb(used) + " z " + fmtMb(p.storageBytes()) + " w planie " + p.displayName
+                    + ". Usuń niepotrzebne projekty lub historię albo przejdź na wyższy plan.", "STORAGE_FULL")
+                    .withDetails(Map.of("usedBytes", used, "limitBytes", p.storageBytes()));
         }
+    }
+
+    private static String fmtMb(long bytes) {
+        return bytes >= 1_000_000_000L
+                ? String.format(Locale.forLanguageTag("pl-PL"), "%.1f GB", bytes / 1e9)
+                : String.format(Locale.forLanguageTag("pl-PL"), "%d MB", Math.round(bytes / 1e6));
     }
 
     public void requireCustomVoiceSlot() {

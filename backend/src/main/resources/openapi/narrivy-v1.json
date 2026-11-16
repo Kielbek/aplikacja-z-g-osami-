@@ -230,7 +230,7 @@
         ],
         "operationId": "createSpeechJob",
         "summary": "Create a speech job",
-        "description": "Queues background synthesis for long texts — up to the per-project character limit of your plan (**Pro: 100,000**, **Business: 500,000**). Results are kept for 7 days. Provide `callback_url` to receive a webhook when the job finishes. Background jobs yield GPU priority to synchronous requests.",
+        "description": "Queues background synthesis for long texts — up to the per-project character limit of your plan (**Pro: 200,000**, **Business: 500,000**). Results are kept for 7 days. Provide `callback_url` to receive a webhook when the job finishes. Background jobs yield GPU priority to synchronous requests.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -1015,7 +1015,7 @@
         }
       },
       "QuotaExceeded": {
-        "description": "Monthly plan characters and purchased packs are used up.",
+        "description": "Monthly plan characters and purchased packs are used up, or the storage for recordings is full.",
         "content": {
           "application/json": {
             "schema": {
@@ -1026,6 +1026,15 @@
                 "value": {
                   "error": {
                     "code": "quota_exceeded",
+                    "message": "…",
+                    "request_id": "req_8f3a2c1b9d0e4f5a6b7c8d9e"
+                  }
+                }
+              },
+              "storage_full": {
+                "value": {
+                  "error": {
+                    "code": "storage_full",
                     "message": "…",
                     "request_id": "req_8f3a2c1b9d0e4f5a6b7c8d9e"
                   }
@@ -1468,6 +1477,7 @@
                   "job_not_found",
                   "job_not_ready",
                   "too_many_pending_jobs",
+                  "storage_full",
                   "internal_error"
                 ],
                 "description": "Stable, machine-readable error code."

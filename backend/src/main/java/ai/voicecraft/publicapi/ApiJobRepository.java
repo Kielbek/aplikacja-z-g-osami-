@@ -23,6 +23,9 @@ public interface ApiJobRepository extends JpaRepository<ApiJob, String> {
     @Query("select j.audioFile from ApiJob j where j.audioFile is not null")
     List<String> allAudioFiles();
 
+    @Query("select j.audioFile, j.userId from ApiJob j where j.audioFile is not null")
+    List<Object[]> audioOwners();
+
     @Query("select j from ApiJob j where j.createdAt < ?1")
     List<ApiJob> findCreatedBefore(Instant before);
 

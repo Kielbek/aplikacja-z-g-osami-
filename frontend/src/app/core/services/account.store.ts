@@ -29,9 +29,14 @@ export class AccountStore {
     const u = this.usage();
     return !!u && (u.charactersUsed >= u.characterLimit || u.minutesUsed >= u.minuteLimit) && !(u.extraCharacters > 0);
   });
-  readonly projectLimitReached = computed(() => {
+  /** Brak miejsca na nagrania — nowe nagrania nie powstaną, dopóki użytkownik czegoś nie usunie lub nie zmieni planu. */
+  readonly storageFull = computed(() => {
     const u = this.usage();
-    return !!u && u.projectLimit >= 0 && u.projectsUsed >= u.projectLimit;
+    return !!u && u.storageUsedBytes >= u.storageLimitBytes;
+  });
+  readonly storagePct = computed(() => {
+    const u = this.usage();
+    return u && u.storageLimitBytes > 0 ? Math.min(100, (u.storageUsedBytes / u.storageLimitBytes) * 100) : 0;
   });
   readonly customVoiceLimitReached = computed(() => {
     const u = this.usage();

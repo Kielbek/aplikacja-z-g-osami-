@@ -19,6 +19,13 @@ public final class CurrentUser {
         return auth.getName();
     }
 
+    /** Identyfikator zalogowanego użytkownika albo null (np. zadania systemowe). */
+    public static String idOrNull() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null || !auth.isAuthenticated() || auth.getName() == null || "anonymousUser".equals(auth.getName())) return null;
+        return auth.getName();
+    }
+
     /** Wykonuje kod w kontekście wskazanego użytkownika (np. w wątku kolejki generowania). */
     public static <T> T runAs(String userId, Supplier<T> action) {
         var previous = SecurityContextHolder.getContext();

@@ -149,7 +149,7 @@ public class ApiJobService {
                 return ai.voicecraft.account.AccountService.withinReservation("api:" + j.id,
                         () -> speech.render(prepared, j.apiKeyId, GpuQueue.Priority.BATCH));
             });
-            j.audioFile = storage.save("api", r.audio());
+            j.audioFile = storage.saveFor(j.userId, "api", r.audio());
             j.durationMs = r.durationMs();
             j.engineMode = r.engineMode();
             j.status = ApiJob.Status.SUCCEEDED;

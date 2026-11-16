@@ -79,7 +79,6 @@ public class ProjectService {
 
     @Transactional
     public ProjectDto create(CreateProject req) {
-        account.requireProjectSlot();
         Account a = account.get();
         var p = new Project();
         p.id = UUID.randomUUID().toString();
@@ -167,7 +166,6 @@ public class ProjectService {
     @Transactional
     public ProjectDto duplicate(String id) {
         Project src = find(id);
-        account.requireProjectSlot();
         var p = new Project();
         p.id = UUID.randomUUID().toString();
         p.ownerId = src.ownerId;

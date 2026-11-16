@@ -10,6 +10,14 @@ public interface AudioStorage {
     /** Zapisuje dane i zwraca klucz obiektu. */
     String save(String prefix, byte[] data);
 
+    /**
+     * Zapis przypisany wskazanemu właścicielowi w ewidencji miejsca (null = plik wspólny, np. biblioteki).
+     * Domyślnie bez ewidencji.
+     */
+    default String saveFor(String ownerId, String prefix, byte[] data) {
+        return save(prefix, data);
+    }
+
     byte[] read(String key);
 
     boolean exists(String key);

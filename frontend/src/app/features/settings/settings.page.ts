@@ -9,7 +9,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { EngineStatusService } from '../../core/services/engine-status.service';
 import { ToastService } from '../../core/services/toast.service';
 import { VoicesStore } from '../../core/services/voices.store';
-import { formatDate, formatNumber } from '../../core/util/format';
+import { formatDate, formatNumber, formatBytes } from '../../core/util/format';
 import { categoryLabel, initials, languageLabel, languageOptions } from '../../core/util/labels';
 import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
@@ -101,7 +101,7 @@ export class SettingsPage {
     return [
       { label: 'Znaki w miesiącu', used: formatNumber(u.charactersUsed), limit: lim(u.characterLimit), pct: pct(u.charactersUsed, u.characterLimit), hint: (u.extraCharacters ?? 0) > 0 ? `Limit planu wykorzystany — generowanie korzysta teraz z dodatkowych znaków (${formatNumber(u.extraCharacters)}).` : 'Generowanie wstrzymane — dokup pakiet znaków, poczekaj na odnowienie limitu lub zmień plan.' },
       { label: 'Minuty audio w miesiącu', used: u.minutesUsed.toFixed(1), limit: lim(u.minuteLimit), pct: pct(u.minutesUsed, u.minuteLimit), hint: 'Generowanie wstrzymane do odnowienia limitu lub zmiany planu.' },
-      { label: 'Projekty', used: formatNumber(u.projectsUsed), limit: lim(u.projectLimit), pct: pct(u.projectsUsed, u.projectLimit), hint: 'Nie można tworzyć nowych projektów — usuń nieużywane lub zmień plan.' },
+      { label: 'Miejsce na nagrania', used: formatBytes(u.storageUsedBytes), limit: formatBytes(u.storageLimitBytes), pct: pct(u.storageUsedBytes, u.storageLimitBytes), hint: 'Brak miejsca — nowe nagrania nie powstaną. Usuń niepotrzebne projekty lub historię albo zmień plan.' },
       { label: 'Własne głosy', used: formatNumber(u.customVoicesUsed), limit: lim(u.customVoiceLimit), pct: pct(u.customVoicesUsed, u.customVoiceLimit), hint: 'Nie można zapisać kolejnych głosów — usuń nieużywane lub zmień plan.' },
     ];
   });
@@ -110,7 +110,9 @@ export class SettingsPage {
     { label: 'Znaki miesięcznie', kind: (p) => formatNumber(p.monthlyCharacters) },
     { label: 'Koszt 1000 znaków', kind: (p) => this.planPerThousand(p) },
     { label: 'Minuty audio miesięcznie', kind: (p) => formatNumber(p.monthlyMinutes) },
-    { label: 'Projekty', kind: (p) => (p.maxProjects < 0 ? 'bez limitu' : formatNumber(p.maxProjects)) },
+    { label: 'Miejsce na nagrania', kind: (p) => formatBytes(p.storageMb * 1e6) },
+    { label: 'Przechowywanie nagrań', kind: (p) => (p.audioRetentionDays > 0 ? (p.audioRetentionDays >= 365 ? '12 miesięcy' : `${p.audioRetentionDays} dni`) : 'bez limitu czasu') },
+    { label: 'Projekty', kind: () => 'bez limitu' },
     { label: 'Znaki w projekcie', kind: (p) => formatNumber(p.maxCharactersPerProject) },
     { label: 'Własne głosy', kind: (p) => formatNumber(p.maxCustomVoices) },
     { label: 'Projektowanie głosu', kind: () => 'yes' },

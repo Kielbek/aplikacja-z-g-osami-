@@ -12,23 +12,22 @@
           <p>Wszystkie nagrania w jednym miejscu. Porządkuj projekty w folderach — przeciągnij projekt na folder albo użyj menu „Przenieś do”.</p>
         }
         @if (account.usage(); as u) {
-          @if (u.projectLimit >= 0) {
-            <p class="limit" [class.is-full]="account.projectLimitReached()">
-              <vc-icon [name]="account.projectLimitReached() ? 'lock' : 'folder'" [size]="13" />
-              {{ u.projectsUsed }} z {{ u.projectLimit }} projektów w planie {{ u.plan.name }}
-              @if (account.projectLimitReached()) { · <a routerLink="/settings/subscription">zmień plan</a> }
-            </p>
-          }
+          <p class="limit" [class.is-full]="account.storageFull()" title="Miejsce na nagrania: projekty, historia i własne głosy">
+            <vc-icon [name]="account.storageFull() ? 'lock' : 'layers'" [size]="13" />
+            Nagrania zajmują {{ fmtBytes(u.storageUsedBytes) }} z {{ fmtBytes(u.storageLimitBytes) }} w planie {{ u.plan.name }}
+            @if (u.plan.audioRetentionDays > 0) { · przechowywane {{ u.plan.audioRetentionDays >= 365 ? 'rok' : u.plan.audioRetentionDays + ' dni' }} }
+            @if (account.storageFull()) { · <a routerLink="/settings/subscription">zwiększ miejsce</a> }
+          </p>
         }
       </div>
       <div class="page-header-actions">
-        <label class="btn" [class.is-disabled]="importing() || account.projectLimitReached()" title="Utwórz projekt z pliku TXT, MD, DOCX lub PDF">
+        <label class="btn" [class.is-disabled]="importing()" title="Utwórz projekt z pliku TXT, MD, DOCX lub PDF">
           @if (importing()) { <span class="spinner"></span> } @else { <vc-icon name="upload" /> }
           Importuj z pliku
-          <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" [disabled]="importing() || account.projectLimitReached()" (change)="importFile($event)" />
+          <input type="file" class="sr-only" accept=".txt,.md,.markdown,.docx,.pdf" [disabled]="importing()" (change)="importFile($event)" />
         </label>
-        <button class="btn btn-primary" (click)="create()" [disabled]="creating() || account.projectLimitReached()"
-          [title]="account.projectLimitReached() ? 'Osiągnięto limit projektów w bieżącym planie' : ''">
+        <button class="btn btn-primary" (click)="create()" [disabled]="creating()"
+>
           @if (creating()) { <span class="spinner"></span> } @else { <vc-icon name="plus" /> }
           Nowy projekt
         </button>

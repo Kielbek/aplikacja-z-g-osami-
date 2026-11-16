@@ -70,7 +70,7 @@ public class VoicePreviewService {
             p.voiceId = v.id;
             p.language = lang;
             p.engineMode = a.engineMode();
-            p.audioFile = storage.save("preview", a.wav());
+            p.audioFile = storage.saveFor(null, "preview", a.wav()); // próbka wspólna dla wszystkich
             p.createdAt = java.time.Instant.now();
             previews.save(p);
             return new Preview(a.wav(), a.engineMode(), "generated");

@@ -136,7 +136,7 @@ public class VoiceAnchorService {
         String lang = v.languages == null || v.languages.isEmpty() ? "pl" : v.languages.getFirst();
         log.info("Tworzenie nagrania wzorcowego głosu {} (seed {})", v.id, s.seed);
         Audio a = engine.design(new VoiceDesignRequest(v.enginePrompt, text, lang, GenerationService.params(s)));
-        v.referenceFile = storage.save("ref", a.wav());
+        v.referenceFile = storage.saveFor(v.ownerId, "ref", a.wav()); // głos biblioteki = plik wspólny
         v.referenceText = text;
         register(v, a.wav());
         // Próbka głosu = nagranie wzorcowe: to, co słychać w bibliotece, brzmi jak fragmenty projektu

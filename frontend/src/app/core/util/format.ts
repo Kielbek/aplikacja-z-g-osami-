@@ -18,6 +18,15 @@ export function formatNumber(n: number): string {
   return nf.format(n);
 }
 
+/** Rozmiar pliku: 250 MB, 3 GB, 1,2 GB. */
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1e9) {
+    const gb = bytes / 1e9;
+    return `${gb.toLocaleString('pl-PL', { maximumFractionDigits: gb < 10 ? 1 : 0 })} GB`;
+  }
+  return `${Math.max(bytes > 0 ? 1 : 0, Math.round(bytes / 1e6)).toLocaleString('pl-PL')} MB`;
+}
+
 /** Polska odmiana liczebników: 1 fragment, 2 fragmenty, 5 fragmentów. */
 export function plural(n: number, one: string, few: string, many: string): string {
   if (n === 1) return one;

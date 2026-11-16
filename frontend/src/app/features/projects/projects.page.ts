@@ -9,7 +9,7 @@ import { AccountStore } from '../../core/services/account.store';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { ProjectsStore } from '../../core/services/projects.store';
 import { ToastService } from '../../core/services/toast.service';
-import { formatDate, formatDuration, formatRelative, pluralN } from '../../core/util/format';
+import { formatDate, formatDuration, formatRelative, pluralN, formatBytes } from '../../core/util/format';
 import { PROJECT_STATUS } from '../../core/util/labels';
 import { DropdownComponent } from '../../shared/dropdown.component';
 import { IconComponent } from '../../shared/icon.component';
@@ -41,6 +41,7 @@ export class ProjectsPage {
   private confirm = inject(ConfirmService);
   protected account = inject(AccountStore);
   protected store = inject(ProjectsStore);
+  protected fmtBytes = formatBytes;
 
   protected query = signal('');
   protected statusFilter = signal<'all' | 'ready' | 'pending'>('all');

@@ -29,6 +29,6 @@ class BillingPeriodTest {
     void yearlyIsTwoMonthsFreeAndPricesAreExposed() {
         assertThat(SubscriptionPlan.PRO.yearlyPriceMinor()).isEqualTo(SubscriptionPlan.PRO.monthlyPriceMinor * 10);
         assertThat(SubscriptionPlan.FREE.dto().monthlyPriceMinor()).isZero();
-        assertThat(SubscriptionPlan.STARTER.dto().yearlyPriceMinor()).isEqualTo(29_000);
+        assertThat(SubscriptionPlan.STARTER.dto().yearlyPriceMinor()).isEqualTo(19_000);
     }
 }

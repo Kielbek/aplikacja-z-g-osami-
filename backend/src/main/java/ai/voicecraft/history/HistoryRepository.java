@@ -33,6 +33,9 @@ public interface HistoryRepository extends JpaRepository<GenerationRecord, Long>
     @Query("select distinct r.audioFile from GenerationRecord r where r.audioFile is not null")
     List<String> allAudioFiles();
 
+    @Query("select r.audioFile, r.userId from GenerationRecord r where r.audioFile is not null")
+    List<Object[]> audioOwners();
+
     @Query("select coalesce(sum(r.characters), 0) from GenerationRecord r where r.userId = ?1 and r.status = 'success' and r.createdAt >= ?2 and r.type <> 'export'")
     long sumCharactersSince(String userId, Instant since);
 

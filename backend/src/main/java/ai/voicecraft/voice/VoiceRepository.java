@@ -21,4 +21,8 @@ public interface VoiceRepository extends JpaRepository<Voice, String> {
 
     @Query("select v.referenceFile from Voice v where v.referenceFile is not null")
     List<String> allReferenceFiles();
+
+    /** Pliki własnych głosów z właścicielem (próbka, nagranie wzorcowe). */
+    @Query("select v.sampleFile, v.referenceFile, v.ownerId from Voice v where v.ownerId is not null")
+    List<Object[]> ownedVoiceFiles();
 }

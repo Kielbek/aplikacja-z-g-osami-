@@ -5,7 +5,7 @@ import { BillingConfig, BillingInterval, CreditPack, Plan } from '../core/api/mo
 import { AccountStore } from '../core/services/account.store';
 import { ToastService } from '../core/services/toast.service';
 import { UpsellService } from '../core/services/upsell.service';
-import { formatDate, formatNumber } from '../core/util/format';
+import { formatBytes, formatDate, formatNumber } from '../core/util/format';
 import { IconComponent } from './icon.component';
 
 const money = (minor: number) =>
@@ -109,7 +109,7 @@ const money = (minor: number) =>
                   @if (introPct() && interval() === 'month') { <span class="intro">1. miesiąc za {{ money(introPrice(pl)) }}</span> }
                   <ul>
                     <li><vc-icon name="check" [size]="14" />{{ fmt(pl.monthlyCharacters) }} znaków miesięcznie</li>
-                    <li><vc-icon name="check" [size]="14" />{{ fmt(pl.monthlyMinutes) }} minut audio</li>
+                    <li><vc-icon name="check" [size]="14" />{{ bytes(pl.storageMb * 1e6) }} na nagrania · bez limitu projektów</li>
                     <li><vc-icon name="check" [size]="14" />{{ pl.voiceCloning ? 'Klonowanie głosu' : 'Projektowanie głosu z opisu' }}</li>
                     <li><vc-icon name="check" [size]="14" />{{ fmt(pl.maxCustomVoices) }} własnych głosów · MP3 i WAV</li>
                     @if (pl.apiAccess) { <li><vc-icon name="check" [size]="14" />Dostęp przez API</li> }
@@ -159,6 +159,7 @@ export class UpsellHostComponent {
   protected interval = signal<BillingInterval>('month');
   protected fmt = formatNumber;
   protected money = money;
+  protected bytes = formatBytes;
 
   private shortfall = computed(() => {
     const r = this.upsell.request();

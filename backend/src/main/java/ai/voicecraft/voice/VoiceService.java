@@ -119,7 +119,7 @@ public class VoiceService {
         s.voiceId = v.id;
         Audio a = generation.synthesize(v.sampleText == null ? v.description : v.sampleText, s, v);
         Voice stored = repo.findById(v.id).orElseThrow();
-        stored.sampleFile = storage.save("sample", a.wav());
+        stored.sampleFile = storage.saveFor(stored.ownerId, "sample", a.wav());
         stored.sampleEngineMode = a.engineMode();
         repo.save(stored);
         return a;

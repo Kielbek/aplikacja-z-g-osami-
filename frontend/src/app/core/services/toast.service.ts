@@ -33,7 +33,7 @@ export class ToastService {
   /** Błąd z API; przy przekroczeniu limitu planu proponuje przejście do subskrypcji. */
   apiError(message: string, err: unknown) {
     const e = err as ApiError;
-    if (e?.code === 'PLAN_LIMIT' || e?.code === 'QUOTA_EXCEEDED') {
+    if (e?.code === 'PLAN_LIMIT' || e?.code === 'QUOTA_EXCEEDED' || e?.code === 'STORAGE_FULL') {
       this.show('Limit planu', 'plan', e.message, 8000, { label: 'Zobacz plany', link: '/settings/subscription' });
     } else {
       this.error(message, e?.message);
