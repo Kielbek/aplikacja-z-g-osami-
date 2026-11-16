@@ -369,3 +369,44 @@ vc-narrator-editor {
   .view-switch button { padding: 0 9px; }
   .tools-sep { display: none; }
 }
+
+/* ---------- Pasek generowania (dół edytora, przyciski po prawej) ---------- */
+
+.gen-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px 12px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.gen-info {
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  .sep { margin: 0 6px; color: var(--text-4); }
+}
+
+.gen-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.gen-bar-enter { animation: gen-bar-in 220ms var(--ease); }
+.gen-bar-leave { animation: gen-bar-in 160ms var(--ease) reverse forwards; }
+
+@keyframes gen-bar-in {
+  from { opacity: 0; transform: translateY(8px); }
+}
+
+@media (max-width: 640px) {
+  .gen-bar { padding: 10px 14px; }
+  .gen-info .pending { display: none; }
+}

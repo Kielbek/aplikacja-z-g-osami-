@@ -22,13 +22,6 @@
           <vc-icon name="sliders" [size]="14" /><span class="hide-sm">Głos i styl</span>
         </button>
 
-        <button class="btn btn-sm" [disabled]="!store.allReady() || store.isGenerating()" (click)="playAll()"
-          [title]="store.allReady() ? 'Odtwórz połączone nagranie' : 'Najpierw wygeneruj wszystkie fragmenty'">
-          @if (loadingAll()) { <span class="spinner"></span> }
-          @else { <vc-icon [name]="playingAll() ? 'pause' : 'play'" [size]="12" /> }
-          <span class="hide-md">{{ playingAll() ? 'Pauza' : 'Odtwórz całość' }}</span>
-        </button>
-
         <vc-dropdown [width]="250">
           <button trigger class="btn btn-sm" [disabled]="!store.project()" aria-label="Eksport">
             <vc-icon name="download" [size]="14" /><span class="hide-md">Eksport</span>
@@ -51,12 +44,6 @@
           </div>
         </vc-dropdown>
 
-        <button class="btn btn-sm btn-primary gen-all" [disabled]="!store.pendingIds().length || store.isGenerating() || engine.isOffline() || !!store.planBlock()"
-          (click)="store.generateMany()" title="Generuje tylko nowe i zmienione fragmenty (Ctrl+Shift+Enter)">
-          @if (store.batch()) { <span class="spinner"></span> }
-          @else { <vc-icon [name]="store.pendingIds().length ? 'voices' : 'check'" [size]="14" /> }
-          <span [class.hide-sm]="!store.pendingIds().length">{{ generateLabel() }}</span>
-        </button>
       </div>
     </header>
 
@@ -214,6 +201,7 @@
       }
     </div>
 
+    <!-- Pasek generowania na dole edytora — pojawia się, gdy w projekcie jest tekst (propozycje startowe wtedy znikają) -->
     @if (store.batch(); as b) {
       <div class="batch" role="status">
         <span class="spinner"></span>
@@ -222,6 +210,26 @@
         <button class="btn btn-sm" [disabled]="b.cancelRequested" (click)="store.cancelBatch()">
           <vc-icon name="stop" [size]="12" />{{ b.cancelRequested ? 'Zatrzymywanie…' : 'Zatrzymaj' }}
         </button>
+      </div>
+    } @else if (store.project() && store.characters() > 0) {
+      <div class="gen-bar" animate.enter="gen-bar-enter" animate.leave="gen-bar-leave">
+        <span class="gen-info tabular">
+          {{ pluralN(store.characters(), 'znak', 'znaki', 'znaków') }}
+          @if (store.pendingIds().length) { <span class="pending"><span class="sep">·</span>{{ store.pendingIds().length }} do wygenerowania</span> }
+        </span>
+        <div class="gen-actions">
+          <button class="btn" [disabled]="!store.allReady() || store.isGenerating()" (click)="playAll()"
+            [title]="store.allReady() ? 'Odtwórz połączone nagranie' : 'Najpierw wygeneruj wszystkie fragmenty'">
+            @if (loadingAll()) { <span class="spinner"></span> }
+            @else { <vc-icon [name]="playingAll() ? 'pause' : 'play'" [size]="12" /> }
+            <span class="hide-sm">{{ playingAll() ? 'Pauza' : 'Odtwórz całość' }}</span>
+          </button>
+          <button class="btn btn-primary gen-all" [disabled]="!store.pendingIds().length || store.isGenerating() || engine.isOffline() || !!store.planBlock()"
+            (click)="store.generateMany()" title="Generuje tylko nowe i zmienione fragmenty (Ctrl+Shift+Enter)">
+            <vc-icon [name]="store.pendingIds().length ? 'voices' : 'check'" [size]="14" />
+            <span>{{ generateLabel() }}</span>
+          </button>
+        </div>
       </div>
     }
   </section>
