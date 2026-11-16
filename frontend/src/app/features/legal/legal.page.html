@@ -317,6 +317,7 @@
             <thead><tr><th>Odbiorca</th><th>Zakres</th><th>Rola</th></tr></thead>
             <tbody>
               <tr><td>{{ o.hosting }}</td><td>serwery aplikacji, baza danych, przechowywanie plików</td><td>podmiot przetwarzający</td></tr>
+              <tr><td>{{ o.storage }}</td><td>przechowywanie plików audio (nagrania fragmentów, historia, własne głosy)</td><td>podmiot przetwarzający</td></tr>
               <tr><td>{{ o.gpu }}</td><td>synteza mowy — przekazywany jest tekst i nagranie wzorcowe Głosu; dane nie są tam przechowywane dłużej, niż wymaga generowanie</td><td>podmiot przetwarzający</td></tr>
               <tr><td>{{ o.mail }}</td><td>wysyłka wiadomości e-mail (potwierdzenie adresu, reset hasła, powiadomienia)</td><td>podmiot przetwarzający</td></tr>
               <tr><td>Stripe Payments Europe, Ltd. (Irlandia)</td><td>obsługa płatności, faktury</td><td>odrębny administrator danych płatniczych</td></tr>
@@ -331,7 +332,7 @@
 
       <section id="p5" data-sec>
         <h2>5. Przekazywanie danych poza Europejski Obszar Gospodarczy</h2>
-        <p>Stripe i Google mogą przetwarzać dane w Stanach Zjednoczonych. Podstawą przekazania jest decyzja Komisji Europejskiej stwierdzająca odpowiedni stopień ochrony (EU-US Data Privacy Framework) w odniesieniu do certyfikowanych podmiotów oraz standardowe klauzule umowne. Jeżeli dostawca serwerów GPU przetwarza dane poza EOG, stosujemy standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Kopię zabezpieczeń możesz otrzymać, pisząc na {{ o.privacyEmail }}.</p>
+        <p>Nagrania przechowujemy w Cloudflare R2 w jurysdykcji Unii Europejskiej (dane pozostają w UE); Cloudflare, Inc. jako spółka amerykańska jest certyfikowana w ramach EU-US Data Privacy Framework. Stripe i Google mogą przetwarzać dane w Stanach Zjednoczonych. Podstawą przekazania jest decyzja Komisji Europejskiej stwierdzająca odpowiedni stopień ochrony (EU-US Data Privacy Framework) w odniesieniu do certyfikowanych podmiotów oraz standardowe klauzule umowne. Jeżeli dostawca serwerów GPU przetwarza dane poza EOG, stosujemy standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Kopię zabezpieczeń możesz otrzymać, pisząc na {{ o.privacyEmail }}.</p>
       </section>
 
       <section id="p6" data-sec>

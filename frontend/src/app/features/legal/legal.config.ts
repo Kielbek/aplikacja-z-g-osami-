@@ -23,6 +23,8 @@ export const OPERATOR = {
   hosting: '[dostawca hostingu, kraj przetwarzania]',
   /** Dostawca serwerów z kartami graficznymi (synteza mowy). */
   gpu: '[dostawca serwerów GPU, kraj przetwarzania]',
+  /** Magazyn nagrań (pliki audio). */
+  storage: 'Cloudflare, Inc. (USA) — usługa R2, bucket w jurysdykcji UE',
   /** Dostawca wysyłki e-maili. */
   mail: '[dostawca poczty e-mail, kraj przetwarzania]',
   /** Biuro rachunkowe / system księgowy. */

@@ -241,6 +241,27 @@ Programiści wywołują Narrivy ze swoich aplikacji kluczem API. Dokumentacja dl
 - **Baza:** PostgreSQL 14+ w produkcji. Schemat jest zarządzany przez Flyway (`backend/src/main/resources/db/migration`), a Hibernate tylko go waliduje (`ddl-auto: validate`). Ta sama migracja działa na H2 w lokalnym developmencie. Sprawdzone na PostgreSQL 16.
 - **Nagrania:** `STORAGE_TYPE=local` (katalog danych) albo `STORAGE_TYPE=s3`. S3 działa z AWS, Cloudflare R2, Backblaze B2 i innymi usługami zgodnymi z S3 (MinIO nie publikuje już obrazów w Docker Hub, dlatego nie ma go w docker-compose). Ustawia się je przez `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY`, `S3_SECRET_KEY` i `S3_PATH_STYLE`. Bucket jest tworzony automatycznie, jeśli nie istnieje.
 
+
+### Cloudflare R2 (zalecany magazyn nagrań)
+
+R2 nie pobiera opłat za pobieranie plików (każde odsłuchanie i eksport czyta plik z magazynu), a przechowywanie kosztuje ok. 0,015 $/GB miesięcznie (pierwsze 10 GB gratis).
+
+1. Cloudflare → **R2 Object Storage** → *Create bucket*, np. `narrivy-audio`. W *Location* wybierz **Jurisdiction: European Union** (dane w UE — prościej z RODO).
+2. *R2 → Manage API tokens → Create API token*: uprawnienia **Object Read & Write**, zakres: tylko ten bucket. Zapisz *Access Key ID* i *Secret Access Key* (sekret widać tylko raz).
+3. W `.env`:
+   ```
+   STORAGE_TYPE=s3
+   S3_BUCKET=narrivy-audio
+   S3_REGION=auto
+   S3_ENDPOINT=https://<ID_KONTA>.eu.r2.cloudflarestorage.com
+   S3_ACCESS_KEY=...
+   S3_SECRET_KEY=...
+   ```
+   ID konta jest w panelu R2 (prawa kolumna). Dla bucketa bez jurysdykcji UE adres nie ma „.eu.”.
+4. `docker compose up -d --build` — w logu backendu: `Magazyn S3 gotowy: bucket narrivy-audio, region auto (Cloudflare R2)`.
+
+Klient S3 jest dostosowany do R2: region `auto` (ustawiany sam dla adresów R2), sumy kontrolne tylko tam, gdzie wymaga ich protokół, a token ograniczony do jednego bucketa nie blokuje startu. Zmiana magazynu nie przenosi istniejących plików — nagrania zapisane wcześniej na dysku lokalnym zostają na wolumenie backendu.
+
 ## Płatności (Stripe)
 
 1. W Stripe utwórz produkty i ceny cykliczne dla planów Starter, Pro i Business, a ich identyfikatory wpisz w `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO` i `STRIPE_PRICE_BUSINESS`.
