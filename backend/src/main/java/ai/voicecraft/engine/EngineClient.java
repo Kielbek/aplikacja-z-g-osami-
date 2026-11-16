@@ -35,7 +35,15 @@ public class EngineClient {
                         @org.springframework.beans.factory.annotation.Value("${voicecraft.engine.health-ttl:5s}") java.time.Duration healthTtl) {
         this.queue = queue;
         this.healthTtl = healthTtl;
-        var factory = new SimpleClientHttpRequestFactory();
+        // GET podąża za przekierowaniami sam (z nagłówkami). POST — nie: HttpURLConnection zamieniłby go na GET bez
+        // nagłówka Authorization. Modal przy żądaniach dłuższych niż ~150 s odpowiada 303 — obsługuje to followSeeOther().
+        var factory = new SimpleClientHttpRequestFactory() {
+            @Override
+            protected void prepareConnection(java.net.HttpURLConnection connection, String httpMethod) throws java.io.IOException {
+                super.prepareConnection(connection, httpMethod);
+                connection.setInstanceFollowRedirects("GET".equals(httpMethod));
+            }
+        };
         factory.setConnectTimeout(props.engine().connectTimeout());
         factory.setReadTimeout(props.engine().readTimeout());
         this.baseUrl = props.engine().url();
@@ -98,20 +106,20 @@ public class EngineClient {
     }
 
     public Audio synthesize(SynthesizeRequest req) {
-        return queue.run(() -> audio(() -> http.post().uri("/v1/synthesize").contentType(MediaType.APPLICATION_JSON).body(req)
-                .retrieve().toEntity(byte[].class)));
+        return queue.run(() -> audio(() -> followSeeOther(http.post().uri("/v1/synthesize").contentType(MediaType.APPLICATION_JSON).body(req)
+                .retrieve().toEntity(byte[].class), byte[].class)));
     }
 
     public Audio design(VoiceDesignRequest req) {
-        return queue.run(() -> audio(() -> http.post().uri("/v1/voice-design").contentType(MediaType.APPLICATION_JSON).body(req)
-                .retrieve().toEntity(byte[].class)));
+        return queue.run(() -> audio(() -> followSeeOther(http.post().uri("/v1/voice-design").contentType(MediaType.APPLICATION_JSON).body(req)
+                .retrieve().toEntity(byte[].class), byte[].class)));
     }
 
     public AudioAnalysis analyze(byte[] file, String filename) {
         var form = new LinkedMultiValueMap<String, Object>();
         form.add("file", named(file, filename));
-        return call(() -> http.post().uri("/v1/clone/analyze").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
-                .retrieve().body(AudioAnalysis.class));
+        return call(() -> followSeeOther(http.post().uri("/v1/clone/analyze").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
+                .retrieve().toEntity(AudioAnalysis.class), AudioAnalysis.class).getBody());
     }
 
     public CloneReference createReference(byte[] file, String filename, String transcript, boolean consent) {
@@ -132,19 +140,30 @@ public class EngineClient {
         form.add("consent", String.valueOf(consent));
         if (referenceId != null) form.add("reference_id", referenceId);
         if (trusted) form.add("trusted", "true");
-        return call(() -> http.post().uri("/v1/clone/references").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
-                .retrieve().body(CloneReference.class));
+        return call(() -> followSeeOther(http.post().uri("/v1/clone/references").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
+                .retrieve().toEntity(CloneReference.class), CloneReference.class).getBody());
     }
 
     public byte[] toMp3(byte[] wav, int bitrate) {
         var form = new LinkedMultiValueMap<String, Object>();
         form.add("file", named(wav, "audio.wav"));
         form.add("bitrate", String.valueOf(bitrate));
-        return call(() -> http.post().uri("/v1/encode/mp3").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
-                .retrieve().body(byte[].class));
+        return call(() -> followSeeOther(http.post().uri("/v1/encode/mp3").contentType(MediaType.MULTIPART_FORM_DATA).body(form)
+                .retrieve().toEntity(byte[].class), byte[].class).getBody());
     }
 
     // ------------------------------------------------------------------
+
+    /**
+     * Modal: gdy obsługa żądania trwa dłużej niż ~150 s, zamiast wyniku przychodzi 303 z adresem, pod którym
+     * (zapytaniem GET) czeka się dalej na ten sam wynik. GET podąża za kolejnymi 303 automatycznie.
+     */
+    private <T> ResponseEntity<T> followSeeOther(ResponseEntity<T> res, Class<T> type) {
+        if (res.getStatusCode().value() != 303 || res.getHeaders().getLocation() == null) return res;
+        java.net.URI target = java.net.URI.create(baseUrl.endsWith("/") ? baseUrl : baseUrl + "/")
+                .resolve(res.getHeaders().getLocation());
+        return http.get().uri(target).retrieve().toEntity(type);
+    }
 
     private Audio audio(java.util.function.Supplier<ResponseEntity<byte[]>> fn) {
         ResponseEntity<byte[]> res = call(fn);

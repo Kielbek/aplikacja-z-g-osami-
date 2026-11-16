@@ -55,8 +55,12 @@ public class VoicePreviewService {
                 // przejdź do pamięci podręcznej / generowania
             }
         }
-        String mode = generation.currentMode();
         var cached = previews.findById(new VoicePreview.Key(v.id, lang)).orElse(null);
+        // Próbka z prawdziwego modelu jest gotowa — bez pytania silnika o stan (to budziłoby uśpioną kartę GPU)
+        if (cached != null && !"demo".equals(cached.engineMode) && storage.exists(cached.audioFile)) {
+            return new Preview(storage.read(cached.audioFile), cached.engineMode, "cache");
+        }
+        String mode = generation.currentMode();
         if (cached != null && storage.exists(cached.audioFile) && (mode == null || mode.equals(cached.engineMode))) {
             return new Preview(storage.read(cached.audioFile), cached.engineMode, "cache");
         }
