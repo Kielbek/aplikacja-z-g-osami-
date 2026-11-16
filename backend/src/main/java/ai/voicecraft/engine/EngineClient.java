@@ -28,8 +28,13 @@ public class EngineClient {
     private volatile Instant cachedAt = Instant.EPOCH;
     private final GpuQueue queue;
 
-    public EngineClient(AppProperties props, GpuQueue queue) {
+    /** Jak długo pamiętamy stan silnika. Przy silniku „na żądanie” (Modal) długo — sprawdzanie stanu budzi kartę. */
+    private final java.time.Duration healthTtl;
+
+    public EngineClient(AppProperties props, GpuQueue queue,
+                        @org.springframework.beans.factory.annotation.Value("${voicecraft.engine.health-ttl:5s}") java.time.Duration healthTtl) {
         this.queue = queue;
+        this.healthTtl = healthTtl;
         var factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(props.engine().connectTimeout());
         factory.setReadTimeout(props.engine().readTimeout());
@@ -68,7 +73,9 @@ public class EngineClient {
 
     /** Stan silnika; null gdy serwis jest nieosiągalny. Wynik buforowany na 5 s. */
     public Health health(boolean force) {
-        if (!force && Instant.now().isBefore(cachedAt.plusSeconds(5))) return cachedHealth;
+        // Odpowiedź „działa” pamiętamy przez healthTtl; brak odpowiedzi — tylko 5 s (szybko wykryjemy powrót silnika)
+        var ttl = cachedHealth == null ? java.time.Duration.ofSeconds(5) : healthTtl;
+        if (!force && Instant.now().isBefore(cachedAt.plus(ttl))) return cachedHealth;
         Health h;
         try {
             h = http.get().uri("/health").retrieve().body(Health.class);

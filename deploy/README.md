@@ -82,6 +82,25 @@ Wariant z siecią prywatną (vSwitch / Cloud Network): ustaw `ENGINE_BIND=<prywa
 RunPod przyjmuje ruch przez własne proxy HTTPS — ochroną jest tu klucz (silnik bez niego nie wystartuje).
 Pamiętaj, że pod naliczany jest za każdą godzinę działania — zatrzymuj go, gdy nie testujesz.
 
+## Krok 3c. Silnik na Modal (darmowa miesięczna pula — testy)
+
+Modal uruchamia kartę tylko na czas generowania i nalicza sekundy pracy z miesięcznej puli planu Starter (ok. 30 $).
+
+1. Załóż konto na modal.com (plan **Starter**).
+2. Na swoim komputerze, w katalogu repozytorium:
+   ```bash
+   pip install modal && modal setup
+   modal secret create narrivy-engine ENGINE_API_KEY=$(openssl rand -hex 32)
+   modal deploy deploy/modal/narrivy_engine.py
+   ```
+   Modal wypisze adres `https://…modal.run`. Klucz podejrzysz w panelu Modal → *Secrets → narrivy-engine*.
+3. W `.env` aplikacji: `ENGINE_URL=<adres z modal.run>`, `ENGINE_API_KEY=<klucz>`, **`ENGINE_HEALTH_TTL=30m`**, potem `docker compose up -d backend`.
+
+Jak oszczędzać pulę: karta wyłącza się po 2 minutach bez żądań (`SCALEDOWN_S` w pliku), aplikacja nie odpytuje silnika z kart
+przeglądarki w tle, a `ENGINE_HEALTH_TTL=30m` sprawia, że samo sprawdzanie stanu rzadko budzi kartę. Pierwsze generowanie
+po przerwie trwa dłużej (start kontenera i wczytanie modelu; przy pierwszym uruchomieniu także pobranie modelu) —
+jeśli zakończy się błędem, po prostu spróbuj ponownie po chwili. Zużycie sprawdzisz w panelu Modal → *Usage*.
+
 ## Krok 4. Sprawdzenie
 
 - `https://app.twoja-domena.pl` — rejestracja, e-mail z potwierdzeniem, wygenerowanie fragmentu.

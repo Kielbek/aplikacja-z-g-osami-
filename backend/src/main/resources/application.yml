@@ -37,6 +37,8 @@ voicecraft:
     # Ile wywołań modelu naraz (1 = jedno GPU) i jak długo żądanie interaktywne/API może czekać w kolejce
     concurrency: ${ENGINE_CONCURRENCY:1}
     queue-timeout: ${ENGINE_QUEUE_TIMEOUT:120s}
+    # Jak długo pamiętać stan silnika (Modal / serverless: np. 30m — każde sprawdzenie budzi kartę graficzną)
+    health-ttl: ${ENGINE_HEALTH_TTL:5s}
   seed-demo-data: ${SEED_DEMO_DATA:true}
   voices:
     # Katalog z nagraniami wzorcowymi; ścieżki z catalog.json ("prompts/....wav") są względne wobec niego

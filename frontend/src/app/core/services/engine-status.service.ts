@@ -39,7 +39,13 @@ export class EngineStatusService {
   start() {
     if (this.timer) return;
     void this.refresh();
-    this.timer = setInterval(() => void this.refresh(), 20000);
+    // Karta w tle nie odpytuje silnika — przy silniku „na żądanie” (np. Modal) każde pytanie budzi kartę graficzną
+    this.timer = setInterval(() => {
+      if (!document.hidden) void this.refresh();
+    }, 20000);
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) void this.refresh();
+    });
   }
 
   async refresh(force = false) {
