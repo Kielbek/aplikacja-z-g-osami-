@@ -18,7 +18,9 @@ from pathlib import Path
 
 import modal
 
-GPU = "L4"            # 24 GB, obsługuje bfloat16; tańsza alternatywa: "A10G"
+# Karty w kolejności preferencji: gdy w danej chwili brak wolnych L4, Modal bierze następną z listy
+# (bez tego żądania potrafią czekać w kolejce na kartę wiele minut). Wszystkie mają 24 GB+ i bfloat16.
+GPU = ["L4", "A10G", "L40S"]
 SCALEDOWN_S = 120     # ile sekund bez żądań, zanim karta zostanie wyłączona (krócej = taniej, częstsze zimne starty)
 
 
