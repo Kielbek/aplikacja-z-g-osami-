@@ -209,7 +209,7 @@ W ramach priorytetu obowiązuje kolejność zgłoszeń. Żądanie interaktywne l
 
 ## Publiczne API (v1)
 
-Programiści wywołują Narrivy ze swoich aplikacji kluczem API. Dokumentacja dla użytkowników: `/docs/api`, opis OpenAPI 3.1: `/v1/openapi.json`.
+Programiści wywołują Narrivy ze swoich aplikacji kluczem API. Dokumentacja dla użytkowników (po polsku): `/docs/api`. Opis OpenAPI 3.1 (po angielsku, zwalidowany `openapi-spec-validator`): `/v1/openapi.json`, generowany skryptem z opisami, przykładami, webhookiem i callbackiem.
 
 | Metoda | Ścieżka | Opis |
 |---|---|---|

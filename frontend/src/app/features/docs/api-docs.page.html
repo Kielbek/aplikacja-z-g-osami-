@@ -1,9 +1,13 @@
 <header class="top">
-  <a routerLink="/" aria-label="Narrivy"><vc-logo [size]="22" /></a>
+  <button class="menu-btn" (click)="navOpen.set(!navOpen())" [attr.aria-expanded]="navOpen()" aria-label="Spis treści">
+    <span></span><span></span><span></span>
+  </button>
+  <a routerLink="/" aria-label="Narrivy — strona główna" class="brand"><vc-logo [size]="22" /></a>
   <span class="top-sep"></span>
   <span class="top-title">Dokumentacja API</span>
+  <span class="ver">v1</span>
   <nav>
-    <a href="/v1/openapi.json" target="_blank" rel="noopener">OpenAPI</a>
+    <a class="top-link" href="/v1/openapi.json" target="_blank" rel="noopener">OpenAPI</a>
     @if (auth.user()) {
       <a class="btn btn-sm btn-primary" routerLink="/settings/api">Klucze API</a>
     } @else {
@@ -13,162 +17,230 @@
 </header>
 
 <div class="layout">
-  <aside class="toc" aria-label="Spis treści">
-    <span class="toc-title">Spis treści</span>
-    @for (t of toc; track t.id) { <a [href]="'#' + t.id">{{ t.label }}</a> }
+  <aside class="side" [class.open]="navOpen()" aria-label="Spis treści">
+    @for (g of nav; track g.group) {
+      <div class="side-group">
+        <span class="side-title">{{ g.group }}</span>
+        @for (i of g.items; track i.id) {
+          <a [href]="anchor(i.id)" (click)="go(i.id, $event)" [class.on]="active() === i.id" [attr.aria-current]="active() === i.id ? 'location' : null">
+            @if (i.method) { <span [class]="'m ' + methodClass(i.method)">{{ i.method }}</span> }
+            <span>{{ i.label }}</span>
+          </a>
+        }
+      </div>
+    }
   </aside>
+  @if (navOpen()) { <div class="scrim" (click)="navOpen.set(false)"></div> }
 
-  <main class="doc">
-    <section id="wprowadzenie">
+  <main class="doc" (click)="onContentClick($event)">
+    <!-- ============================== PIERWSZE KROKI ============================== -->
+    <section id="wprowadzenie" data-section class="guide">
       <span class="eyebrow">Narrivy API · v1</span>
       <h1>Zamieniaj tekst na mowę z własnych aplikacji</h1>
       <p class="lead">REST API z tymi samymi głosami i jakością co edytor Narrivy: 21 głosów z biblioteki, Twoje głosy zaprojektowane i sklonowane, 30 języków, emocje i styl mówienia.</p>
-      <ul class="facts">
-        <li><strong>Adres bazowy</strong><code>{{ base }}/v1</code></li>
-        <li><strong>Format</strong>JSON (pola w snake_case), odpowiedzi audio jako MP3 lub WAV</li>
-        <li><strong>Dostęp</strong>plany Pro i Business</li>
-        <li><strong>Rozliczanie</strong>znaki z API liczą się do miesięcznego limitu planu, a po jego wyczerpaniu — do dokupionych pakietów</li>
-      </ul>
-      <p>Każde nagranie zawiera w metadanych pliku oznaczenie treści wygenerowanej przez AI (zgodnie z art. 50 AI Act). Maszynowy opis API w formacie OpenAPI 3.1 znajdziesz pod <a href="/v1/openapi.json" target="_blank" rel="noopener">/v1/openapi.json</a> — zaimportujesz go do Postmana, Insomnii lub generatora klientów.</p>
-    </section>
-
-    <section id="uwierzytelnianie">
-      <h2>Uwierzytelnianie</h2>
-      <p>Utwórz klucz w <a routerLink="/settings/api">Ustawienia → API</a>. Klucz ma postać <code>nrv_live_…</code> i widać go tylko raz, przy utworzeniu — w bazie przechowujemy wyłącznie jego skrót. Dołącz go do każdego żądania:</p>
-      <vc-code-block [samples]="[{ label: 'HTTP', code: 'Authorization: Bearer nrv_live_…\n\n# albo\nX-API-Key: nrv_live_…' }]" />
-      <div class="note warn">
-        <strong>Klucz trzymaj wyłącznie na serwerze.</strong> Nie umieszczaj go w kodzie strony, aplikacji mobilnej ani w repozytorium. API nie obsługuje wywołań z przeglądarki (CORS) — to celowe. Jeśli klucz wycieknie, unieważnij go w ustawieniach i utwórz nowy.
+      <div class="facts">
+        <div><span>Adres bazowy</span><code>{{ base }}/v1</code></div>
+        <div><span>Format</span>JSON (snake_case) · audio MP3 lub WAV</div>
+        <div><span>Dostęp</span>plany Pro i Business</div>
+        <div><span>Rozliczanie</span>znaki z limitu planu, potem z pakietów</div>
       </div>
+      <p>Każde nagranie ma w metadanych pliku oznaczenie treści wygenerowanej przez AI (art. 50 AI Act). Opis maszynowy w formacie OpenAPI 3.1 (po angielsku) znajdziesz pod <a href="/v1/openapi.json" target="_blank" rel="noopener">/v1/openapi.json</a> — zaimportujesz go do Postmana, Insomnii lub generatora klientów.</p>
     </section>
 
-    <section id="szybki-start">
-      <h2>Szybki start</h2>
-      <p>Jedno wywołanie zwraca gotowy plik audio:</p>
+    <section id="uwierzytelnianie" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('uwierzytelnianie')" (click)="go('uwierzytelnianie', $event)" aria-label="Link do sekcji">#</a>Uwierzytelnianie</h2>
+      <p>Utwórz klucz w <a routerLink="/settings/api">Ustawienia → API</a>. Klucz ma postać <code>nrv_live_…</code>; pokazujemy go tylko raz, przy utworzeniu — w bazie przechowujemy wyłącznie jego skrót. Dołącz klucz do każdego żądania:</p>
+      <vc-code-block [samples]="authHeader" />
+      <div class="callout-doc warn"><strong>Klucz trzymaj na serwerze.</strong> Nie umieszczaj go w kodzie strony, aplikacji mobilnej ani w repozytorium. Szczegóły: <a href="#bezpieczenstwo">Bezpieczeństwo kluczy</a>.</div>
+    </section>
+
+    <section id="szybki-start" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('szybki-start')" (click)="go('szybki-start', $event)" aria-label="Link do sekcji">#</a>Szybki start</h2>
+      <ol class="steps">
+        <li><strong>Utwórz klucz</strong> w Ustawienia → API (plan Pro lub Business).</li>
+        <li><strong>Wybierz głos</strong> — <a href="#glosy-lista">lista głosów</a> albo identyfikator z biblioteki, np. <code>voice_warm_velvet</code>.</li>
+        <li><strong>Wyślij tekst</strong> — odpowiedzią jest gotowy plik audio:</li>
+      </ol>
       <vc-code-block [samples]="quick" />
     </section>
 
-    <section id="synteza">
-      <h2>Synteza mowy</h2>
-      <div class="endpoint"><span class="method post">POST</span><code>/v1/text-to-speech</code></div>
-      <p>Synchroniczna synteza tekstu do <strong>5 000 znaków</strong>. Odpowiedzią jest plik audio (<code>audio/mpeg</code> lub <code>audio/wav</code>). Dłuższe teksty dzielimy automatycznie na części po zdaniach i łączymy w jedno nagranie — ale powyżej limitu użyj <a href="#zadania">zadań w tle</a>.</p>
-      <h3>Parametry (JSON)</h3>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Pole</th><th>Typ</th><th>Opis</th></tr></thead>
-          <tbody>
-            @for (p of speechParams; track p.name) {
-              <tr><td><code>{{ p.name }}</code>@if (p.required) { <span class="req">wymagane</span> }</td><td class="type">{{ p.type }}</td><td>{{ p.desc }}</td></tr>
-            }
-          </tbody>
-        </table>
-      </div>
-      <p class="small">Nieznane pola są odrzucane (błąd <code>invalid_request</code> z nazwą pola) — dzięki temu literówka, np. <code>voiceId</code> zamiast <code>voice_id</code>, nie przejdzie niezauważona.</p>
-      <h3>Nagłówki odpowiedzi</h3>
-      <div class="table-wrap">
-        <table>
-          <tbody>
-            <tr><td><code>X-Characters</code></td><td>Naliczone znaki (bez znaczników pauz).</td></tr>
-            <tr><td><code>X-Duration-Ms</code></td><td>Długość nagrania w milisekundach.</td></tr>
-            <tr><td><code>X-Engine-Mode</code></td><td>Silnik, który wygenerował nagranie: <code>voxcpm2</code>, <code>piper</code> lub <code>demo</code> (sygnał zastępczy, gdy model nie jest załadowany).</td></tr>
-            <tr><td><code>X-Request-Id</code></td><td>Identyfikator żądania — podaj go, kontaktując się z pomocą.</td></tr>
-            <tr><td><code>X-RateLimit-*</code></td><td>Limit, pozostałe żądania i sekundy do odnowienia limitu minutowego.</td></tr>
-          </tbody>
-        </table>
-      </div>
+    <!-- ============================== ENDPOINTY ============================== -->
+    <div class="group-label">Endpointy</div>
+    @for (e of endpoints; track e.id) {
+      <section [id]="e.id" data-section class="endpoint">
+        <div class="ep-text">
+          <h2><a class="anchor" [href]="anchor(e.id)" (click)="go(e.id, $event)" aria-label="Link do sekcji">#</a>{{ e.title }}</h2>
+          <div class="ep-path"><span [class]="'m ' + methodClass(e.method)">{{ e.method }}</span><code>{{ e.path }}</code></div>
+          <p [innerHTML]="md(e.summary)"></p>
+
+          @if (e.pathParams) {
+            <h3>Parametry ścieżki</h3>
+            <dl class="fields">
+              @for (f of e.pathParams; track f.name) {
+                <div><dt><code>{{ f.name }}</code><span class="ft">{{ f.type }}</span>@if (f.required) { <span class="req">wymagane</span> }</dt><dd [innerHTML]="md(f.desc)"></dd></div>
+              }
+            </dl>
+          }
+          @if (e.query) {
+            <h3>Parametry zapytania</h3>
+            <dl class="fields">
+              @for (f of e.query; track f.name) {
+                <div><dt><code>{{ f.name }}</code><span class="ft">{{ f.type }}</span></dt><dd [innerHTML]="md(f.desc)"></dd></div>
+              }
+            </dl>
+          }
+          @if (e.headers) {
+            <h3>Nagłówki</h3>
+            <dl class="fields">
+              @for (f of e.headers; track f.name) {
+                <div><dt><code>{{ f.name }}</code><span class="ft">{{ f.type }}</span></dt><dd [innerHTML]="md(f.desc)"></dd></div>
+              }
+            </dl>
+          }
+          @if (e.body) {
+            <h3>Treść żądania <span class="h-note">application/json</span></h3>
+            <dl class="fields">
+              @for (f of e.body; track f.name) {
+                <div><dt><code>{{ f.name }}</code><span class="ft">{{ f.type }}</span>@if (f.required) { <span class="req">wymagane</span> }</dt><dd [innerHTML]="md(f.desc)"></dd></div>
+              }
+            </dl>
+          }
+          <h3>Odpowiedź</h3>
+          <p class="resp" [innerHTML]="md(e.responseNote)"></p>
+          @if (e.responseFields) {
+            <dl class="fields">
+              @for (f of e.responseFields; track f.name) {
+                <div><dt><code>{{ f.name }}</code><span class="ft">{{ f.type }}</span></dt><dd [innerHTML]="md(f.desc)"></dd></div>
+              }
+            </dl>
+          }
+          @if (e.errors.length) {
+            <p class="ep-errors">Możliwe błędy:
+              @for (c of e.errors; track c; let last = $last) { <a href="#bledy"><code>{{ c }}</code></a>@if (!last) {, } }
+            </p>
+          }
+        </div>
+        <div class="ep-code">
+          <div class="sticky">
+            <span class="code-label">Żądanie</span>
+            <vc-code-block [samples]="e.request" />
+            <span class="code-label">Odpowiedź</span>
+            <vc-code-block [samples]="e.response" />
+          </div>
+        </div>
+      </section>
+    }
+
+    <!-- ============================== PRZEWODNIKI ============================== -->
+    <div class="group-label">Przewodniki</div>
+
+    <section id="dlugie-teksty" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('dlugie-teksty')" (click)="go('dlugie-teksty', $event)" aria-label="Link do sekcji">#</a>Długie teksty</h2>
+      <p>Do 5 000 znaków używaj <a href="#synteza">syntezy synchronicznej</a> — połączenie pozostaje otwarte do końca generowania. Dłuższe teksty wysyłaj jako <a href="#zadanie-utworz">zadanie w tle</a>:</p>
+      <ol class="steps">
+        <li>Utwórz zadanie z nagłówkiem <code>Idempotency-Key</code> i (najlepiej) <code>callback_url</code>.</li>
+        <li>Zaczekaj na webhook <code>job.succeeded</code> albo odpytuj <a href="#zadanie-stan">stan zadania</a> co kilka sekund.</li>
+        <li>Pobierz <a href="#zadanie-nagranie">nagranie</a> w ciągu 7 dni.</li>
+      </ol>
+      <p>Zadania w tle ustępują na karcie graficznej pierwszeństwa syntezie synchronicznej, więc czas oczekiwania zależy od obciążenia. Tekst jest dzielony po akapitach i zdaniach, a części łączone z krótką przerwą — nagranie brzmi jak jedna całość.</p>
     </section>
 
-    <section id="zadania">
-      <h2>Zadania w tle</h2>
-      <div class="endpoint"><span class="method post">POST</span><code>/v1/text-to-speech/jobs</code></div>
-      <div class="endpoint"><span class="method get">GET</span><code>/v1/text-to-speech/jobs/{{ '{' }}job_id{{ '}' }}</code></div>
-      <div class="endpoint"><span class="method get">GET</span><code>/v1/text-to-speech/jobs/{{ '{' }}job_id{{ '}' }}/audio</code></div>
-      <p>Dla długich tekstów — audiobooków, kursów, artykułów — do limitu znaków w projekcie z Twojego planu (<strong>Pro: 100 000</strong>, <strong>Business: 500 000</strong>). Treść żądania jest taka sama jak przy syntezie synchronicznej, opcjonalnie z <code>callback_url</code>. Odpowiedź <code>202 Accepted</code> zawiera opis zadania i nagłówek <code>Location</code>.</p>
-      <ul>
-        <li><strong>Statusy:</strong> <code>queued</code> → <code>processing</code> → <code>succeeded</code> lub <code>failed</code> (z polem <code>error</code>).</li>
-        <li><strong>Idempotencja:</strong> wyślij nagłówek <code>Idempotency-Key</code> (np. UUID lub identyfikator rozdziału). Ponowione żądanie z tym samym kluczem zwróci istniejące zadanie zamiast tworzyć drugie — bezpiecznie ponawiaj po błędach sieci.</li>
-        <li><strong>Przechowywanie:</strong> wynik i opis zadania są dostępne przez <strong>7 dni</strong> (<code>expires_at</code>), potem są usuwane.</li>
-        <li><strong>Kolejność na GPU:</strong> zadania w tle ustępują pierwszeństwa syntezie synchronicznej — czas oczekiwania zależy od obciążenia.</li>
-      </ul>
-      <vc-code-block [samples]="jobs" />
-      <h3>Przykładowa odpowiedź</h3>
-      <vc-code-block [samples]="jobExample" />
-    </section>
-
-    <section id="webhooki">
-      <h2>Webhooki</h2>
-      <p>Jeśli podasz <code>callback_url</code>, po zakończeniu zadania wyślemy na ten adres żądanie <code>POST</code> ze zdarzeniem <code>job.succeeded</code> lub <code>job.failed</code>. Adres musi używać <code>https://</code> i wskazywać serwer publiczny.</p>
+    <section id="webhooki" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('webhooki')" (click)="go('webhooki', $event)" aria-label="Link do sekcji">#</a>Webhooki</h2>
+      <p>Jeśli zadanie ma <code>callback_url</code>, po jego zakończeniu wyślemy <code>POST</code> ze zdarzeniem <code>job.succeeded</code> lub <code>job.failed</code>. Pole <code>data</code> zawiera pełny obiekt zadania. Adres musi używać <code>https://</code> i wskazywać serwer publiczny.</p>
       <vc-code-block [samples]="webhookExample" />
       <h3>Weryfikacja podpisu</h3>
-      <p>Nagłówek <code>Narrivy-Signature</code> ma postać <code>t=&lt;czas unix&gt;,v1=&lt;podpis&gt;</code>, gdzie podpis to HMAC-SHA256 z tekstu <code>t + "." + treść</code>, kluczem jest <strong>sekret webhooków</strong> z Ustawienia → API. Odrzucaj zdarzenia z niepoprawnym podpisem lub starsze niż 5 minut.</p>
+      <p>Nagłówek <code>Narrivy-Signature</code> ma postać <code>t=&lt;czas unix&gt;,v1=&lt;podpis&gt;</code>. Podpis to HMAC-SHA256 z tekstu <code>t + "." + surowa treść</code>; kluczem jest <strong>sekret webhooków</strong> z Ustawienia → API. Odrzucaj zdarzenia z błędnym podpisem lub starsze niż 5 minut. Licz podpis z surowych bajtów treści — nie z ponownie zserializowanego JSON-a.</p>
       <vc-code-block [samples]="webhooks" />
       <h3>Ponowienia</h3>
-      <p>Odpowiedz kodem 2xx w ciągu 10 sekund. W przeciwnym razie ponowimy wysyłkę po 10 s, 1 min, 5 min i 30 min (łącznie 5 prób). Zdarzenia mogą wyjątkowo dotrzeć podwójnie — rozpoznasz je po polu <code>data.id</code>.</p>
+      <p>Odpowiedz kodem <code>2xx</code> w ciągu 10 sekund — długie przetwarzanie wykonuj po odpowiedzi. W przeciwnym razie ponowimy wysyłkę po 10 s, 1 min, 5 min i 30 min (łącznie 5 prób). Zdarzenie może wyjątkowo dotrzeć dwa razy — rozpoznasz je po <code>data.id</code>.</p>
     </section>
 
-    <section id="glosy">
-      <h2>Głosy</h2>
-      <div class="endpoint"><span class="method get">GET</span><code>/v1/voices</code></div>
-      <div class="endpoint"><span class="method get">GET</span><code>/v1/voices/{{ '{' }}voice_id{{ '}' }}</code></div>
-      <p>Głosy z biblioteki Narrivy oraz Twoje własne (zaprojektowane i sklonowane). Filtry: <code>?language=pl</code>, <code>?category=audiobooks</code> (<code>audiobooks</code>, <code>social_media</code>, <code>media_business</code>, <code>gaming_animation</code>, <code>wellness_relax</code>).</p>
-      <vc-code-block [samples]="voicesExample" />
+    <section id="pauzy" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('pauzy')" (click)="go('pauzy', $event)" aria-label="Link do sekcji">#</a>Pauzy, wymowa i styl</h2>
+      <ul>
+        <li><strong>Pauzy:</strong> wstaw w tekście <code>[pauza 1s]</code>, <code>[pauza 1.5s]</code> lub <code>[pauza 500ms]</code> — w tym miejscu powstanie cisza o dokładnej długości. Znaczniki nie są liczone jako znaki.</li>
+        <li><strong>Wymowa:</strong> słownik wymowy z Twojego konta (Ustawienia → Słownik wymowy) działa także w API — dodaj tam nazwy, skróty i nazwiska.</li>
+        <li><strong>Styl i emocje:</strong> <code>style</code> opisuje sposób mówienia słowami, <code>emotion</code> nadaje emocję. Gdy pominiesz oba, głos użyje swojego <code>default_instruction</code> (np. wariant „Relaks”).</li>
+        <li><strong>Powtarzalność:</strong> ten sam tekst, głos, parametry i <code>seed</code> dają to samo nagranie — możesz je buforować.</li>
+      </ul>
     </section>
 
-    <section id="zuzycie">
-      <h2>Zużycie</h2>
-      <div class="endpoint"><span class="method get">GET</span><code>/v1/usage</code></div>
-      <p>Zużycie znaków w bieżącym okresie, saldo dokupionych pakietów i limity Twojego planu.</p>
-      <vc-code-block [samples]="usageExample" />
-    </section>
-
-    <section id="limity">
-      <h2>Limity</h2>
+    <section id="limity" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('limity')" (click)="go('limity', $event)" aria-label="Link do sekcji">#</a>Limity</h2>
       <div class="table-wrap">
         <table>
           <thead><tr><th></th><th>Pro</th><th>Business</th></tr></thead>
           <tbody>
             <tr><td>Żądania na minutę (wszystkie klucze konta)</td><td>60</td><td>300</td></tr>
             <tr><td>Równoległe syntezy synchroniczne</td><td>2</td><td>5</td></tr>
-            <tr><td>Znaki w jednym żądaniu synchronicznym</td><td>5 000</td><td>5 000</td></tr>
-            <tr><td>Znaki w jednym zadaniu w tle</td><td>100 000</td><td>500 000</td></tr>
+            <tr><td>Znaki w żądaniu synchronicznym</td><td>5 000</td><td>5 000</td></tr>
+            <tr><td>Znaki w jednym zadaniu</td><td>100 000</td><td>500 000</td></tr>
             <tr><td>Znaki miesięcznie (plan)</td><td>200 000</td><td>1 000 000</td></tr>
             <tr><td>Zadania oczekujące w kolejce</td><td>100</td><td>100</td></tr>
+            <tr><td>Przechowywanie wyników zadań</td><td>7 dni</td><td>7 dni</td></tr>
             <tr><td>Aktywne klucze API</td><td>10</td><td>10</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="small">Po wyczerpaniu limitu znaków możesz dokupić pakiet znaków (bez zmiany planu) w Ustawienia → Subskrypcja.</p>
+      <p>Każda odpowiedź zawiera nagłówki <code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code> i <code>X-RateLimit-Reset</code> (sekundy do odnowienia limitu minutowego). Znaki z API i z edytora liczą się do wspólnego limitu; po jego wyczerpaniu możesz dokupić pakiet znaków bez zmiany planu.</p>
     </section>
 
-    <section id="bledy">
-      <h2>Błędy</h2>
-      <p>Błędy mają jednolity format. Pole <code>code</code> jest stałe — używaj go w kodzie; <code>message</code> jest opisem dla człowieka.</p>
+    <section id="bledy" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('bledy')" (click)="go('bledy', $event)" aria-label="Link do sekcji">#</a>Błędy</h2>
+      <p>Wszystkie błędy mają ten sam format. Pole <code>code</code> jest stałe — obsługuj je w kodzie; <code>message</code> to opis dla człowieka (po polsku), a <code>request_id</code> pomaga nam odnaleźć żądanie.</p>
       <vc-code-block [samples]="errorExample" />
       <div class="table-wrap">
         <table>
-          <thead><tr><th>HTTP</th><th>Kod</th><th>Znaczenie</th></tr></thead>
+          <thead><tr><th>HTTP</th><th>Kod</th><th>Znaczenie</th><th>Ponowić?</th></tr></thead>
           <tbody>
             @for (e of errors; track e.code) {
-              <tr><td class="type">{{ e.http }}</td><td><code>{{ e.code }}</code></td><td>{{ e.desc }}</td></tr>
+              <tr>
+                <td><span class="status" [class.s4]="e.http < 500" [class.s5]="e.http >= 500">{{ e.http }}</span></td>
+                <td><code>{{ e.code }}</code></td>
+                <td [innerHTML]="md(e.desc)"></td>
+                <td>{{ e.retry ? 'tak' : 'nie' }}</td>
+              </tr>
             }
           </tbody>
         </table>
       </div>
     </section>
 
-    <section id="dobre-praktyki">
-      <h2>Dobre praktyki</h2>
+    <section id="ponawianie" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('ponawianie')" (click)="go('ponawianie', $event)" aria-label="Link do sekcji">#</a>Ponawianie i idempotencja</h2>
       <ul>
-        <li><strong>Ponawiaj z odstępem</strong> przy <code>429</code> i <code>503</code> — odczekaj tyle sekund, ile podaje <code>Retry-After</code>; nie ponawiaj błędów <code>4xx</code> z innymi kodami.</li>
-        <li><strong>Długie teksty wysyłaj jako zadania</strong> z <code>Idempotency-Key</code> i webhookiem zamiast trzymać otwarte połączenie.</li>
-        <li><strong>Osobny klucz dla każdej aplikacji</strong> — łatwiej śledzić zużycie (widać je przy każdym kluczu) i unieważnić tylko jeden.</li>
-        <li><strong>Buforuj nagrania</strong> — ten sam tekst z tym samym <code>seed</code> brzmi tak samo, więc nie generuj go ponownie.</li>
-        <li><strong>Sprawdzaj <code>X-Engine-Mode</code></strong> — wartość <code>demo</code> oznacza sygnał zastępczy (np. podczas przerwy technicznej modelu).</li>
-        <li><strong>Pamiętaj o zgodach</strong> — głosy sklonowane możesz wykorzystywać tylko zgodnie ze zgodą właściciela głosu złożoną przy klonowaniu.</li>
+        <li>Ponawiaj tylko błędy oznaczone w <a href="#bledy">tabeli błędów</a> jako „tak” — odczekaj tyle sekund, ile podaje <code>Retry-After</code>, a gdy go brak, stosuj odstęp wykładniczy (1 s, 2 s, 4 s…).</li>
+        <li>Błędów <code>4xx</code> z innymi kodami nie ponawiaj — popraw żądanie.</li>
+        <li>Przy tworzeniu zadań zawsze wysyłaj <code>Idempotency-Key</code> i używaj tego samego klucza przy każdej próbie — zadanie (i opłata) powstanie tylko raz.</li>
+      </ul>
+      <vc-code-block [samples]="retrySample" />
+    </section>
+
+    <section id="bezpieczenstwo" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('bezpieczenstwo')" (click)="go('bezpieczenstwo', $event)" aria-label="Link do sekcji">#</a>Bezpieczeństwo kluczy</h2>
+      <ul>
+        <li>Wywołuj API wyłącznie z własnego serwera. API celowo nie obsługuje wywołań z przeglądarki (CORS), a sesja zalogowanego użytkownika nie daje dostępu do <code>/v1</code>.</li>
+        <li>Przechowuj klucz w zmiennej środowiskowej lub menedżerze sekretów, nie w repozytorium.</li>
+        <li>Używaj osobnego klucza dla każdej aplikacji — przy każdym kluczu widać zużycie, a w razie wycieku unieważnisz tylko jeden.</li>
+        <li>Klucz, który mógł wyciec, od razu unieważnij w Ustawienia → API i utwórz nowy. Unieważnienie działa natychmiast.</li>
+        <li>Głosów sklonowanych używaj tylko w zakresie zgody właściciela głosu złożonej przy klonowaniu.</li>
       </ul>
     </section>
 
-    <footer class="doc-foot t-small">
-      <a routerLink="/terms">Regulamin</a> · <a routerLink="/privacy">Prywatność</a> · <a href="/v1/openapi.json" target="_blank" rel="noopener">OpenAPI 3.1</a>
+    <section id="wersje" data-section class="guide">
+      <h2><a class="anchor" [href]="anchor('wersje')" (click)="go('wersje', $event)" aria-label="Link do sekcji">#</a>Wersje i zmiany</h2>
+      <p>Wersja jest częścią adresu (<code>/v1</code>). W ramach v1 dodajemy tylko zmiany zgodne wstecz: nowe endpointy, nowe opcjonalne pola żądań, nowe pola odpowiedzi i nowe kody błędów — Twój kod powinien ignorować nieznane pola odpowiedzi. Zmiany niezgodne wstecz trafią do v2, a o wycofaniu v1 poinformujemy z wyprzedzeniem.</p>
+      <div class="changelog">
+        <div><span class="cl-date">2026-11-16</span><span>Pierwsze wydanie v1: synteza, zadania z webhookami, głosy, zużycie.</span></div>
+      </div>
+    </section>
+
+    <footer class="doc-foot">
+      <span>© Narrivy</span>
+      <a routerLink="/terms">Regulamin</a>
+      <a routerLink="/privacy">Prywatność</a>
+      <a href="/v1/openapi.json" target="_blank" rel="noopener">OpenAPI 3.1</a>
     </footer>
   </main>
 </div>
