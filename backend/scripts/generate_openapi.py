@@ -1,0 +1,244 @@
+"""Generuje specyfikację OpenAPI 3.1 publicznego API (po angielsku).
+
+Użycie:  python3 backend/scripts/generate_openapi.py backend/src/main/resources/openapi/narrivy-v1.json
+Walidacja: pip install openapi-spec-validator && python3 -c "import json; from openapi_spec_validator import validate; validate(json.load(open(\"backend/src/main/resources/openapi/narrivy-v1.json\")))"
+"""
+import json, sys
+ERR = ["missing_api_key","invalid_api_key","plan_required","rate_limit_exceeded","concurrency_limit_exceeded","invalid_request",
+       "invalid_json","text_too_long","voice_not_found","quota_exceeded","email_not_verified","engine_busy","engine_unavailable",
+       "job_not_found","job_not_ready","too_many_pending_jobs","internal_error"]
+def err(desc, codes=None):
+    ex = {}
+    for c in (codes or []):
+        ex[c] = {"value": {"error": {"code": c, "message": "…", "request_id": "req_8f3a2c1b9d0e4f5a6b7c8d9e"}}}
+    content = {"schema": {"$ref": "#/components/schemas/Error"}}
+    if ex: content["examples"] = ex
+    return {"description": desc, "content": {"application/json": content}}
+RL = {"X-RateLimit-Limit": {"$ref": "#/components/headers/RateLimitLimit"},
+      "X-RateLimit-Remaining": {"$ref": "#/components/headers/RateLimitRemaining"},
+      "X-RateLimit-Reset": {"$ref": "#/components/headers/RateLimitReset"},
+      "X-Request-Id": {"$ref": "#/components/headers/RequestId"}}
+COMMON = {"401": {"$ref": "#/components/responses/Unauthorized"},
+          "403": {"$ref": "#/components/responses/Forbidden"},
+          "429": {"$ref": "#/components/responses/TooManyRequests"}}
+AUDIO = {"audio/mpeg": {"schema": {"type": "string", "contentMediaType": "audio/mpeg"}},
+         "audio/wav": {"schema": {"type": "string", "contentMediaType": "audio/wav"}}}
+JOB_ID = {"name": "job_id", "in": "path", "required": True, "schema": {"type": "string", "pattern": "^job_[a-f0-9]{24}$"},
+          "description": "Job identifier.", "example": "job_3f2a9c0e7b1d4e5f6a7b8c9d"}
+
+spec = {
+ "openapi": "3.1.0",
+ "info": {
+  "title": "Narrivy API",
+  "version": "1.0.0",
+  "summary": "Text-to-speech with Narrivy voices.",
+  "description": (
+   "Convert text to natural speech using the Narrivy voice library or your own designed and cloned voices, in 30 languages.\n\n"
+   "## Authentication\n"
+   "Create an API key in **Settings → API**. Send it with every request as `Authorization: Bearer nrv_live_…` "
+   "or `X-API-Key: nrv_live_…`. Keys are shown only once and are stored as hashes. "
+   "Call the API from your server only — browser requests (CORS) are intentionally not supported.\n\n"
+   "## Plans and billing\n"
+   "API access is included in the **Pro** (60 requests/min, 2 concurrent syntheses) and **Business** "
+   "(300 requests/min, 5 concurrent syntheses) plans. Characters synthesized through the API count towards the monthly "
+   "plan quota and, once it is used up, towards purchased character packs.\n\n"
+   "## Errors\n"
+   "Errors share a single format: `{\"error\": {\"code\", \"message\", \"request_id\"}}`. "
+   "`code` is stable and meant for programmatic handling; `message` is a human-readable explanation (currently in Polish).\n\n"
+   "## AI content labelling\n"
+   "Every audio file contains AI-generated content metadata (EU AI Act, Art. 50)."
+  ),
+  "contact": {"name": "Narrivy", "url": "/docs/api"},
+ },
+ "servers": [{"url": "/", "description": "This server"}],
+ "security": [{"bearerAuth": []}, {"apiKeyHeader": []}],
+ "tags": [
+  {"name": "Speech", "description": "Synchronous text-to-speech."},
+  {"name": "Jobs", "description": "Background synthesis for long texts, with optional webhooks."},
+  {"name": "Voices", "description": "Library voices and your own voices."},
+  {"name": "Account", "description": "Usage and limits."},
+ ],
+ "paths": {
+  "/v1/text-to-speech": {"post": {
+   "tags": ["Speech"], "operationId": "createSpeech", "summary": "Convert text to speech",
+   "description": "Synthesizes up to **5,000 characters** and returns the audio file in the response body. "
+                  "The text is split into sentences and joined into a single recording. For longer texts, create a job instead.",
+   "requestBody": {"required": True, "content": {"application/json": {
+     "schema": {"$ref": "#/components/schemas/SpeechRequest"},
+     "examples": {"basic": {"summary": "Polish greeting", "value": {"text": "Dzień dobry! Tak brzmi Narrivy.", "voice_id": "voice_warm_velvet", "language": "pl", "format": "mp3"}},
+                  "styled": {"summary": "English with emotion and style", "value": {"text": "Welcome back! Here is today's summary.", "voice_id": "voice_news_anchor_f", "language": "en", "emotion": "Happy", "style": "upbeat, clear, confident", "speed": 1.05}}}}}},
+   "responses": {
+    "200": {"description": "The generated audio.",
+            "headers": {**RL,
+              "X-Characters": {"description": "Billed characters (pause markers excluded).", "schema": {"type": "integer"}},
+              "X-Duration-Ms": {"description": "Audio duration in milliseconds.", "schema": {"type": "integer"}},
+              "X-Engine-Mode": {"description": "Engine that produced the audio: `voxcpm2`, `piper` or `demo` (placeholder signal while the model is not loaded).", "schema": {"type": "string"}}},
+            "content": AUDIO},
+    "400": err("Invalid request.", ["invalid_request", "invalid_json"]),
+    **COMMON,
+    "402": {"$ref": "#/components/responses/QuotaExceeded"},
+    "404": err("Unknown voice.", ["voice_not_found"]),
+    "413": err("Text exceeds 5,000 characters — use a job.", ["text_too_long"]),
+    "503": {"$ref": "#/components/responses/EngineBusy"}}}},
+  "/v1/text-to-speech/jobs": {"post": {
+   "tags": ["Jobs"], "operationId": "createSpeechJob", "summary": "Create a speech job",
+   "description": "Queues background synthesis for long texts — up to the per-project character limit of your plan "
+                  "(**Pro: 100,000**, **Business: 500,000**). Results are kept for 7 days. "
+                  "Provide `callback_url` to receive a webhook when the job finishes. "
+                  "Background jobs yield GPU priority to synchronous requests.",
+   "parameters": [{"name": "Idempotency-Key", "in": "header", "required": False, "schema": {"type": "string", "maxLength": 255},
+                   "description": "Unique operation key (e.g. a UUID). Retrying with the same key returns the existing job instead of creating a duplicate.",
+                   "example": "book-12-chapter-1"}],
+   "requestBody": {"required": True, "content": {"application/json": {
+     "schema": {"allOf": [{"$ref": "#/components/schemas/SpeechRequest"},
+                          {"type": "object", "properties": {"callback_url": {"type": "string", "format": "uri", "maxLength": 2048,
+                             "description": "Public `https://` URL that receives a signed webhook when the job finishes."}}}]},
+     "example": {"text": "Chapter one. …", "voice_id": "voice_warm_narrator", "format": "mp3", "callback_url": "https://example.com/webhooks/narrivy"}}}},
+   "responses": {
+    "202": {"description": "Job accepted.", "headers": {**RL, "Location": {"description": "URL of the job.", "schema": {"type": "string"}}},
+            "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Job"}}}},
+    "400": err("Invalid request (including an invalid `callback_url`).", ["invalid_request", "invalid_json"]),
+    **COMMON,
+    "404": err("Unknown voice.", ["voice_not_found"]),
+    "413": err("Text exceeds your plan's per-job limit.", ["text_too_long"])},
+   "callbacks": {"jobFinished": {"{$request.body#/callback_url}": {"post": {
+     "summary": "Job finished", "description": "See the `jobFinished` webhook.",
+     "parameters": [{"$ref": "#/components/parameters/SignatureHeader"}],
+     "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookEvent"}}}},
+     "responses": {"2XX": {"description": "Delivered. Any other status triggers a retry."}}}}}}}},
+  "/v1/text-to-speech/jobs/{job_id}": {"get": {
+   "tags": ["Jobs"], "operationId": "getSpeechJob", "summary": "Retrieve a job",
+   "description": "Returns the current state of a job. Prefer webhooks over frequent polling.",
+   "parameters": [JOB_ID],
+   "responses": {"200": {"description": "The job.", "headers": RL, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Job"}}}},
+                 **COMMON, "404": err("Job not found or expired.", ["job_not_found"])}}},
+  "/v1/text-to-speech/jobs/{job_id}/audio": {"get": {
+   "tags": ["Jobs"], "operationId": "getSpeechJobAudio", "summary": "Download job audio",
+   "description": "Downloads the finished recording. Available for 7 days after the job was created.",
+   "parameters": [JOB_ID],
+   "responses": {"200": {"description": "The audio file.", "headers": {**RL, "X-Duration-Ms": {"description": "Audio duration in milliseconds.", "schema": {"type": "integer"}}}, "content": AUDIO},
+                 **COMMON, "404": err("Job not found or expired.", ["job_not_found"]),
+                 "409": err("The job has not finished yet.", ["job_not_ready"])}}},
+  "/v1/voices": {"get": {
+   "tags": ["Voices"], "operationId": "listVoices", "summary": "List voices",
+   "description": "Narrivy library voices plus your own designed and cloned voices (listed first).",
+   "parameters": [
+    {"name": "language", "in": "query", "schema": {"type": "string"}, "description": "Only voices supporting this language code, e.g. `pl`.", "example": "pl"},
+    {"name": "category", "in": "query", "schema": {"$ref": "#/components/schemas/VoiceCategory"}, "description": "Only voices in this category."}],
+   "responses": {"200": {"description": "Voices.", "headers": RL, "content": {"application/json": {"schema": {
+      "type": "object", "required": ["object", "data"],
+      "properties": {"object": {"const": "list"}, "data": {"type": "array", "items": {"$ref": "#/components/schemas/Voice"}}}}}}},
+     **COMMON}}},
+  "/v1/voices/{voice_id}": {"get": {
+   "tags": ["Voices"], "operationId": "getVoice", "summary": "Retrieve a voice",
+   "parameters": [{"name": "voice_id", "in": "path", "required": True, "schema": {"type": "string"}, "example": "voice_warm_velvet"}],
+   "responses": {"200": {"description": "The voice.", "headers": RL, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Voice"}}}},
+                 **COMMON, "404": err("Unknown voice.", ["voice_not_found"])}}},
+  "/v1/usage": {"get": {
+   "tags": ["Account"], "operationId": "getUsage", "summary": "Get usage and limits",
+   "description": "Character usage in the current billing period, purchased pack balance and your plan's limits.",
+   "responses": {"200": {"description": "Usage.", "headers": RL, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/Usage"}}}}, **COMMON}}},
+ },
+ "webhooks": {"jobFinished": {"post": {
+  "summary": "Job finished",
+  "description": "Sent to the job's `callback_url` when it finishes (`job.succeeded` or `job.failed`).\n\n"
+                 "**Signature.** The `Narrivy-Signature` header has the form `t=<unix time>,v1=<hex>`, where `v1` is "
+                 "HMAC-SHA256 of `t + \".\" + raw_body`, keyed with the webhook signing secret from Settings → API. "
+                 "Reject events with an invalid signature or older than 5 minutes; compute the HMAC over the raw request bytes.\n\n"
+                 "**Retries.** Respond with a 2xx status within 10 seconds. Otherwise delivery is retried after 10 s, 1 min, 5 min "
+                 "and 30 min (5 attempts in total). An event may occasionally be delivered more than once — deduplicate by `data.id`.",
+  "parameters": [{"$ref": "#/components/parameters/SignatureHeader"}],
+  "requestBody": {"content": {"application/json": {"schema": {"$ref": "#/components/schemas/WebhookEvent"}}}},
+  "responses": {"2XX": {"description": "Event received."}}}}},
+ "components": {
+  "securitySchemes": {
+   "bearerAuth": {"type": "http", "scheme": "bearer", "description": "`Authorization: Bearer nrv_live_…`"},
+   "apiKeyHeader": {"type": "apiKey", "in": "header", "name": "X-API-Key", "description": "Alternative header carrying the same API key."}},
+  "parameters": {"SignatureHeader": {"name": "Narrivy-Signature", "in": "header", "required": True, "schema": {"type": "string"},
+                                     "example": "t=1763284300,v1=5f2b9c0d3e…", "description": "Webhook signature: `t=<unix time>,v1=<HMAC-SHA256 hex>`."}},
+  "headers": {
+   "RateLimitLimit": {"description": "Requests allowed per minute for your plan.", "schema": {"type": "integer"}},
+   "RateLimitRemaining": {"description": "Requests remaining in the current minute.", "schema": {"type": "integer"}},
+   "RateLimitReset": {"description": "Seconds until the per-minute limit resets.", "schema": {"type": "integer"}},
+   "RequestId": {"description": "Request identifier — include it when contacting support.", "schema": {"type": "string"}},
+   "RetryAfter": {"description": "Seconds to wait before retrying.", "schema": {"type": "integer"}}},
+  "responses": {
+   "Unauthorized": err("Missing or invalid API key.", ["missing_api_key", "invalid_api_key"]),
+   "Forbidden": err("Your plan has no API access, or the account e-mail is not verified.", ["plan_required", "email_not_verified"]),
+   "TooManyRequests": {**err("Rate limit, concurrency limit or job queue limit exceeded. Wait for `Retry-After` seconds when present.",
+                            ["rate_limit_exceeded", "concurrency_limit_exceeded", "too_many_pending_jobs"]),
+                       "headers": {"Retry-After": {"$ref": "#/components/headers/RetryAfter"}, **RL}},
+   "QuotaExceeded": err("Monthly plan characters and purchased packs are used up.", ["quota_exceeded"]),
+   "EngineBusy": {**err("The speech engine is busy (retry after `Retry-After`) or unavailable.", ["engine_busy", "engine_unavailable"]),
+                  "headers": {"Retry-After": {"$ref": "#/components/headers/RetryAfter"}}}},
+  "schemas": {
+   "SpeechRequest": {"type": "object", "required": ["text", "voice_id"], "additionalProperties": False,
+    "description": "Unknown fields are rejected with `invalid_request` (so typos such as `voiceId` are caught).",
+    "properties": {
+     "text": {"type": "string", "minLength": 1, "description": "Text to speak. Pause markers: `[pauza 1s]`, `[pauza 500ms]`. Your account's pronunciation dictionary is applied automatically.", "example": "Dzień dobry! Tak brzmi Narrivy."},
+     "voice_id": {"type": "string", "description": "Voice identifier from `GET /v1/voices`.", "example": "voice_warm_velvet"},
+     "language": {"type": "string", "description": "Language code (30 languages, e.g. `pl`, `en`, `de`, `es`, `ja`). Defaults to the voice's first language. The voice speaks with a native accent of the chosen language.", "example": "pl"},
+     "format": {"type": "string", "enum": ["mp3", "wav"], "default": "mp3", "description": "Output format. MP3 bitrate follows your plan (up to 320 kb/s)."},
+     "style": {"type": "string", "maxLength": 300, "description": "Speaking style in plain words, e.g. \"calm narration, clear diction\"."},
+     "emotion": {"type": "string", "maxLength": 60, "examples": ["Neutral", "Happy", "Whisper", "Calm", "Sad", "Excited", "Serious", "Menacing"], "description": "Emotion instruction."},
+     "speed": {"type": "number", "minimum": 0.5, "maximum": 2.0, "default": 1.0, "description": "Speaking rate."},
+     "expressiveness": {"type": "number", "minimum": 0, "maximum": 1, "default": 0.5, "description": "Expressiveness."},
+     "seed": {"type": "integer", "description": "Random seed — the same text, voice, parameters and seed give the same audio."}}},
+   "JobStatus": {"type": "string", "enum": ["queued", "processing", "succeeded", "failed"]},
+   "Job": {"type": "object", "required": ["id", "object", "status", "voice_id", "language", "format", "characters", "created_at", "expires_at"],
+    "properties": {
+     "id": {"type": "string", "example": "job_3f2a9c0e7b1d4e5f6a7b8c9d"},
+     "object": {"const": "text_to_speech_job"},
+     "status": {"$ref": "#/components/schemas/JobStatus"},
+     "voice_id": {"type": "string"}, "language": {"type": "string"}, "format": {"type": "string", "enum": ["mp3", "wav"]},
+     "characters": {"type": "integer", "description": "Characters billed for this job."},
+     "created_at": {"type": "string", "format": "date-time"},
+     "started_at": {"type": ["string", "null"], "format": "date-time"},
+     "finished_at": {"type": ["string", "null"], "format": "date-time"},
+     "expires_at": {"type": "string", "format": "date-time", "description": "The job and its audio are deleted after this time (7 days after creation)."},
+     "duration_ms": {"type": "integer", "description": "Present when `succeeded`."},
+     "audio_url": {"type": "string", "description": "Present when `succeeded`. Path to download the audio (requires the API key)."},
+     "demo": {"type": "boolean", "description": "Present when `succeeded`; `true` if produced by the demo engine (placeholder signal)."},
+     "error": {"type": "object", "description": "Present when `failed`.", "properties": {"code": {"type": "string"}, "message": {"type": "string"}}},
+     "webhook": {"type": "object", "description": "Present when `callback_url` was provided.",
+                 "properties": {"url": {"type": "string"}, "status": {"type": "string", "enum": ["pending", "delivered", "failed"]}, "attempts": {"type": "integer"}}}}},
+   "VoiceCategory": {"type": "string", "enum": ["audiobooks", "social_media", "media_business", "gaming_animation", "wellness_relax"]},
+   "Voice": {"type": "object", "required": ["voice_id", "object", "name", "type", "languages", "categories"],
+    "properties": {
+     "voice_id": {"type": "string", "example": "voice_warm_velvet"},
+     "object": {"const": "voice"},
+     "name": {"type": "string", "description": "Display name (Polish).", "example": "Ciepły Aksamit"},
+     "type": {"type": "string", "enum": ["library", "designed", "cloned"]},
+     "description": {"type": ["string", "null"]},
+     "gender": {"type": ["string", "null"], "examples": ["female", "male"]},
+     "age": {"type": ["integer", "null"]},
+     "languages": {"type": "array", "items": {"type": "string"}},
+     "categories": {"type": "array", "items": {"$ref": "#/components/schemas/VoiceCategory"}},
+     "default_instruction": {"type": ["string", "null"], "description": "Default speaking instruction used when neither `style` nor `emotion` is given."}}},
+   "Usage": {"type": "object",
+    "properties": {
+     "object": {"const": "usage"},
+     "plan": {"type": "string", "enum": ["free", "starter", "pro", "business"]},
+     "period_start": {"type": "string", "format": "date"},
+     "period_end": {"type": "string", "format": "date", "description": "Date when monthly limits reset."},
+     "characters_used": {"type": "integer", "description": "Plan characters used in the current period (editor and API combined)."},
+     "character_limit": {"type": "integer", "description": "Monthly plan character limit."},
+     "extra_characters": {"type": "integer", "description": "Purchased pack balance (never expires; used after the plan limit)."},
+     "characters_remaining": {"type": "integer"},
+     "rate_limits": {"type": "object", "properties": {
+       "requests_per_minute": {"type": "integer"}, "concurrent_requests": {"type": "integer"},
+       "max_sync_characters": {"type": "integer"}, "max_job_characters": {"type": "integer"}}}}},
+   "WebhookEvent": {"type": "object", "required": ["id", "type", "created_at", "data"],
+    "properties": {
+     "id": {"type": "string", "description": "Event identifier (unique per delivery attempt)."},
+     "type": {"type": "string", "enum": ["job.succeeded", "job.failed"]},
+     "created_at": {"type": "string", "format": "date-time"},
+     "data": {"$ref": "#/components/schemas/Job"}}},
+   "Error": {"type": "object", "required": ["error"],
+    "properties": {"error": {"type": "object", "required": ["code", "message"],
+     "properties": {
+      "code": {"type": "string", "enum": ERR, "description": "Stable, machine-readable error code."},
+      "message": {"type": "string", "description": "Human-readable explanation (currently in Polish)."},
+      "request_id": {"type": "string", "description": "Request identifier for support."}}}}}}}
+}
+json.dump(spec, open(sys.argv[1], "w"), ensure_ascii=False, indent=2)
