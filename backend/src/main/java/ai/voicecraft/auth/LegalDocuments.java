@@ -5,5 +5,5 @@ public final class LegalDocuments {
     private LegalDocuments() {}
 
     /** Zmiana regulaminu lub polityki prywatności = nowa wersja (zapisywana przy koncie). */
-    public static final String TERMS_VERSION = "2026-11-15";
+    public static final String TERMS_VERSION = "2026-11-16";
 }

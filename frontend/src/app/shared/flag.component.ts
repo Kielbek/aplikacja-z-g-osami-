@@ -2,8 +2,9 @@ import { ChangeDetectionStrategy, Component, computed, input, signal } from '@an
 import { flagCountry } from '../core/util/labels';
 
 /**
- * Flaga kraju dla języka głosu. Obrazki pobierane z flagcdn.com (SVG, ~1 KB, cache przeglądarki).
- * Gdy flaga się nie wczyta (brak internetu), element znika — obok zawsze jest nazwa języka.
+ * Flaga kraju dla języka głosu. Pliki SVG są dołączone do aplikacji (public/flags, z pakietu flag-icons, licencja MIT),
+ * więc przeglądarka nie łączy się z zewnętrznym serwerem (brak przekazywania adresu IP stronie trzeciej).
+ * Gdy flaga się nie wczyta, element znika — obok zawsze jest nazwa języka.
  */
 @Component({
   selector: 'vc-flag',
@@ -21,8 +22,8 @@ import { flagCountry } from '../core/util/labels';
   template: `
     @if (country(); as c) {
       @if (!failed()) {
-        <img [src]="'https://flagcdn.com/' + c + '.svg'" alt="" aria-hidden="true" [style.--h.px]="size()"
-          loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false" (error)="failed.set(true)" />
+        <img [src]="'flags/' + c + '.svg'" alt="" aria-hidden="true" [style.--h.px]="size()"
+          loading="lazy" decoding="async" draggable="false" (error)="failed.set(true)" />
       }
     }
   `,

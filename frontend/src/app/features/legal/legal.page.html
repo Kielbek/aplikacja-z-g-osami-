@@ -1,144 +1,404 @@
 <header class="top">
-  <a routerLink="/" aria-label="Narrivy"><vc-logo [size]="24" /></a>
-  <nav>
+  <a routerLink="/" aria-label="Narrivy — strona główna" class="brand"><vc-logo [size]="22" /></a>
+  <nav class="doc-switch" aria-label="Dokumenty">
     <a routerLink="/terms" [class.active]="doc() === 'terms'">Regulamin</a>
     <a routerLink="/privacy" [class.active]="doc() === 'privacy'">Prywatność i cookies</a>
   </nav>
+  <button class="btn btn-sm print-btn" (click)="print()">Drukuj / PDF</button>
 </header>
 
-<article>
-  <h1>{{ title() }}</h1>
-  <p class="meta">Wersja {{ version }} · obowiązuje od {{ version }}</p>
-  <div class="draft" role="note">
-    <strong>Szablon do weryfikacji prawnej.</strong> Dokument opisuje rzeczywiste działanie aplikacji, ale przed
-    udostępnieniem usługi należy uzupełnić dane usługodawcy (pola w nawiasach kwadratowych) i zlecić jego przegląd prawnikowi.
-  </div>
+<div class="layout">
+  <aside class="toc" aria-label="Spis treści">
+    <span class="toc-title">Spis treści</span>
+    @for (t of toc(); track t.id) {
+      <a [href]="link(t.id)" (click)="go(t.id, $event)" [class.on]="active() === t.id">{{ t.label }}</a>
+    }
+  </aside>
 
-  @if (doc() === 'terms') {
-    <h2>1. Postanowienia ogólne</h2>
-    <p>Regulamin określa zasady korzystania z serwisu Narrivy (dalej „Serwis”), który zamienia tekst na mowę przy
-      użyciu modeli sztucznej inteligencji. Usługodawcą jest [nazwa firmy, adres, NIP, KRS/CEIDG], kontakt: [adres e-mail].</p>
+  <article (click)="onContentClick($event)">
+    <header class="doc-head">
+      <span class="eyebrow">Narrivy · dokumenty prawne</span>
+      <h1>{{ title() }}</h1>
+      <dl class="doc-meta">
+        <div><dt>Wersja</dt><dd>{{ version }}</dd></div>
+        <div><dt>Obowiązuje od</dt><dd>{{ version }}</dd></div>
+        <div><dt>Usługodawca</dt><dd>{{ o.name }}</dd></div>
+      </dl>
+    </header>
 
-    <h2>2. Konto</h2>
-    <ul>
-      <li>Do korzystania z Serwisu potrzebne jest konto. Rejestracja wymaga akceptacji niniejszego regulaminu i polityki prywatności.</li>
-      <li>Generowanie nagrań i klonowanie głosu są dostępne po potwierdzeniu adresu e-mail.</li>
-      <li>Jedna osoba może posiadać jedno bezpłatne konto. Zakładanie wielu kont w celu obejścia limitów jest zabronione.</li>
-      <li>Użytkownik odpowiada za poufność hasła. Konto można w każdej chwili usunąć w ustawieniach.</li>
-    </ul>
+    @if (doc() === 'terms') {
+      <!-- =============================== REGULAMIN =============================== -->
+      <section id="t1" data-sec>
+        <h2>§1 Postanowienia ogólne</h2>
+        <ol>
+          <li>Niniejszy regulamin (dalej „Regulamin”) określa zasady świadczenia usług drogą elektroniczną w serwisie Narrivy dostępnym pod adresem {{ o.domain }} oraz przez interfejs programistyczny (API), w tym rodzaje i zakres usług, warunki zawierania i rozwiązywania umów oraz tryb postępowania reklamacyjnego. Regulamin jest regulaminem, o którym mowa w art. 8 ustawy z dnia 18 lipca 2002 r. o świadczeniu usług drogą elektroniczną.</li>
+          <li>Usługodawcą jest {{ o.name }}, {{ o.address }}, NIP {{ o.nip }}, REGON {{ o.regon }}, {{ o.register }} (dalej „Usługodawca”).</li>
+          <li>Kontakt z Usługodawcą: e-mail {{ o.email }}. Sprawy dotyczące danych osobowych: {{ o.privacyEmail }}. Zgłoszenia nielegalnych treści i nadużyć: {{ o.abuseEmail }} — jest to również pojedynczy punkt kontaktowy dla organów państw członkowskich, Komisji Europejskiej i odbiorców usług w rozumieniu art. 11 i 12 rozporządzenia (UE) 2022/2065 (akt o usługach cyfrowych). Komunikacja odbywa się w języku polskim lub angielskim.</li>
+          <li>Regulamin jest udostępniany nieodpłatnie w Serwisie w sposób umożliwiający jego pozyskanie, odtworzenie i utrwalenie (przycisk „Drukuj / PDF”). Zasady przetwarzania danych osobowych opisuje <a routerLink="/privacy">Polityka prywatności i cookies</a>.</li>
+        </ol>
+      </section>
 
-    <h2>3. Plany i płatności</h2>
-    <p>Zakres usług (limity znaków i minut, liczba projektów i głosów, formaty eksportu, okres przechowywania historii)
-      zależy od planu opisanego w ustawieniach konta. Płatności obsługuje Stripe. Subskrypcja odnawia się co miesiąc
-      i można ją anulować w panelu płatności — dostęp do planu trwa do końca opłaconego okresu. Wyczyszczenie historii
-      nie przywraca wykorzystanego limitu.</p>
+      <section id="t2" data-sec>
+        <h2>§2 Definicje</h2>
+        <dl class="defs">
+          <div><dt>Serwis</dt><dd>serwis internetowy Narrivy wraz z API, umożliwiający zamianę tekstu na mowę z użyciem modeli sztucznej inteligencji.</dd></div>
+          <div><dt>Użytkownik</dt><dd>osoba fizyczna mająca pełną zdolność do czynności prawnych, osoba prawna albo jednostka organizacyjna z przyznaną zdolnością prawną, korzystająca z Serwisu.</dd></div>
+          <div><dt>Konsument</dt><dd>Użytkownik będący konsumentem w rozumieniu art. 22<sup>1</sup> Kodeksu cywilnego; postanowienia dotyczące Konsumenta stosuje się także do osoby fizycznej zawierającej umowę bezpośrednio związaną z jej działalnością gospodarczą, gdy umowa ta nie ma dla niej charakteru zawodowego (art. 38a ustawy o prawach konsumenta).</dd></div>
+          <div><dt>Konto</dt><dd>indywidualny panel Użytkownika w Serwisie, chroniony hasłem lub logowaniem przez Google.</dd></div>
+          <div><dt>Plan</dt><dd>pakiet usług z określonymi limitami (Free, Starter, Pro, Business) opisany w cenniku w Serwisie.</dd></div>
+          <div><dt>Subskrypcja</dt><dd>odpłatny Plan rozliczany cyklicznie — miesięcznie albo rocznie.</dd></div>
+          <div><dt>Znak</dt><dd>jednostka rozliczeniowa: znak tekstu przekazanego do syntezy, z pominięciem znaczników pauz.</dd></div>
+          <div><dt>Pakiet znaków</dt><dd>jednorazowo kupowana pula Znaków, niezależna od Subskrypcji.</dd></div>
+          <div><dt>Treści Użytkownika</dt><dd>teksty, nagrania, opisy głosów, wpisy słownika wymowy i inne materiały przekazane przez Użytkownika.</dd></div>
+          <div><dt>Nagranie</dt><dd>plik audio wygenerowany w Serwisie na podstawie Treści Użytkownika.</dd></div>
+          <div><dt>Głos</dt><dd>głos z biblioteki Serwisu, głos zaprojektowany przez Użytkownika na podstawie opisu albo głos sklonowany z nagrania.</dd></div>
+          <div><dt>Klucz API</dt><dd>poufny ciąg znaków umożliwiający korzystanie z API w imieniu Konta.</dd></div>
+        </dl>
+      </section>
 
-    <h2>4. Treści generowane przez AI</h2>
-    <ul>
-      <li>Nagrania są tworzone automatycznie przez model AI i mogą zawierać błędy wymowy lub intonacji.</li>
-      <li>Pliki eksportowane z Serwisu zawierają w metadanych oznaczenie, że są treścią wygenerowaną przez AI.
-        Użytkownik nie usuwa tego oznaczenia i — gdy wymagają tego przepisy (m.in. art. 50 rozporządzenia o AI) —
-        informuje odbiorców, że treść została wygenerowana sztucznie.</li>
-      <li>Użytkownik odpowiada za tekst, który przekazuje do syntezy, i za sposób wykorzystania nagrań.</li>
-    </ul>
+      <section id="t3" data-sec>
+        <h2>§3 Wymagania techniczne</h2>
+        <ol>
+          <li>Do korzystania z Serwisu potrzebne są: urządzenie z dostępem do internetu, aktualna przeglądarka (Chrome, Edge, Firefox lub Safari) z włączoną obsługą JavaScript i plików cookies niezbędnych do logowania oraz aktywny adres e-mail. Korzystanie z API wymaga oprogramowania zdolnego do wysyłania żądań HTTPS.</li>
+          <li>Usługodawca informuje, że korzystanie z usług świadczonych drogą elektroniczną wiąże się z typowymi zagrożeniami, takimi jak złośliwe oprogramowanie, próby wyłudzenia danych (phishing) czy przejęcie hasła lub Klucza API. Użytkownik powinien stosować aktualne oprogramowanie zabezpieczające, silne i unikalne hasło oraz chronić Klucze API.</li>
+        </ol>
+      </section>
 
-    <h2>5. Klonowanie głosu</h2>
-    <ul>
-      <li>Klonować można wyłącznie własny głos albo głos osoby, która udzieliła na to wyraźnej zgody.</li>
-      <li>Przed utworzeniem klonu użytkownik składa oświadczenie o zgodzie. Serwis zapisuje jego treść i wersję,
-        datę, adres IP, przeglądarkę oraz skrót (SHA-256) przesłanego nagrania.</li>
-      <li>Zabronione jest używanie klonów do podszywania się pod inne osoby, oszustw, dezinformacji i nękania.
-        Naruszenie skutkuje usunięciem głosu i konta oraz może zostać zgłoszone odpowiednim organom.</li>
-    </ul>
+      <section id="t4" data-sec>
+        <h2>§4 Konto</h2>
+        <ol>
+          <li>Umowa o świadczenie usług w Planie Free zostaje zawarta z chwilą założenia Konta, na czas nieokreślony. Rejestracja wymaga podania imienia, adresu e-mail i hasła albo zalogowania przez Google oraz akceptacji Regulaminu i Polityki prywatności.</li>
+          <li>Generowanie Nagrań i klonowanie Głosu są dostępne po potwierdzeniu adresu e-mail linkiem wysłanym przez Serwis.</li>
+          <li>Użytkownik zobowiązuje się podawać prawdziwe dane, nie udostępniać Konta osobom trzecim i niezwłocznie zawiadomić Usługodawcę o podejrzeniu nieuprawnionego dostępu. W ustawieniach Konta Użytkownik może wylogować wszystkie sesje.</li>
+          <li>Użytkownik może w każdej chwili pobrać kopię swoich danych (Ustawienia → Konto → eksport danych) oraz usunąć Konto. Usunięcie Konta jest nieodwracalne i oznacza rozwiązanie umowy; przed usunięciem należy anulować aktywną Subskrypcję.</li>
+        </ol>
+      </section>
 
-    <h2>6. Zakazane treści</h2>
-    <p>Zabronione jest generowanie treści niezgodnych z prawem, w szczególności naruszających dobra osobiste lub prawa autorskie,
-      nawołujących do przemocy, wprowadzających w błąd co do tożsamości mówiącego oraz wykorzystywanych do wyłudzeń.</p>
+      <section id="t5" data-sec>
+        <h2>§5 Zakres usług</h2>
+        <p>W ramach Serwisu Usługodawca świadczy, w zakresie zależnym od Planu:</p>
+        <ul>
+          <li>edycję tekstów i generowanie Nagrań z wyborem Głosu, języka, stylu, emocji, tempa i pauz;</li>
+          <li>projektowanie Głosu na podstawie opisu oraz klonowanie Głosu z nagrania (na zasadach z §10);</li>
+          <li>eksport Nagrań w formatach MP3 i WAV z normalizacją głośności oraz napisów SRT i VTT;</li>
+          <li>import tekstu z plików TXT, DOCX i PDF, słownik wymowy, historię i wersje Nagrań;</li>
+          <li>dostęp przez API (§13).</li>
+        </ul>
+        <p>Szczegółowe limity Planów (liczba Znaków i minut miesięcznie, liczba projektów i Głosów, formaty eksportu, okres przechowywania historii, dostęp do API) są opisane w cenniku w Serwisie i stanowią część umowy.</p>
+      </section>
 
-    <h2>7. Prawa do nagrań</h2>
-    <p>W zakresie, w jakim przysługują one usługodawcy, użytkownik może wykorzystywać wygenerowane nagrania komercyjnie
-      zgodnie z planem. Prawa do tekstu źródłowego pozostają przy ich właścicielach.</p>
+      <section id="t6" data-sec>
+        <h2>§6 Plany, ceny i płatności</h2>
+        <ol>
+          <li>Ceny podane w Serwisie są cenami brutto w złotych polskich i zawierają podatek VAT. Przed zawarciem odpłatnej umowy Użytkownik widzi łączną cenę i okres rozliczeniowy.</li>
+          <li>Płatności obsługuje Stripe Payments Europe, Ltd. (Irlandia). Dostępne metody płatności są prezentowane w formularzu płatności. Faktury i potwierdzenia płatności są dostępne w panelu płatności.</li>
+          <li><strong>Subskrypcja</strong> zostaje zawarta z chwilą potwierdzenia płatności, na okres miesiąca albo roku, i odnawia się automatycznie na kolejne takie okresy, aż do jej anulowania. Opłata za kolejny okres jest pobierana z góry, w dniu odnowienia.</li>
+          <li>Użytkownik może anulować Subskrypcję w każdej chwili w panelu płatności (Ustawienia → Subskrypcja). Anulowanie skutkuje na koniec opłaconego okresu; do tego czasu Plan pozostaje aktywny. Po zakończeniu Subskrypcji Konto przechodzi na Plan Free.</li>
+          <li>Limity Znaków i minut odnawiają się co miesiąc od dnia aktywacji Planu — także w Subskrypcji rocznej. Niewykorzystane limity miesięczne nie przechodzą na kolejny miesiąc.</li>
+          <li><strong>Rozliczenie roczne</strong> jest tańsze od dwunastu opłat miesięcznych; aktualna cena jest podana w cenniku.</li>
+          <li><strong>Oferta powitalna:</strong> pierwsza Subskrypcja Konta z rozliczeniem miesięcznym może być objęta obniżką ceny pierwszego miesiąca w wysokości wskazanej w cenniku (np. 50%). Oferta przysługuje jednorazowo, na jedno Konto, nie łączy się z kodami promocyjnymi i nie dotyczy rozliczenia rocznego. Od drugiego miesiąca obowiązuje cena regularna.</li>
+          <li><strong>Pakiety znaków</strong> można kupić jednorazowo, bez Subskrypcji, w każdym Planie. Znaki z Pakietu nie wygasają, są przypisane do Konta, nie podlegają wymianie na pieniądze i są wykorzystywane dopiero po wyczerpaniu miesięcznego limitu Planu. Znaki są dopisywane do Konta po zaksięgowaniu płatności.</li>
+          <li>Zmiana Planu na wyższy następuje w panelu płatności z rozliczeniem proporcjonalnym zgodnie z zasadami operatora płatności. Zmiana na niższy Plan może wymagać wcześniejszego dostosowania liczby projektów lub Głosów do jego limitów.</li>
+          <li>Usługodawca może zmienić ceny z ważnych przyczyn (zmiana kosztów świadczenia usług, w szczególności mocy obliczeniowej, podatków lub przepisów). Nowa cena obowiązuje od pierwszego okresu rozliczeniowego rozpoczynającego się co najmniej 30 dni po powiadomieniu Użytkownika e-mailem. Użytkownik, który nie akceptuje nowej ceny, może anulować Subskrypcję przed jej wejściem w życie.</li>
+          <li>Przy każdej obniżce ceny Usługodawca podaje obok informacji o obniżce najniższą cenę z 30 dni przed jej wprowadzeniem, zgodnie z ustawą o informowaniu o cenach towarów i usług.</li>
+        </ol>
+      </section>
 
-    <h2>8. Interfejs programistyczny (API)</h2>
-    <ul>
-      <li>W planach, które go obejmują, użytkownik może korzystać z Serwisu przez API przy użyciu kluczy API utworzonych w ustawieniach konta.</li>
-      <li>Klucz API jest poufny. Użytkownik odpowiada za działania wykonane jego kluczami i powinien niezwłocznie unieważnić klucz, który mógł zostać ujawniony.</li>
-      <li>Do nagrań wygenerowanych przez API stosuje się postanowienia o treściach AI, klonowaniu głosu i zakazanych treściach. Użytkownik, który udostępnia nagrania z API osobom trzecim, informuje je, że zostały wygenerowane przez AI.</li>
-      <li>Usługodawca może ograniczyć liczbę żądań (limity opisane w dokumentacji API) oraz zawiesić klucz używany w sposób naruszający regulamin lub zagrażający stabilności Serwisu.</li>
-    </ul>
+      <section id="t7" data-sec>
+        <h2>§7 Prawo odstąpienia od umowy</h2>
+        <ol>
+          <li>Konsument może odstąpić od umowy zawartej na odległość w terminie 14 dni od jej zawarcia, bez podawania przyczyny. Wystarczy wysłać oświadczenie przed upływem terminu, np. e-mailem na adres {{ o.email }}; można skorzystać ze <a href="#zal1">wzoru formularza</a>.</li>
+          <li>Jeżeli Konsument zażądał rozpoczęcia świadczenia usługi przed upływem terminu do odstąpienia (np. wygenerował Nagrania w opłaconym Planie lub wykorzystał Znaki z Pakietu), a następnie odstąpił od umowy, zapłaci za świadczenia spełnione do chwili odstąpienia — proporcjonalnie do wykorzystanej części usługi, ustalonej według liczby wykorzystanych Znaków w stosunku do limitu objętego opłatą (art. 35 ustawy o prawach konsumenta). Pozostała część opłaty zostanie zwrócona.</li>
+          <li>Prawo odstąpienia nie przysługuje w odniesieniu do usługi wykonanej w pełni za wyraźną zgodą Konsumenta, który został poinformowany przed rozpoczęciem świadczenia, że po spełnieniu świadczenia utraci prawo odstąpienia od umowy (art. 38 ust. 1 pkt 1 ustawy o prawach konsumenta).</li>
+          <li>Zwrot płatności następuje niezwłocznie, nie później niż w terminie 14 dni od otrzymania oświadczenia, przy użyciu takiego samego sposobu płatności, jakiego użył Konsument, chyba że Konsument zgodzi się na inny sposób niewiążący się dla niego z kosztami.</li>
+        </ol>
+      </section>
 
-    <h2>9. Odpowiedzialność i dostępność</h2>
-    <p>Usługodawca dokłada starań, aby Serwis działał bez przerw, ale nie gwarantuje stałej dostępności, w szczególności
-      w czasie prac technicznych. Usługodawca nie odpowiada za sposób wykorzystania nagrań przez użytkownika.</p>
+      <section id="t8" data-sec>
+        <h2>§8 Treści Użytkownika i prawa do Nagrań</h2>
+        <ol>
+          <li>Użytkownik oświadcza, że ma prawo do przekazywanych Treści Użytkownika i że ich przetwarzanie w Serwisie nie narusza praw osób trzecich, w szczególności praw autorskich, dóbr osobistych i prawa do wizerunku głosu.</li>
+          <li>Użytkownik udziela Usługodawcy niewyłącznej, nieodpłatnej licencji na przechowywanie i przetwarzanie Treści Użytkownika wyłącznie w zakresie niezbędnym do świadczenia usług. Usługodawca nie wykorzystuje Treści Użytkownika do trenowania modeli sztucznej inteligencji.</li>
+          <li>W zakresie, w jakim do Nagrań przysługują jakiekolwiek prawa, przysługują one Użytkownikowi; Usługodawca nie rości sobie do nich praw. Użytkownik może korzystać z Nagrań, także komercyjnie, z zastrzeżeniem §9–§11. Użytkownik przyjmuje do wiadomości, że treści wygenerowane przez sztuczną inteligencję mogą nie podlegać ochronie prawa autorskiego.</li>
+          <li>Głosy z biblioteki Serwisu Użytkownik może wykorzystywać wyłącznie w Nagraniach wygenerowanych w Serwisie. Zabronione jest odtwarzanie lub klonowanie Głosów z biblioteki poza Serwisem oraz przedstawianie ich jako głosów rzeczywistych osób.</li>
+        </ol>
+      </section>
 
-    <h2>10. Reklamacje</h2>
-    <p>Reklamacje można zgłaszać na adres [adres e-mail]. Odpowiadamy w ciągu 14 dni.</p>
+      <section id="t9" data-sec>
+        <h2>§9 Oznaczanie treści generowanych przez AI</h2>
+        <ol>
+          <li>Każde Nagranie zawiera w metadanych pliku informację, że zostało wygenerowane przez sztuczną inteligencję (art. 50 ust. 2 rozporządzenia (UE) 2024/1689 — akt w sprawie sztucznej inteligencji).</li>
+          <li>Użytkownik, który rozpowszechnia Nagranie przypominające wypowiedź istniejącej osoby (tzw. deepfake), ujawnia, że treść została wygenerowana lub zmanipulowana sztucznie (art. 50 ust. 4 tego rozporządzenia).</li>
+          <li>Zabronione jest usuwanie lub zmienianie oznaczeń w celu wprowadzenia odbiorców w błąd co do sztucznego pochodzenia Nagrania.</li>
+        </ol>
+      </section>
 
-    <h2>11. Zmiany regulaminu</h2>
-    <p>O zmianach informujemy e-mailem z co najmniej 14-dniowym wyprzedzeniem. Każda wersja ma datę, a w koncie zapisujemy,
-      którą wersję zaakceptowano.</p>
-  } @else {
-    <h2>1. Administrator danych</h2>
-    <p>Administratorem danych jest [nazwa firmy, adres], kontakt w sprawach danych osobowych: [adres e-mail].</p>
+      <section id="t10" data-sec>
+        <h2>§10 Klonowanie głosu</h2>
+        <ol>
+          <li>Klonować można wyłącznie własny głos albo głos osoby, która wyraziła na to wyraźną i udokumentowaną zgodę obejmującą zakres wykorzystania Nagrań.</li>
+          <li>Przed sklonowaniem Użytkownik składa w Serwisie oświadczenie o posiadaniu zgody. Serwis zapisuje treść i wersję oświadczenia, datę, adres IP, informacje o przeglądarce oraz skrót kryptograficzny nagrania — jako dowód złożenia oświadczenia.</li>
+          <li>Na żądanie Usługodawcy Użytkownik przedstawi dowód zgody osoby, której głos sklonowano. Usługodawca może zablokować lub usunąć sklonowany Głos w razie uzasadnionych wątpliwości co do zgody lub zgłoszenia naruszenia.</li>
+          <li>Użytkownik ponosi pełną odpowiedzialność wobec osoby, której głos sklonowano, i zwalnia Usługodawcę z odpowiedzialności za roszczenia wynikające z braku lub przekroczenia zgody.</li>
+        </ol>
+      </section>
 
-    <h2>2. Jakie dane przetwarzamy i dlaczego</h2>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Dane</th><th>Cel</th><th>Podstawa (RODO)</th></tr></thead>
-        <tbody>
-          <tr><td>E-mail, imię i nazwisko, hasło (wyłącznie skrót bcrypt), identyfikator Google</td><td>Konto i logowanie</td><td>art. 6 ust. 1 lit. b — umowa</td></tr>
-          <tr><td>Teksty projektów, wygenerowane nagrania, słownik wymowy, ustawienia</td><td>Świadczenie usługi</td><td>art. 6 ust. 1 lit. b</td></tr>
-          <tr><td>Nagranie głosu przesłane do klonowania</td><td>Utworzenie i działanie klonu głosu</td><td>art. 6 ust. 1 lit. b i wyraźna zgoda osoby nagranej (art. 9 ust. 2 lit. a, jeśli głos służy identyfikacji)</td></tr>
-          <tr><td>Rejestr zgód na klonowanie: data, IP, przeglądarka, skrót nagrania</td><td>Wykazanie zgody, ochrona przed nadużyciami</td><td>art. 6 ust. 1 lit. c i f</td></tr>
-          <tr><td>Zużycie limitów, historia generowania</td><td>Rozliczenie planu</td><td>art. 6 ust. 1 lit. b</td></tr>
-          <tr><td>Dane płatności (obsługiwane przez Stripe; nie przechowujemy numerów kart)</td><td>Płatności, księgowość</td><td>art. 6 ust. 1 lit. b i c</td></tr>
-          <tr><td>Adres IP przy logowaniu i rejestracji</td><td>Bezpieczeństwo (ochrona przed zgadywaniem haseł i masowym zakładaniem kont)</td><td>art. 6 ust. 1 lit. f</td></tr>
-        </tbody>
-      </table>
-    </div>
+      <section id="t11" data-sec>
+        <h2>§11 Zakazane działania</h2>
+        <p>Zabronione jest korzystanie z Serwisu w celu lub w sposób:</p>
+        <ul>
+          <li>sprzeczny z prawem, w tym wytwarzanie treści o charakterze bezprawnym, zniesławiających, nawołujących do nienawiści lub przemocy;</li>
+          <li>podszywania się pod inne osoby, wyłudzeń, oszustw (w tym telefonicznych i „na wnuczka”) oraz obchodzenia zabezpieczeń biometrycznych;</li>
+          <li>tworzenia dezinformacji, w szczególności treści wyborczych lub politycznych przypisujących wypowiedzi rzeczywistym osobom;</li>
+          <li>wytwarzania treści seksualnych z udziałem małoletnich lub treści seksualnych z wykorzystaniem głosu osoby bez jej zgody;</li>
+          <li>masowego, niezamówionego kontaktu (spam, automatyczne połączenia telefoniczne);</li>
+          <li>zakłócającego działanie Serwisu, w tym obchodzenia limitów, automatycznego pobierania danych, inżynierii wstecznej modeli oraz odsprzedaży dostępu bez zgody Usługodawcy.</li>
+        </ul>
+        <p>W razie naruszenia Usługodawca może usunąć treść, zawiesić Klucz API lub Konto, a w przypadkach rażących — rozwiązać umowę zgodnie z §17. Decyzja jest przekazywana Użytkownikowi wraz z uzasadnieniem.</p>
+      </section>
 
-    <h2>3. Jak długo przechowujemy dane</h2>
-    <ul>
-      <li>Konto, projekty i głosy — do usunięcia konta.</li>
-      <li>Historia generowania i poprzednie wersje nagrań — przez okres przechowywania historii w planie (7–365 dni);
-        starsze wpisy i pliki usuwamy automatycznie co noc.</li>
-      <li>Pliki audio, do których nic już nie prowadzi (np. z usuniętych projektów) — usuwane automatycznie po 24 godzinach.</li>
-      <li>Rejestr zgód na klonowanie — także po usunięciu głosu lub konta, przez okres przedawnienia roszczeń
-        (art. 17 ust. 3 lit. e RODO).</li>
-      <li>Dokumenty rozliczeniowe — przez okres wymagany przepisami podatkowymi.</li>
-    </ul>
+      <section id="t12" data-sec>
+        <h2>§12 Zgłaszanie nielegalnych treści</h2>
+        <ol>
+          <li>Każdy może zgłosić treść przechowywaną w Serwisie, którą uważa za nielegalną, na adres {{ o.abuseEmail }}. Zgłoszenie powinno zawierać: uzasadnienie, dlaczego treść jest nielegalna, jej dokładną lokalizację (np. identyfikator projektu lub Nagrania), imię i nazwisko lub nazwę oraz adres e-mail zgłaszającego (z wyjątkiem zgłoszeń dotyczących wykorzystywania seksualnego dzieci) oraz oświadczenie o działaniu w dobrej wierze.</li>
+          <li>Usługodawca potwierdza otrzymanie zgłoszenia, rozpatruje je w sposób niearbitralny i obiektywny, a o decyzji informuje zgłaszającego oraz Użytkownika, którego treść dotyczy, podając uzasadnienie i dostępne środki odwoławcze (art. 16 i 17 aktu o usługach cyfrowych).</li>
+          <li>Użytkownik może zakwestionować decyzję, odpowiadając na wiadomość z uzasadnieniem w terminie 14 dni; sprawę ponownie rozpatruje inna osoba niż rozpatrująca zgłoszenie.</li>
+        </ol>
+      </section>
 
-    <h2>4. Odbiorcy danych</h2>
-    <p>Dostawca infrastruktury i przechowywania plików [nazwa, region], Stripe (płatności), Google (jeśli wybierzesz logowanie
-      przez Google), dostawca poczty e-mail [nazwa], flagcdn.com (obrazki flag języków — przeglądarka pobiera je bezpośrednio, co ujawnia temu serwisowi adres IP; bez cookies). Model VoxCPM2 działa na naszych serwerach — teksty i nagrania nie są
-      przekazywane zewnętrznym dostawcom AI.</p>
+      <section id="t13" data-sec>
+        <h2>§13 Interfejs programistyczny (API)</h2>
+        <ol>
+          <li>W Planach, które go obejmują, Użytkownik może korzystać z Serwisu przez API przy użyciu Kluczy API utworzonych w ustawieniach Konta. Zasady techniczne i limity opisuje <a routerLink="/docs/api">dokumentacja API</a>.</li>
+          <li>Klucz API jest poufny i powinien być przechowywany wyłącznie po stronie serwera Użytkownika. Użytkownik odpowiada za działania wykonane jego Kluczami i niezwłocznie unieważnia Klucz, który mógł zostać ujawniony.</li>
+          <li>Znaki wykorzystane przez API są rozliczane tak samo jak w edytorze. Wyniki zadań w tle są przechowywane przez 7 dni.</li>
+          <li>Użytkownik, który udostępnia Nagrania z API osobom trzecim (np. w swojej aplikacji), zapewnia, że odbiorcy wiedzą o ich wygenerowaniu przez AI, oraz przestrzega §9–§11 wobec swoich użytkowników.</li>
+          <li>Usługodawca może ograniczać liczbę żądań, zmieniać API w sposób zgodny wstecz w ramach danej wersji oraz zawiesić Klucz używany w sposób naruszający Regulamin lub zagrażający stabilności Serwisu. O wycofaniu wersji API Usługodawca informuje z co najmniej 90-dniowym wyprzedzeniem.</li>
+        </ol>
+      </section>
 
-    <h2>5. Twoje prawa</h2>
-    <ul>
-      <li>Dostęp do danych i ich przenoszenie — <strong>Ustawienia → Konto → Pobierz moje dane</strong> (archiwum ZIP z danymi w JSON i nagraniami).</li>
-      <li>Sprostowanie — w ustawieniach profilu.</li>
-      <li>Usunięcie — <strong>Ustawienia → Konto → Usuń konto</strong>.</li>
-      <li>Ograniczenie przetwarzania, sprzeciw, cofnięcie zgody — kontakt: [adres e-mail].</li>
-      <li>Skarga do Prezesa Urzędu Ochrony Danych Osobowych (ul. Stawki 2, 00-193 Warszawa).</li>
-    </ul>
+      <section id="t14" data-sec>
+        <h2>§14 Dostępność usług</h2>
+        <ol>
+          <li>Usługodawca dokłada starań, aby Serwis działał nieprzerwanie, jednak nie gwarantuje stałej dostępności. Prace techniczne są w miarę możliwości planowane w godzinach najmniejszego obciążenia.</li>
+          <li>Gdy model syntezy mowy jest niedostępny, Serwis może działać w trybie demonstracyjnym; Nagrania wygenerowane w tym trybie są wyraźnie oznaczone w Serwisie i w nazwie pliku i nie stanowią właściwego wykonania usługi.</li>
+          <li>Usługodawca może rozwijać i zmieniać funkcje Serwisu, o ile nie pogarsza to istotnie usług opłaconych przez Użytkownika w trwającym okresie rozliczeniowym.</li>
+        </ol>
+      </section>
 
-    <h2 id="cookies">6. Cookies i pamięć przeglądarki</h2>
-    <p>Używamy wyłącznie mechanizmów niezbędnych do działania Serwisu — nie stosujemy cookies analitycznych ani reklamowych,
-      dlatego nie wyświetlamy banera zgody.</p>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Nazwa</th><th>Rodzaj</th><th>Cel</th><th>Czas</th></tr></thead>
-        <tbody>
-          <tr><td><code>vc_session</code></td><td>cookie (httpOnly, SameSite=Lax)</td><td>Utrzymanie zalogowanej sesji</td><td>do 14 dni lub do wylogowania</td></tr>
-          <tr><td><code>vc.theme</code>, <code>vc.volume</code></td><td>localStorage</td><td>Zapamiętanie motywu i głośności odtwarzacza</td><td>do wyczyszczenia przez użytkownika</td></tr>
-          <tr><td>Google Identity Services</td><td>cookies Google</td><td>Tylko po kliknięciu „Zaloguj się przez Google”</td><td>wg polityki Google</td></tr>
-          <tr><td>Stripe Checkout</td><td>cookies Stripe</td><td>Tylko na stronie płatności Stripe</td><td>wg polityki Stripe</td></tr>
-        </tbody>
-      </table>
-    </div>
+      <section id="t15" data-sec>
+        <h2>§15 Odpowiedzialność</h2>
+        <ol>
+          <li>Usługodawca odpowiada za zgodność usług z umową na zasadach określonych w przepisach prawa, w tym — wobec Konsumentów — w rozdziale 5b ustawy o prawach konsumenta.</li>
+          <li>Usługodawca nie odpowiada za sposób wykorzystania Nagrań przez Użytkownika ani za Treści Użytkownika.</li>
+          <li>Wobec Użytkowników niebędących Konsumentami odpowiedzialność Usługodawcy jest ograniczona do szkody rzeczywistej i do wysokości opłat uiszczonych przez Użytkownika w ciągu 12 miesięcy poprzedzających zdarzenie, z wyjątkiem szkody wyrządzonej umyślnie.</li>
+        </ol>
+      </section>
 
-    <h2>7. Bezpieczeństwo</h2>
-    <p>Hasła przechowujemy wyłącznie jako skróty bcrypt, sesje są podpisane i niedostępne dla skryptów strony,
-      połączenia są szyfrowane (HTTPS). Linki resetu hasła i potwierdzenia e-mail są jednorazowe i wygasają.</p>
-  }
-</article>
+      <section id="t16" data-sec>
+        <h2>§16 Reklamacje</h2>
+        <ol>
+          <li>Reklamacje dotyczące usług można składać na adres {{ o.email }}. Zgłoszenie powinno zawierać dane kontaktowe, opis problemu i oczekiwany sposób rozwiązania; w przypadku problemu z Nagraniem — także identyfikator projektu.</li>
+          <li>Usługodawca odpowiada na reklamację w ciągu 14 dni od jej otrzymania, w sposób, w jaki została złożona, chyba że Użytkownik wskaże inny.</li>
+          <li>Jeżeli usługa jest niezgodna z umową, Konsument może żądać doprowadzenia jej do zgodności, a gdy nie jest to możliwe lub Usługodawca tego nie zrobi — obniżenia ceny albo odstąpienia od umowy, na zasadach ustawy o prawach konsumenta.</li>
+          <li>Konsument może skorzystać z pozasądowych sposobów rozpatrywania reklamacji i dochodzenia roszczeń, w szczególności z pomocy powiatowego (miejskiego) rzecznika konsumentów, Federacji Konsumentów lub wojewódzkiego inspektoratu Inspekcji Handlowej. Informacje są dostępne na stronie Urzędu Ochrony Konkurencji i Konsumentów (uokik.gov.pl).</li>
+        </ol>
+      </section>
+
+      <section id="t17" data-sec>
+        <h2>§17 Rozwiązanie umowy</h2>
+        <ol>
+          <li>Użytkownik może rozwiązać umowę w każdej chwili, usuwając Konto. Rozwiązanie umowy nie zwalnia z opłat za trwający, opłacony okres Subskrypcji, z zastrzeżeniem §7.</li>
+          <li>Usługodawca może rozwiązać umowę z zachowaniem 30-dniowego okresu wypowiedzenia z ważnych przyczyn (zakończenie działalności Serwisu, zmiana przepisów uniemożliwiająca świadczenie usług). Opłaty za niewykorzystany okres Subskrypcji oraz za niewykorzystane Znaki z Pakietów zostaną zwrócone proporcjonalnie.</li>
+          <li>Usługodawca może rozwiązać umowę ze skutkiem natychmiastowym, jeżeli Użytkownik w sposób rażący lub uporczywy narusza Regulamin, w szczególności §10 lub §11, po bezskutecznym wezwaniu do zaprzestania naruszeń, chyba że wezwanie jest niecelowe ze względu na charakter naruszenia.</li>
+          <li>Przed usunięciem Konta Użytkownik może pobrać kopię swoich danych. Po rozwiązaniu umowy dane są usuwane zgodnie z Polityką prywatności.</li>
+        </ol>
+      </section>
+
+      <section id="t18" data-sec>
+        <h2>§18 Zmiany Regulaminu</h2>
+        <ol>
+          <li>Usługodawca może zmienić Regulamin z ważnych przyczyn: zmiany przepisów lub orzecznictwa, zmiany zakresu lub sposobu świadczenia usług, zmiany cen (z zastrzeżeniem §6 ust. 10), konieczności zapewnienia bezpieczeństwa Serwisu lub przeciwdziałania nadużyciom.</li>
+          <li>O zmianach Usługodawca informuje e-mailem i w Serwisie co najmniej 14 dni przed ich wejściem w życie (30 dni — w przypadku zmian cen). Użytkownik, który nie akceptuje zmian, może rozwiązać umowę przed ich wejściem w życie.</li>
+          <li>Każda wersja Regulaminu ma datę; przy Koncie zapisujemy, którą wersję zaakceptowano.</li>
+        </ol>
+      </section>
+
+      <section id="t19" data-sec>
+        <h2>§19 Postanowienia końcowe</h2>
+        <ol>
+          <li>Prawem właściwym jest prawo polskie. Wybór prawa nie pozbawia Konsumenta ochrony przysługującej mu na podstawie przepisów, których nie można wyłączyć w drodze umowy, prawa państwa jego zwykłego pobytu.</li>
+          <li>Spory z Użytkownikami niebędącymi Konsumentami rozstrzyga sąd właściwy dla siedziby Usługodawcy.</li>
+          <li>Regulamin obowiązuje od dnia {{ version }}.</li>
+        </ol>
+      </section>
+
+      <section id="zal1" data-sec class="annex">
+        <h2>Załącznik — wzór formularza odstąpienia od umowy</h2>
+        <p class="annex-note">Formularz należy wypełnić i odesłać tylko w przypadku chęci odstąpienia od umowy.</p>
+        <div class="form-box">
+          <p>Adresat: {{ o.name }}, {{ o.address }}, e-mail: {{ o.email }}</p>
+          <p>Ja/My (*) niniejszym informuję/informujemy (*) o moim/naszym (*) odstąpieniu od umowy o świadczenie następującej usługi: ……………………………………</p>
+          <p>Data zawarcia umowy: ……………………</p>
+          <p>Imię i nazwisko konsumenta(-ów): ……………………………………</p>
+          <p>Adres e-mail przypisany do Konta: ……………………………………</p>
+          <p>Podpis konsumenta(-ów) (tylko jeżeli formularz jest przesyłany w wersji papierowej): ……………………</p>
+          <p>Data: ……………………</p>
+          <p class="annex-note">(*) Niepotrzebne skreślić.</p>
+        </div>
+      </section>
+    } @else {
+      <!-- =========================== POLITYKA PRYWATNOŚCI =========================== -->
+      <section id="p0" data-sec class="summary">
+        <h2>W skrócie</h2>
+        <ul class="key-points">
+          <li><strong>Przetwarzamy tylko to, co potrzebne</strong> do działania Serwisu: dane Konta, Twoje teksty i Nagrania, dane rozliczeniowe.</li>
+          <li><strong>Nie trenujemy modeli</strong> na Twoich tekstach, nagraniach ani głosach.</li>
+          <li><strong>Nie używamy cookies reklamowych ani analitycznych</strong> — tylko ciasteczko logowania i ustawienia zapisane w przeglądarce.</li>
+          <li><strong>Twoje dane możesz w każdej chwili pobrać</strong> (eksport ZIP) albo usunąć razem z Kontem.</li>
+          <li><strong>Płatności obsługuje Stripe</strong> — nie widzimy pełnych danych Twojej karty.</li>
+        </ul>
+      </section>
+
+      <section id="p1" data-sec>
+        <h2>1. Administrator danych</h2>
+        <p>Administratorem danych osobowych jest {{ o.name }}, {{ o.address }}, NIP {{ o.nip }} (dalej „my”). W sprawach danych osobowych pisz na {{ o.privacyEmail }}.@if (o.dpo) { Wyznaczyliśmy inspektora ochrony danych: {{ o.dpo }}. }</p>
+        <p>Polityka dotyczy Serwisu Narrivy ({{ o.domain }}) i API. Pojęcia pisane wielką literą mają znaczenie nadane im w <a routerLink="/terms">Regulaminie</a>.</p>
+      </section>
+
+      <section id="p2" data-sec>
+        <h2>2. Jakie dane przetwarzamy, w jakim celu i na jakiej podstawie</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Dane</th><th>Cel</th><th>Podstawa prawna (RODO)</th></tr></thead>
+            <tbody>
+              <tr><td>Imię, adres e-mail, skrót hasła (bcrypt), identyfikator konta Google, opcjonalnie firma i stanowisko</td><td>Założenie i prowadzenie Konta, logowanie, potwierdzenie adresu e-mail, reset hasła</td><td>art. 6 ust. 1 lit. b — wykonanie umowy</td></tr>
+              <tr><td>Teksty, projekty, Nagrania, słownik wymowy, ustawienia</td><td>Generowanie i przechowywanie Nagrań, eksport, historia</td><td>art. 6 ust. 1 lit. b</td></tr>
+              <tr><td>Opisy i nagrania wzorcowe głosów, nagrania do klonowania</td><td>Projektowanie i klonowanie Głosów, zachowanie spójnej barwy</td><td>art. 6 ust. 1 lit. b; wobec osoby, której głos sklonowano — jej zgoda zebrana przez Użytkownika</td></tr>
+              <tr><td>Rejestr oświadczeń o zgodzie na klonowanie: treść i wersja oświadczenia, data, adres IP, przeglądarka, skrót i nazwa pliku</td><td>Wykazanie, że Głos sklonowano za zgodą; obrona przed roszczeniami</td><td>art. 6 ust. 1 lit. f — prawnie uzasadniony interes</td></tr>
+              <tr><td>Licznik zużycia Znaków i minut, plan, saldo Pakietów</td><td>Egzekwowanie limitów i rozliczenia</td><td>art. 6 ust. 1 lit. b</td></tr>
+              <tr><td>Identyfikator klienta i Subskrypcji w Stripe, historia zakupów, dane do faktur</td><td>Obsługa płatności, faktury, rachunkowość</td><td>art. 6 ust. 1 lit. b i c — obowiązek prawny (przepisy podatkowe i o rachunkowości)</td></tr>
+              <tr><td>Klucze API (wyłącznie skrót), teksty i wyniki zadań API, adresy webhooków, sekret webhooków</td><td>Świadczenie usługi API</td><td>art. 6 ust. 1 lit. b</td></tr>
+              <tr><td>Adres IP, czas i rodzaj żądań, informacje o przeglądarce</td><td>Bezpieczeństwo, ochrona przed nadużyciami (limity logowań i rejestracji), diagnozowanie błędów</td><td>art. 6 ust. 1 lit. f</td></tr>
+              <tr><td>Data i wersja zaakceptowanego Regulaminu</td><td>Wykazanie zawarcia umowy na określonych warunkach</td><td>art. 6 ust. 1 lit. f</td></tr>
+              <tr><td>Korespondencja, reklamacje, zgłoszenia nadużyć</td><td>Obsługa zgłoszeń i reklamacji</td><td>art. 6 ust. 1 lit. b, c i f</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Nie podejmujemy wobec Ciebie decyzji opartych wyłącznie na zautomatyzowanym przetwarzaniu, które wywoływałyby skutki prawne lub w podobny sposób istotnie na Ciebie wpływały (art. 22 RODO). Serwis nie jest przeznaczony dla osób poniżej 18. roku życia.</p>
+      </section>
+
+      <section id="p3" data-sec>
+        <h2>3. Jak długo przechowujemy dane</h2>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Dane</th><th>Okres</th></tr></thead>
+            <tbody>
+              <tr><td>Konto, projekty, Głosy, słownik, licznik zużycia</td><td>do usunięcia przez Ciebie lub do usunięcia Konta</td></tr>
+              <tr><td>Historia Nagrań</td><td>zależnie od Planu: 7 dni (Free), 30 dni (Starter), 90 dni (Pro), 365 dni (Business)</td></tr>
+              <tr><td>Wyniki zadań API</td><td>7 dni od utworzenia zadania</td></tr>
+              <tr><td>Pliki audio, do których nic się już nie odwołuje</td><td>usuwane automatycznie w ciągu 24 godzin</td></tr>
+              <tr><td>Linki potwierdzenia e-mail i resetu hasła</td><td>do wykorzystania lub wygaśnięcia</td></tr>
+              <tr><td>Dane rozliczeniowe i historia zakupów</td><td>5 lat od końca roku, w którym nastąpiła płatność (przepisy podatkowe), także po usunięciu Konta</td></tr>
+              <tr><td>Rejestr oświadczeń o zgodzie na klonowanie</td><td>do upływu terminu przedawnienia roszczeń (do 6 lat), także po usunięciu Głosu lub Konta</td></tr>
+              <tr><td>Logi serwera</td><td>[do 30 dni]</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="p4" data-sec>
+        <h2>4. Komu przekazujemy dane</h2>
+        <p>Korzystamy z dostawców, którzy przetwarzają dane w naszym imieniu na podstawie umów powierzenia (art. 28 RODO), oraz z usług podmiotów działających jako odrębni administratorzy:</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Odbiorca</th><th>Zakres</th><th>Rola</th></tr></thead>
+            <tbody>
+              <tr><td>{{ o.hosting }}</td><td>serwery aplikacji, baza danych, przechowywanie plików</td><td>podmiot przetwarzający</td></tr>
+              <tr><td>{{ o.gpu }}</td><td>synteza mowy — przekazywany jest tekst i nagranie wzorcowe Głosu; dane nie są tam przechowywane dłużej, niż wymaga generowanie</td><td>podmiot przetwarzający</td></tr>
+              <tr><td>{{ o.mail }}</td><td>wysyłka wiadomości e-mail (potwierdzenie adresu, reset hasła, powiadomienia)</td><td>podmiot przetwarzający</td></tr>
+              <tr><td>Stripe Payments Europe, Ltd. (Irlandia)</td><td>obsługa płatności, faktury</td><td>odrębny administrator danych płatniczych</td></tr>
+              <tr><td>Google Ireland Ltd.</td><td>logowanie przez Google — tylko jeśli z niego korzystasz</td><td>odrębny administrator</td></tr>
+              <tr><td>{{ o.accounting }}</td><td>księgowość i rozliczenia podatkowe</td><td>podmiot przetwarzający</td></tr>
+              <tr><td>Organy publiczne</td><td>wyłącznie na podstawie przepisów prawa</td><td>odrębny administrator</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Jeśli korzystasz z webhooków API, wysyłamy dane zadania na wskazany przez Ciebie adres — odbiorca jest wtedy Twoim podmiotem.</p>
+      </section>
+
+      <section id="p5" data-sec>
+        <h2>5. Przekazywanie danych poza Europejski Obszar Gospodarczy</h2>
+        <p>Stripe i Google mogą przetwarzać dane w Stanach Zjednoczonych. Podstawą przekazania jest decyzja Komisji Europejskiej stwierdzająca odpowiedni stopień ochrony (EU-US Data Privacy Framework) w odniesieniu do certyfikowanych podmiotów oraz standardowe klauzule umowne. Jeżeli dostawca serwerów GPU przetwarza dane poza EOG, stosujemy standardowe klauzule umowne zatwierdzone przez Komisję Europejską. Kopię zabezpieczeń możesz otrzymać, pisząc na {{ o.privacyEmail }}.</p>
+      </section>
+
+      <section id="p6" data-sec>
+        <h2>6. Sztuczna inteligencja i Twoje treści</h2>
+        <ul>
+          <li>Twoje teksty, Nagrania i Głosy są przetwarzane wyłącznie w celu wygenerowania dla Ciebie Nagrań. <strong>Nie wykorzystujemy ich do trenowania ani ulepszania modeli.</strong></li>
+          <li>Klonując głos innej osoby, odpowiadasz za uzyskanie jej zgody i poinformowanie jej o przetwarzaniu. Osoba, której głos sklonowano, może skontaktować się z nami pod adresem {{ o.privacyEmail }} — po weryfikacji zablokujemy taki Głos.</li>
+          <li>Każde Nagranie ma w metadanych oznaczenie treści wygenerowanej przez AI; oznaczenie nie zawiera Twoich danych osobowych.</li>
+        </ul>
+      </section>
+
+      <section id="p7" data-sec>
+        <h2>7. Twoje prawa</h2>
+        <p>Masz prawo do:</p>
+        <ul>
+          <li><strong>dostępu</strong> do danych i otrzymania ich kopii (art. 15) oraz <strong>przenoszenia</strong> danych (art. 20) — eksport ZIP z danymi i nagraniami pobierzesz w Ustawienia → Konto;</li>
+          <li><strong>sprostowania</strong> danych (art. 16) — w ustawieniach Profilu;</li>
+          <li><strong>usunięcia</strong> danych (art. 17) — usuwając projekty, Głosy, historię lub całe Konto;</li>
+          <li><strong>ograniczenia</strong> przetwarzania (art. 18);</li>
+          <li><strong>sprzeciwu</strong> wobec przetwarzania opartego na prawnie uzasadnionym interesie (art. 21);</li>
+          <li>wniesienia <strong>skargi</strong> do Prezesa Urzędu Ochrony Danych Osobowych, ul. Stawki 2, 00-193 Warszawa (uodo.gov.pl).</li>
+        </ul>
+        <p>Pozostałe żądania wyślij na {{ o.privacyEmail }}. Odpowiadamy w ciągu miesiąca; w razie potrzeby możemy poprosić o potwierdzenie tożsamości.</p>
+      </section>
+
+      <section id="p8" data-sec>
+        <h2>8. Czy musisz podać dane</h2>
+        <p>Podanie adresu e-mail i hasła (lub zalogowanie przez Google) jest warunkiem założenia Konta, a podanie danych rozliczeniowych — warunkiem zakupu odpłatnego Planu lub Pakietu. Pozostałe dane podajesz dobrowolnie.</p>
+      </section>
+
+      <section id="p9" data-sec>
+        <h2>9. Bezpieczeństwo</h2>
+        <ul>
+          <li>Połączenia są szyfrowane (HTTPS); hasła przechowujemy w postaci skrótu bcrypt, Klucze API — w postaci skrótu SHA-256.</li>
+          <li>Ciasteczko sesji jest niedostępne dla skryptów strony (HttpOnly) i chronione przed wysyłaniem z innych witryn (SameSite).</li>
+          <li>Dostęp do danych jest ograniczony do konta ich właściciela; możesz wylogować wszystkie sesje jednym kliknięciem.</li>
+          <li>Ograniczamy liczbę prób logowania i rejestracji oraz żądań API, a pliki niepotrzebne są automatycznie usuwane.</li>
+        </ul>
+      </section>
+
+      <section id="p10" data-sec>
+        <h2>10. Cookies i pamięć przeglądarki</h2>
+        <p>Używamy wyłącznie mechanizmów niezbędnych do działania Serwisu i zapamiętania wybranych przez Ciebie ustawień. Nie stosujemy cookies analitycznych, marketingowych ani śledzących, dlatego nie prosimy o zgodę na cookies (art. 399 ustawy — Prawo komunikacji elektronicznej).</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nazwa</th><th>Rodzaj</th><th>Cel</th><th>Czas</th></tr></thead>
+            <tbody>
+              <tr><td><code>vc_session</code></td><td>cookie (HttpOnly, SameSite)</td><td>utrzymanie zalogowania</td><td>12 godzin albo 14 dni po wybraniu „Zapamiętaj mnie”</td></tr>
+              <tr><td><code>vc.theme</code></td><td>pamięć przeglądarki</td><td>motyw jasny lub ciemny</td><td>do usunięcia w przeglądarce</td></tr>
+              <tr><td><code>vc.volume</code></td><td>pamięć przeglądarki</td><td>głośność odtwarzacza</td><td>do usunięcia w przeglądarce</td></tr>
+              <tr><td><code>vc.previewLanguage</code></td><td>pamięć przeglądarki</td><td>język próbek głosów</td><td>do usunięcia w przeglądarce</td></tr>
+              <tr><td><code>vc.editorView</code>, <code>vc.projectsView</code></td><td>pamięć przeglądarki</td><td>wybrany widok edytora i listy projektów</td><td>do usunięcia w przeglądarce</td></tr>
+              <tr><td><code>vc.engineBannerDismissed</code></td><td>pamięć przeglądarki</td><td>ukrycie komunikatu o trybie silnika</td><td>do usunięcia w przeglądarce</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Dane w pamięci przeglądarki nie są wysyłane na nasze serwery. Jeśli wybierzesz „Zaloguj przez Google”, strona logowania wczyta skrypt Google, a Google może zapisać własne pliki cookies na zasadach polityki prywatności Google. Wszystkie czcionki, ikony i flagi są dostarczane z naszych serwerów — nie łączymy Twojej przeglądarki z innymi zewnętrznymi serwisami.</p>
+        <p>Możesz usunąć cookies i dane witryny w ustawieniach przeglądarki; usunięcie <code>vc_session</code> spowoduje wylogowanie.</p>
+      </section>
+
+      <section id="p11" data-sec>
+        <h2>11. Zmiany polityki</h2>
+        <p>Politykę aktualizujemy, gdy zmieniają się sposoby przetwarzania danych lub przepisy. O istotnych zmianach informujemy e-mailem i w Serwisie przed ich wejściem w życie. Aktualna wersja obowiązuje od dnia {{ version }}.</p>
+      </section>
+    }
+
+    <footer class="doc-foot">
+      <span>{{ o.name }} · {{ o.email }}</span>
+      <span>Wersja {{ version }}</span>
+    </footer>
+  </article>
+</div>
