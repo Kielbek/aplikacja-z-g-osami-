@@ -206,7 +206,7 @@ W produkcji plan zmienia się wyłącznie przez Stripe (zob. „Płatności”).
 
 1. W Stripe utwórz produkty i ceny cykliczne dla planów Starter, Pro i Business, a ich identyfikatory wpisz w `STRIPE_PRICE_STARTER`, `STRIPE_PRICE_PRO` i `STRIPE_PRICE_BUSINESS`.
 2. Ustaw `STRIPE_SECRET_KEY`.
-3. Dodaj endpoint webhooka `https://<twoja-domena>/api/billing/webhook` ze zdarzeniami `checkout.session.completed` i `customer.subscription.created|updated|deleted`, a jego sekret wpisz w `STRIPE_WEBHOOK_SECRET`.
+3. Dodaj endpoint webhooka `https://<twoja-domena>/api/billing/webhook` ze zdarzeniami `checkout.session.completed`, `checkout.session.async_payment_succeeded` i `customer.subscription.created|updated|deleted`, a jego sekret wpisz w `STRIPE_WEBHOOK_SECRET`.
 4. Włącz Customer Portal, przez który użytkownicy zmieniają plan, metodę płatności, pobierają faktury i anulują subskrypcję.
 
 Jak to działa:
@@ -214,6 +214,7 @@ Jak to działa:
 - Wybór planu przekierowuje do Stripe Checkout. **Plan zmienia się wyłącznie po zweryfikowanym webhooku**, a powrót z Checkout niczego sam nie aktywuje.
 - Webhook sprawdza podpis HMAC z tolerancją 5 minut i ignoruje powtórzone zdarzenia.
 - Anulowanie lub nieopłacenie subskrypcji przywraca plan Free. Przy statusie `past_due` plan zostaje na czas ponawiania płatności.
+- **Pakiety znaków bez subskrypcji:** Pakiet S (25 000 znaków, 19 zł), M (100 000, 59 zł) i L (500 000, 249 zł). Można je kupić w każdym planie, także Free. Ceny są w `CreditPack.java` i trafiają do Checkout jako `price_data`, więc nie trzeba zakładać cennika w Stripe. Znaki dopisuje dopiero webhook po opłaceniu sesji, raz na sesję. Znaki z pakietów nie wygasają i są zużywane dopiero po wyczerpaniu miesięcznego limitu planu. Bez Stripe, przy `DEMO_PLAN_SWITCH=true`, pakiet jest dopisywany od razu i bez opłaty.
 - Do testów lokalnych możesz przekierować zdarzenia poleceniem `stripe listen --forward-to localhost:8080/api/billing/webhook`.
 
 ## Projekty i foldery
@@ -387,6 +388,7 @@ tts-engine/app/
 | POST/GET | `/api/projects/{id}/jobs`, `/jobs/active`, `/api/jobs/{id}/cancel` | kolejka generowania |
 | GET (SSE) | `/api/projects/{id}/events` | zdarzenia: `job`, `segment`, `segment-error` |
 | GET/POST | `/api/billing/config`, `/checkout`, `/portal`, `/webhook` | subskrypcje Stripe |
+| GET/POST | `/api/billing/packs`, `/api/billing/packs/checkout` | pakiety znaków (jednorazowo, bez subskrypcji) |
 | GET/PUT | `/api/account/plans`, `/api/account/plan` | plany z limitami; zmiana planu bez płatności (tylko gdy `DEMO_PLAN_SWITCH=true`) |
 
 ## Testy

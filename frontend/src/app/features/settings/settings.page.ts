@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, BillingConfig, LoudnessTarget, PronunciationEntry } from '../../core/api/models';
+import { ApiError, BillingConfig, CreditPack, LoudnessTarget, PronunciationEntry } from '../../core/api/models';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { Account, Plan } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
@@ -45,6 +45,9 @@ export class SettingsPage {
   private confirm = inject(ConfirmService);
 
   protected billing = signal<BillingConfig | null>(null);
+  protected packs = signal<CreditPack[]>([]);
+  protected buying = signal<string | null>(null);
+  protected canBuyPacks = computed(() => !!this.billing() && (this.billing()!.stripeEnabled || this.billing()!.demoPlanSwitch));
   protected dict = signal<PronunciationEntry[]>([]);
   protected dictTerm = signal('');
   protected dictReplacement = signal('');
@@ -91,7 +94,7 @@ export class SettingsPage {
     const pct = (used: number, limit: number) => (limit < 0 ? 0 : limit === 0 ? 100 : Math.min(100, (used / limit) * 100));
     const lim = (n: number) => (n < 0 ? 'bez limitu' : formatNumber(n));
     return [
-      { label: 'Znaki w miesiącu', used: formatNumber(u.charactersUsed), limit: lim(u.characterLimit), pct: pct(u.charactersUsed, u.characterLimit), hint: 'Generowanie wstrzymane do odnowienia limitu lub zmiany planu.' },
+      { label: 'Znaki w miesiącu', used: formatNumber(u.charactersUsed), limit: lim(u.characterLimit), pct: pct(u.charactersUsed, u.characterLimit), hint: (u.extraCharacters ?? 0) > 0 ? `Limit planu wykorzystany — generowanie korzysta teraz z dodatkowych znaków (${formatNumber(u.extraCharacters)}).` : 'Generowanie wstrzymane — dokup pakiet znaków, poczekaj na odnowienie limitu lub zmień plan.' },
       { label: 'Minuty audio w miesiącu', used: u.minutesUsed.toFixed(1), limit: lim(u.minuteLimit), pct: pct(u.minutesUsed, u.minuteLimit), hint: 'Generowanie wstrzymane do odnowienia limitu lub zmiany planu.' },
       { label: 'Projekty', used: formatNumber(u.projectsUsed), limit: lim(u.projectLimit), pct: pct(u.projectsUsed, u.projectLimit), hint: 'Nie można tworzyć nowych projektów — usuń nieużywane lub zmień plan.' },
       { label: 'Własne głosy', used: formatNumber(u.customVoicesUsed), limit: lim(u.customVoiceLimit), pct: pct(u.customVoicesUsed, u.customVoiceLimit), hint: 'Nie można zapisać kolejnych głosów — usuń nieużywane lub zmień plan.' },
@@ -146,6 +149,7 @@ export class SettingsPage {
     void this.store.refreshUsage();
     void this.voices.load();
     void this.api.billingConfig().then((b) => this.billing.set(b)).catch(() => null);
+    void this.api.billingPacks().then((p) => this.packs.set(p)).catch(() => null);
     void this.loadDict();
     this.handleCheckoutReturn();
   }
@@ -153,11 +157,14 @@ export class SettingsPage {
   /** Powrót ze Stripe Checkout: plan aktywuje webhook, więc odświeżamy kilka razy. */
   private handleCheckoutReturn() {
     const status = this.route.snapshot.queryParamMap.get('checkout');
-    if (status === 'success') {
+    if (status === 'success' && this.route.snapshot.queryParamMap.get('pack')) {
+      this.toast.success('Płatność przyjęta', 'Dodatkowe znaki pojawią się na koncie w ciągu kilku sekund.');
+      [2000, 5000, 10000].forEach((ms) => setTimeout(() => void this.store.refreshUsage(), ms));
+    } else if (status === 'success') {
       this.toast.success('Płatność przyjęta', 'Nowy plan zostanie aktywowany w ciągu kilku sekund.');
       [2000, 5000, 10000].forEach((ms) => setTimeout(() => void this.store.load(), ms));
     } else if (status === 'cancelled') {
-      this.toast.show('Płatność anulowana — plan nie został zmieniony.');
+      this.toast.show('Płatność anulowana — nic nie zostało pobrane.');
     }
     if (status) void this.router.navigate([], { queryParams: {}, replaceUrl: true });
   }
@@ -208,6 +215,35 @@ export class SettingsPage {
     } catch (err) {
       this.toast.apiError('Nie usunięto wpisu', err);
     }
+  }
+
+  protected price(minor: number) {
+    return (minor / 100).toLocaleString('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: minor % 100 ? 2 : 0 });
+  }
+
+  protected perThousand(p: CreditPack) {
+    return (p.priceMinor / 100 / (p.characters / 1000)).toLocaleString('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 2 });
+  }
+
+  /** Orientacyjnie ~900 znaków na minutę mowy. */
+  protected approxMinutes(chars: number) {
+    return formatNumber(Math.round(chars / 900));
+  }
+
+  async buyPack(p: CreditPack) {
+    this.buying.set(p.id);
+    try {
+      const r = await this.api.buyPack(p.id);
+      if (r.url) {
+        window.location.assign(r.url);
+        return;
+      }
+      await this.store.refreshUsage();
+      this.toast.success('Dodano znaki', `${formatNumber(p.characters)} znaków dopisano do konta (tryb deweloperski, bez opłaty).`);
+    } catch (e) {
+      this.toast.apiError('Nie udało się kupić pakietu', e);
+    }
+    this.buying.set(null);
   }
 
   canChoose(p: Plan) {

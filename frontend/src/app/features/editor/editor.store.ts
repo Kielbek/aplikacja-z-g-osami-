@@ -96,7 +96,7 @@ export class EditorStore implements OnDestroy {
     const plan = this.accountStore.plan();
     if (!plan) return null;
     if (this.accountStore.quotaExhausted()) {
-      return `Wykorzystano miesięczny limit planu ${plan.name}. Generowanie będzie możliwe po odnowieniu limitów lub zmianie planu.`;
+      return `Wykorzystano miesięczny limit planu ${plan.name}. Dokup pakiet znaków (bez subskrypcji), poczekaj na odnowienie limitów lub zmień plan.`;
     }
     if (this.overProjectLimit()) {
       return `Projekt przekracza limit planu ${plan.name}: ${this.projectCharLimit().toLocaleString('pl-PL')} znaków w jednym projekcie. Skróć tekst, podziel go na kilka projektów lub zmień plan.`;

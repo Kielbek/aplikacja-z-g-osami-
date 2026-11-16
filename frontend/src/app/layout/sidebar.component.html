@@ -41,7 +41,8 @@
         <span class="t-muted">Znaki</span>
         <span class="tabular nowrap">{{ usageLabel() }}</span>
       </div>
-      <div class="meter" [class.meter-warning]="usagePct() > 80"><span [style.width.%]="usagePct()"></span></div>
+      <div class="meter" [class.meter-warning]="usagePct() > 80 && !extraLabel()"><span [style.width.%]="usagePct()"></span></div>
+      @if (extraLabel()) { <span class="t-xs t-muted extra tabular">{{ extraLabel() }}</span> }
     </a>
 
     <vc-dropdown align="start" [width]="220">

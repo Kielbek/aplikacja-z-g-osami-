@@ -44,6 +44,27 @@ public class StripeClient {
         return String.valueOf(post("/checkout/sessions", form).get("url"));
     }
 
+    /** Jednorazowa płatność za pakiet znaków (bez subskrypcji). Cena przekazywana inline jako price_data. */
+    public String createPackCheckoutSession(String customerId, String userId, ai.voicecraft.account.CreditPack pack,
+                                            String successUrl, String cancelUrl) {
+        var form = new LinkedMultiValueMap<String, String>();
+        form.add("mode", "payment");
+        form.add("customer", customerId);
+        form.add("line_items[0][price_data][currency]", ai.voicecraft.account.CreditPack.CURRENCY);
+        form.add("line_items[0][price_data][unit_amount]", String.valueOf(pack.priceMinor));
+        form.add("line_items[0][price_data][product_data][name]", "Narrivy — " + pack.displayName + " ("
+                + String.format(java.util.Locale.forLanguageTag("pl-PL"), "%,d", pack.characters) + " znaków)");
+        form.add("line_items[0][quantity]", "1");
+        form.add("client_reference_id", userId);
+        form.add("metadata[userId]", userId);
+        form.add("metadata[kind]", "credits");
+        form.add("metadata[packId]", pack.name());
+        form.add("invoice_creation[enabled]", "true");
+        form.add("success_url", successUrl);
+        form.add("cancel_url", cancelUrl);
+        return String.valueOf(post("/checkout/sessions", form).get("url"));
+    }
+
     public String createPortalSession(String customerId, String returnUrl) {
         var form = new LinkedMultiValueMap<String, String>();
         form.add("customer", customerId);

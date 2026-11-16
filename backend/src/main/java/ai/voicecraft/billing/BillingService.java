@@ -3,6 +3,7 @@ package ai.voicecraft.billing;
 import ai.voicecraft.account.Account;
 import ai.voicecraft.account.AccountRepository;
 import ai.voicecraft.account.AccountService;
+import ai.voicecraft.account.CreditPack;
 import ai.voicecraft.account.SubscriptionPlan;
 import ai.voicecraft.common.ApiException;
 import ai.voicecraft.config.AppProperties;
@@ -73,6 +74,34 @@ public class BillingService {
                 props.publicUrl() + "/settings/subscription?checkout=cancelled");
     }
 
+    // ------------------------------------------------------------ pakiety znaków (bez subskrypcji)
+
+    public List<CreditPack.Dto> packs() {
+        return java.util.Arrays.stream(CreditPack.values()).map(CreditPack::dto).toList();
+    }
+
+    /**
+     * Zakup pakietu znaków. Ze Stripe: adres płatności (znaki dopisuje dopiero webhook po opłaceniu).
+     * Bez Stripe, w trybie deweloperskim (DEMO_PLAN_SWITCH): znaki dopisywane od razu, bez opłaty.
+     */
+    @Transactional
+    public Map<String, Object> buyPack(String packId) {
+        CreditPack pack = CreditPack.parse(packId);
+        Account a = accounts.get();
+        if (!props.billing().stripeEnabled()) {
+            if (!props.billing().demoPlanSwitch()) {
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Płatności nie są skonfigurowane (STRIPE_SECRET_KEY).");
+            }
+            accounts.grantCredits(a.userId, pack, "demo", null);
+            return Map.of("granted", true, "extraCharacters", accounts.creditBalance(a.userId));
+        }
+        if (a.stripeCustomerId == null) a.stripeCustomerId = stripe.createCustomer(a.email, a.userId);
+        String url = stripe.createPackCheckoutSession(a.stripeCustomerId, a.userId, pack,
+                props.publicUrl() + "/settings/subscription?checkout=success&pack=" + pack.name(),
+                props.publicUrl() + "/settings/subscription?checkout=cancelled");
+        return Map.of("url", url);
+    }
+
     public String portal() {
         requireStripe();
         Account a = accounts.get();
@@ -92,10 +121,12 @@ public class BillingService {
         Map<String, Object> obj = (Map<String, Object>) ((Map<String, Object>) event.get("data")).get("object");
 
         switch (type) {
-            case "checkout.session.completed" -> {
+            case "checkout.session.completed", "checkout.session.async_payment_succeeded" -> {
                 String userId = str(obj.get("client_reference_id"));
                 Map<String, Object> meta = (Map<String, Object>) obj.getOrDefault("metadata", Map.of());
-                if (userId != null && accountRepo.existsById(userId)) {
+                if ("credits".equals(str(meta.get("kind")))) {
+                    applyPackPayment(obj, userId, meta);
+                } else if (type.endsWith("completed") && userId != null && accountRepo.existsById(userId)) {
                     Account a = accountRepo.findById(userId).orElseThrow();
                     a.stripeCustomerId = str(obj.get("customer"));
                     a.stripeSubscriptionId = str(obj.get("subscription"));
@@ -113,6 +144,31 @@ public class BillingService {
         e.type = type;
         processed.save(e);
         return true;
+    }
+
+    /** Opłacona sesja pakietu znaków. Płatności odroczone (np. przelew) dopisują znaki dopiero po zdarzeniu async_payment_succeeded. */
+    private void applyPackPayment(Map<String, Object> session, String userId, Map<String, Object> meta) {
+        if (!"paid".equals(str(session.get("payment_status")))) {
+            log.info("Sesja pakietu {} czeka na płatność", session.get("id"));
+            return;
+        }
+        if (userId == null || !accountRepo.existsById(userId)) {
+            log.warn("Opłacony pakiet dla nieznanego użytkownika {}", userId);
+            return;
+        }
+        CreditPack pack;
+        try {
+            pack = CreditPack.parse(str(meta.get("packId")));
+        } catch (IllegalArgumentException e) {
+            log.warn("Opłacona sesja {} z nieznanym pakietem {}", session.get("id"), meta.get("packId"));
+            return;
+        }
+        Object paid = session.get("amount_total");
+        if (paid instanceof Number n && n.longValue() < pack.priceMinor) {
+            log.warn("Sesja {}: zapłacono {} zamiast {} — znaki nie zostały dopisane", session.get("id"), n, pack.priceMinor);
+            return;
+        }
+        accounts.grantCredits(userId, pack, "stripe", str(session.get("id")));
     }
 
     @SuppressWarnings("unchecked")

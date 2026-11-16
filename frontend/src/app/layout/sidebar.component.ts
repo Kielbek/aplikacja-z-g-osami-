@@ -43,6 +43,11 @@ export class SidebarComponent {
     return u ? `${formatNumber(u.charactersUsed)} / ${formatNumber(u.characterLimit)}` : '—';
   });
 
+  protected extraLabel = computed(() => {
+    const n = this.account.usage()?.extraCharacters ?? 0;
+    return n > 0 ? `+ ${formatNumber(n)} dodatkowych` : '';
+  });
+
   async newProject() {
     if (this.creating()) return;
     this.creating.set(true);

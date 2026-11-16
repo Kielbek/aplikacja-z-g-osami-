@@ -10,6 +10,14 @@ public interface UsageRepository extends JpaRepository<UsageEvent, Long> {
     @Query("select coalesce(sum(e.characters), 0) from UsageEvent e where e.userId = ?1 and e.createdAt >= ?2")
     long sumCharactersSince(String userId, Instant since);
 
+    /** Znaki zużyte z limitu planu (bez części pokrytej pakietami). */
+    @Query("select coalesce(sum(e.characters - e.creditCharacters), 0) from UsageEvent e where e.userId = ?1 and e.createdAt >= ?2")
+    long sumPlanCharactersSince(String userId, Instant since);
+
+    /** Znaki pobrane z pakietów — od początku konta (pakiety nie wygasają). */
+    @Query("select coalesce(sum(e.creditCharacters), 0) from UsageEvent e where e.userId = ?1")
+    long sumCreditCharacters(String userId);
+
     @Query("select coalesce(sum(e.durationMs), 0) from UsageEvent e where e.userId = ?1 and e.createdAt >= ?2")
     long sumDurationSince(String userId, Instant since);
 

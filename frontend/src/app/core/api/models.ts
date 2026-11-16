@@ -231,6 +231,8 @@ export interface Usage {
   renewsOn: string;
   charactersUsed: number;
   characterLimit: number;
+  /** Saldo dokupionych znaków (pakiety bez subskrypcji, nie wygasają). */
+  extraCharacters: number;
   minutesUsed: number;
   minuteLimit: number;
   generations: number;
@@ -245,6 +247,16 @@ export interface ApiError {
   message: string;
   /** "PLAN_LIMIT" — akcja niedostępna w bieżącym planie. */
   code?: string;
+}
+
+/** Jednorazowy pakiet znaków — do kupienia bez subskrypcji. */
+export interface CreditPack {
+  id: string;
+  name: string;
+  characters: number;
+  /** Cena w groszach. */
+  priceMinor: number;
+  currency: string;
 }
 
 export interface BillingConfig {

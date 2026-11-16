@@ -147,6 +147,39 @@
                 </section>
               }
               <section class="section">
+                <div class="section-head"><div><h2>Dodatkowe znaki</h2><p>Jednorazowy zakup, bez subskrypcji. Znaki z pakietu nie wygasają i są używane dopiero po wyczerpaniu miesięcznego limitu planu.</p></div></div>
+                <div class="panel extra-balance">
+                  <div>
+                    <span class="t-overline">Twoje dodatkowe znaki</span>
+                    <span class="extra-num tabular">{{ fmtNum(store.usage()?.extraCharacters ?? 0) }}</span>
+                  </div>
+                  <span class="t-small t-muted">Dostępne w każdym planie, także Free.</span>
+                </div>
+                @if (billing(); as b) {
+                  @if (!b.stripeEnabled && b.demoPlanSwitch) {
+                    <div class="callout callout-demo plans-note">
+                      <vc-icon name="flask" />
+                      <div class="callout-body">Płatności Stripe nie są skonfigurowane — w środowisku deweloperskim pakiet zostanie dopisany bez opłaty.</div>
+                    </div>
+                  }
+                }
+                <div class="packs">
+                  @for (pk of packs(); track pk.id) {
+                    <div class="pack" [class.is-best]="pk.id === 'MEDIUM'">
+                      @if (pk.id === 'MEDIUM') { <span class="badge badge-accent pack-badge">Najczęściej wybierany</span> }
+                      <span class="pack-name">{{ pk.name }}</span>
+                      <span class="pack-chars tabular">{{ fmtNum(pk.characters) }} <small>znaków</small></span>
+                      <span class="pack-price tabular">{{ price(pk.priceMinor) }}</span>
+                      <span class="t-xs t-muted tabular">{{ perThousand(pk) }} za 1000 znaków · ok. {{ approxMinutes(pk.characters) }} min nagrania</span>
+                      <button class="btn" [class.btn-primary]="pk.id === 'MEDIUM'" [disabled]="buying() !== null || !canBuyPacks()" (click)="buyPack(pk)">
+                        @if (buying() === pk.id) { <span class="spinner"></span> }
+                        Kup jednorazowo
+                      </button>
+                    </div>
+                  }
+                </div>
+              </section>
+              <section class="section">
                 <div class="section-head"><div><h2>Plany i limity</h2><p>Porównanie możliwości dostępnych planów.</p></div></div>
                 @if (billing(); as b) {
                   @if (!b.stripeEnabled && b.demoPlanSwitch) {

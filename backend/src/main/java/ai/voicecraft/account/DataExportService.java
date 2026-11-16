@@ -114,6 +114,7 @@ public class DataExportService {
         }
         docs.put("historia.json", history.findAllByUserIdOrderByCreatedAtDesc(uid));
         docs.put("zuzycie.json", usage.findAllByUserIdOrderByCreatedAtDesc(uid));
+        docs.put("pakiety_znakow.json", accounts.creditPurchases(uid));
         docs.put("slownik_wymowy.json", dictionary.findAllOf(uid));
         docs.put("zgody_klonowanie.json", consents.findAllByUserIdOrderByCreatedAtDesc(uid));
         return new Prepared(docs, audio);

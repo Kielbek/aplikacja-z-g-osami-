@@ -26,9 +26,12 @@ public class AccountService {
     private final VoiceRepository voices;
     private final UserRepository users;
     private final ai.voicecraft.auth.EmailVerificationService verification;
+    private final CharacterCreditRepository credits;
 
     public AccountService(AccountRepository repo, UsageRepository usage, ProjectRepository projects,
-                          VoiceRepository voices, UserRepository users, ai.voicecraft.auth.EmailVerificationService verification) {
+                          VoiceRepository voices, UserRepository users, ai.voicecraft.auth.EmailVerificationService verification,
+                          CharacterCreditRepository credits) {
+        this.credits = credits;
         this.verification = verification;
         this.repo = repo;
         this.usage = usage;
@@ -134,8 +137,9 @@ public class AccountService {
         out.put("plan", p.dto());
         out.put("periodStart", a.billingPeriodStart.toString());
         out.put("renewsOn", a.renewsOn.toString());
-        out.put("charactersUsed", usage.sumCharactersSince(uid, since));
+        out.put("charactersUsed", usage.sumPlanCharactersSince(uid, since));
         out.put("characterLimit", p.monthlyCharacters);
+        out.put("extraCharacters", creditBalance(uid));
         out.put("minutesUsed", Math.round(usage.sumDurationSince(uid, since) / 600.0) / 100.0);
         out.put("minuteLimit", p.monthlyMinutes);
         out.put("generations", usage.countSince(uid, since));
@@ -146,28 +150,72 @@ public class AccountService {
         return out;
     }
 
-    /** Zapisuje zużycie limitu (niezależnie od historii, której użytkownik może się pozbyć). */
+    /**
+     * Zapisuje zużycie (niezależnie od historii, której użytkownik może się pozbyć).
+     * Najpierw liczy się limit planu, a nadwyżka schodzi z dokupionych pakietów znaków.
+     */
+    @Transactional
     public void recordUsage(String userId, String kind, int characters, long durationMs) {
-        usage.save(UsageEvent.of(userId, kind, characters, durationMs));
+        Account a = get(userId);
+        long fromPlan = Math.min(characters, planCharactersLeft(a));
+        int fromCredits = (int) Math.min(characters - fromPlan, creditBalance(userId));
+        usage.save(UsageEvent.of(userId, kind, characters, fromCredits, durationMs));
+    }
+
+    /** Saldo dokupionych znaków: kupione minus zużyte z pakietów. */
+    public long creditBalance(String userId) {
+        return Math.max(0, credits.sumCharacters(userId) - usage.sumCreditCharacters(userId));
+    }
+
+    /** Dopisuje pakiet znaków. Idempotentne względem {@code reference} (np. powtórzony webhook Stripe). */
+    @Transactional
+    public boolean grantCredits(String userId, CreditPack pack, String source, String reference) {
+        if (reference != null && credits.existsByReference(reference)) return false;
+        get(userId);
+        var c = new CharacterCredit();
+        c.userId = userId;
+        c.packId = pack.name();
+        c.characters = pack.characters;
+        c.amountMinor = "demo".equals(source) ? 0 : pack.priceMinor;
+        c.currency = CreditPack.CURRENCY;
+        c.source = source;
+        c.reference = reference;
+        credits.save(c);
+        return true;
+    }
+
+    public java.util.List<CharacterCredit> creditPurchases(String userId) {
+        return credits.findAllByUserIdOrderByCreatedAtDesc(userId);
+    }
+
+    /** Ile znaków zostało w limicie planu w bieżącym okresie (0 także po wyczerpaniu minut audio). */
+    private long planCharactersLeft(Account a) {
+        Instant since = periodStart(a);
+        SubscriptionPlan p = a.planId;
+        if (usage.sumDurationSince(a.userId, since) >= p.monthlyMinutes * 60_000L) return 0;
+        return Math.max(0, p.monthlyCharacters - usage.sumPlanCharactersSince(a.userId, since));
     }
 
     // ------------------------------------------------------------ egzekwowanie limitów
 
-    /** Limity miesięczne: znaki i minuty audio. */
+    /** Limity miesięczne (znaki i minuty audio); po ich wyczerpaniu — dokupione pakiety znaków. */
     public void requireGenerationQuota(int characters) {
         Account a = get();
         verification.requireVerified(a.userId);
         SubscriptionPlan p = a.planId;
-        Instant since = periodStart(a);
-        long used = usage.sumCharactersSince(a.userId, since);
-        if (used + characters > p.monthlyCharacters) {
-            long left = Math.max(0, p.monthlyCharacters - used);
-            throw ApiException.plan("Wykorzystano miesięczny limit znaków planu " + p.displayName + " ("
-                    + fmt(p.monthlyCharacters) + "). Pozostało " + fmt(left) + " znaków, fragment ma " + fmt(characters) + ".");
-        }
-        if (usage.sumDurationSince(a.userId, since) >= p.monthlyMinutes * 60_000L) {
-            throw ApiException.plan("Wykorzystano miesięczny limit " + p.monthlyMinutes + " minut audio planu " + p.displayName + ".");
-        }
+        long left = planCharactersLeft(a);
+        if (characters <= left) return;
+        long extra = creditBalance(a.userId);
+        if (characters - left <= extra) return;
+        boolean minutes = usage.sumDurationSince(a.userId, periodStart(a)) >= p.monthlyMinutes * 60_000L;
+        String reason = minutes
+                ? "Wykorzystano miesięczny limit " + p.monthlyMinutes + " minut audio planu " + p.displayName + "."
+                : "Wykorzystano miesięczny limit znaków planu " + p.displayName + " (" + fmt(p.monthlyCharacters) + "). Pozostało "
+                        + fmt(left) + " znaków, fragment ma " + fmt(characters) + ".";
+        String more = extra > 0
+                ? " Dodatkowych znaków z pakietów: " + fmt(extra) + " — za mało na ten fragment."
+                : "";
+        throw ApiException.plan(reason + more + " Dokup pakiet znaków lub zmień plan.");
     }
 
     /** Generowanie i klonowanie wymagają potwierdzonego adresu e-mail. */

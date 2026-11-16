@@ -5,6 +5,7 @@ import {
   Account,
   ApiError,
   BillingConfig,
+  CreditPack,
   ProjectFolder,
   ConsentText,
   VoiceConsent,
@@ -168,6 +169,13 @@ export class ApiService {
   }
   billingCheckout(planId: string) {
     return this.p(this.http.post<{ url: string }>(`${API}/billing/checkout`, { planId }));
+  }
+  billingPacks() {
+    return this.p(this.http.get<CreditPack[]>(`${API}/billing/packs`));
+  }
+  /** Stripe: adres płatności. Tryb deweloperski bez Stripe: znaki dopisane od razu (granted). */
+  buyPack(packId: string) {
+    return this.p(this.http.post<{ url?: string; granted?: boolean; extraCharacters?: number }>(`${API}/billing/packs/checkout`, { packId }));
   }
   billingPortal() {
     return this.p(this.http.post<{ url: string }>(`${API}/billing/portal`, {}));

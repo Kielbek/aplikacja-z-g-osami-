@@ -23,6 +23,16 @@ public class BillingController {
         return Map.of("url", billing.checkout(body.get("planId")));
     }
 
+    @GetMapping("/packs")
+    public java.util.List<ai.voicecraft.account.CreditPack.Dto> packs() {
+        return billing.packs();
+    }
+
+    @PostMapping("/packs/checkout")
+    public Map<String, Object> buyPack(@RequestBody Map<String, String> body) {
+        return billing.buyPack(body.get("packId"));
+    }
+
     @PostMapping("/portal")
     public Map<String, String> portal() {
         return Map.of("url", billing.portal());

@@ -177,3 +177,54 @@
   .dict-form { grid-template-columns: 1fr; }
   .dict-actions { grid-column: auto; flex-wrap: wrap; }
 }
+
+/* ---------- Dodatkowe znaki (pakiety bez subskrypcji) ---------- */
+
+.extra-balance {
+  padding: 16px 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  > div { display: flex; flex-direction: column; gap: 4px; }
+}
+
+.extra-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  line-height: 1.1;
+}
+
+.packs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.pack {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  .btn { margin-top: 10px; justify-content: center; }
+  &.is-best { border-color: var(--text); box-shadow: var(--shadow-sm); }
+}
+
+.pack-badge { position: absolute; top: -10px; left: 16px; }
+.pack-name { font-size: var(--text-sm); font-weight: 600; }
+.pack-chars {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: var(--display-weight);
+  letter-spacing: var(--display-tracking);
+  small { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 400; letter-spacing: 0; color: var(--text-3); }
+}
+.pack-price { font-size: var(--text-lg, 18px); font-weight: 600; }

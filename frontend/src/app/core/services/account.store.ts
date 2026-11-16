@@ -20,11 +20,14 @@ export class AccountStore {
 
   readonly charactersLeft = computed(() => {
     const u = this.usage();
-    return u ? Math.max(0, u.characterLimit - u.charactersUsed) : Infinity;
+    if (!u) return Infinity;
+    const plan = u.minutesUsed >= u.minuteLimit ? 0 : Math.max(0, u.characterLimit - u.charactersUsed);
+    return plan + (u.extraCharacters ?? 0);
   });
+  /** Limit planu wyczerpany i brak dokupionych znaków. */
   readonly quotaExhausted = computed(() => {
     const u = this.usage();
-    return !!u && (u.charactersUsed >= u.characterLimit || u.minutesUsed >= u.minuteLimit);
+    return !!u && (u.charactersUsed >= u.characterLimit || u.minutesUsed >= u.minuteLimit) && !(u.extraCharacters > 0);
   });
   readonly projectLimitReached = computed(() => {
     const u = this.usage();
