@@ -214,6 +214,7 @@
         <span class="spinner"></span>
         <span class="tabular">Generowanie {{ b.done + 1 > b.total ? b.total : b.done + 1 }} z {{ b.total }}…</span>
         <div class="meter grow"><span [style.width.%]="batchPct()"></span></div>
+        <ng-container *ngTemplateOutlet="liveCtl" />
         <button class="btn btn-sm" [disabled]="b.cancelRequested" (click)="store.cancelBatch()">
           <vc-icon name="stop" [size]="12" />{{ b.cancelRequested ? 'Zatrzymywanie…' : 'Zatrzymaj' }}
         </button>
@@ -225,12 +226,15 @@
           @if (store.pendingIds().length) { <span class="pending"><span class="sep">·</span>{{ store.pendingIds().length }} do wygenerowania</span> }
         </span>
         <div class="gen-actions">
-          <button class="btn" [disabled]="!store.allReady() || store.isGenerating()" (click)="playAll()"
-            [title]="store.allReady() ? 'Odtwórz połączone nagranie' : 'Najpierw wygeneruj wszystkie fragmenty'">
-            @if (loadingAll()) { <span class="spinner"></span> }
-            @else { <vc-icon [name]="playingAll() ? 'pause' : 'play'" [size]="12" /> }
-            <span class="hide-sm">{{ playingAll() ? 'Pauza' : 'Odtwórz całość' }}</span>
-          </button>
+          @if (store.allReady()) {
+            <button class="btn" [disabled]="store.isGenerating()" (click)="playAll()" title="Odtwórz połączone nagranie">
+              @if (loadingAll()) { <span class="spinner"></span> }
+              @else { <vc-icon [name]="playingAll() ? 'pause' : 'play'" [size]="12" /> }
+              <span class="hide-sm">{{ playingAll() ? 'Pauza' : 'Odtwórz całość' }}</span>
+            </button>
+          } @else {
+            <ng-container *ngTemplateOutlet="liveCtl" />
+          }
           <button class="btn btn-primary gen-all" [disabled]="!store.pendingIds().length || store.isGenerating() || engine.isOffline() || !!store.planBlock()"
             (click)="store.generateMany()" title="Generuje tylko nowe i zmienione fragmenty (Ctrl+Shift+Enter)">
             <vc-icon [name]="store.pendingIds().length ? 'voices' : 'check'" [size]="14" />
@@ -239,6 +243,22 @@
         </div>
       </div>
     }
+
+    <!-- Odsłuch na bieżąco: gotowe fragmenty grają od razu, kolejne dołączają po wygenerowaniu -->
+    <ng-template #liveCtl>
+      @if (liveActive(); as l) {
+        <span class="live-status tabular" role="status">
+          @if (l.waiting) { <span class="spinner"></span>Czekam na fragment {{ l.index + 1 }}… }
+          @else { <span class="live-dot"></span>Fragment {{ l.index + 1 }} z {{ l.ids.length }} }
+        </span>
+        <button class="btn btn-sm" (click)="stopLive()"><vc-icon name="stop" [size]="12" /><span class="hide-sm">Zatrzymaj odsłuch</span></button>
+      } @else {
+        <button class="btn btn-sm" [disabled]="!canListen()" (click)="store.startLive()"
+          title="Odtwarzaj gotowe fragmenty po kolei — kolejne dołączą, gdy się wygenerują">
+          <vc-icon name="play" [size]="12" /><span class="hide-sm">{{ store.batch() ? 'Słuchaj na bieżąco' : 'Odtwórz gotowe' }}</span>
+        </button>
+      }
+    </ng-template>
   </section>
 
   @if (store.versions(); as v) {

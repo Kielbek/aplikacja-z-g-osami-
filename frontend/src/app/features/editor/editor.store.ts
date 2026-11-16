@@ -151,6 +151,7 @@ export class EditorStore implements OnDestroy {
   }
 
   ngOnDestroy() {
+    this.stopLive();
     this.events?.close();
     const p = this.project();
     if (p) this.projectsStore.releaseLocal(p.id);
@@ -189,6 +190,7 @@ export class EditorStore implements OnDestroy {
     es.addEventListener('segment-error', (e) => {
       const { segmentId, message } = JSON.parse((e as MessageEvent).data) as { segmentId: string; message: string };
       this.patchSeg(segmentId, { generating: false, queued: false, status: 'error', error: message });
+      this.liveResume(segmentId);
     });
     // Po zerwaniu połączenia przeglądarka łączy się ponownie — dociągamy aktualny stan zadania
     let dropped = false;
@@ -208,6 +210,7 @@ export class EditorStore implements OnDestroy {
     const patch = current.text !== seg.text ? { ...seg, text: current.text, status: 'stale' as const } : seg;
     this.patchSeg(seg.id, { ...patch, generating: false, queued: false });
     void this.accountStore.refreshUsage();
+    this.liveResume(seg.id);
   }
 
   private applyJob(job: GenerationJob) {
@@ -218,7 +221,9 @@ export class EditorStore implements OnDestroy {
       this.segments.update((list) =>
         list.map((s) => {
           const generating = s.id === job.currentSegmentId;
-          const queued = !generating && (s.queued || this.jobIds.includes(s.id));
+          // W kolejce są tylko fragmenty zadania, do których generowanie jeszcze nie doszło
+          const pos = this.jobIds.indexOf(s.id);
+          const queued = !generating && (pos >= 0 ? pos >= job.done : s.queued);
           return s.generating !== generating || s.queued !== queued ? { ...s, generating, queued } : s;
         }),
       );
@@ -231,6 +236,8 @@ export class EditorStore implements OnDestroy {
     this.batch.set(null);
     this.jobIds = [];
     this.segments.update((list) => list.map((s) => (s.queued || s.generating ? { ...s, queued: false, generating: false } : s)));
+    const w = this.live();
+    if (w?.waiting) this.liveResume(w.ids[w.index]);
     if (!wasRunning) return;
     this.clearSelection();
     void this.accountStore.refreshUsage();
@@ -244,7 +251,8 @@ export class EditorStore implements OnDestroy {
       });
     } else {
       this.toast.success(`Wygenerowano ${job.total} ${job.total === 1 ? 'fragment' : 'fragmentów'}`);
-      if (this.allReady() && (this.accountStore.account()?.playAfterGenerate ?? true)) {
+      // Przy odsłuchu na bieżąco użytkownik już słucha — nie zaczynamy całości od nowa
+      if (!this.live() && this.allReady() && (this.accountStore.account()?.playAfterGenerate ?? true)) {
         const t = this.projectTrack();
         if (t) void this.player.play(t, { force: true });
       }
@@ -262,6 +270,7 @@ export class EditorStore implements OnDestroy {
     // Przejście do innego projektu w tym samym edytorze: dalszy stan poprzedniego śledzimy z serwera
     const prev = this.project();
     if (prev) this.projectsStore.releaseLocal(prev.id);
+    this.stopLive();
     this.undoStack = [];
     this.redoStack = [];
     this.syncHistoryFlags();
@@ -909,6 +918,72 @@ export class EditorStore implements OnDestroy {
     }
   }
 
+  // ------------------------------------------------------------ odsłuch na bieżąco
+
+  /**
+   * Odtwarzanie fragmentów po kolei w trakcie generowania: gotowy fragment gra od razu, a gdy następny
+   * jeszcze się generuje — czekamy na niego (przychodzi przez SSE) i gramy dalej. Nie trzeba czekać na całość.
+   */
+  readonly live = signal<{ ids: string[]; index: number; waiting: boolean } | null>(null);
+  private liveGap: ReturnType<typeof setTimeout> | null = null;
+
+  /** Rozpoczyna odsłuch od wskazanego fragmentu (domyślnie od pierwszego) do końca tekstu. */
+  startLive(fromId?: string) {
+    const ids = this.nonEmpty().map((s) => s.id);
+    const start = fromId ? Math.max(0, ids.indexOf(fromId)) : 0;
+    if (!ids.length) return;
+    this.live.set({ ids, index: start, waiting: false });
+    this.liveNext();
+  }
+
+  stopLive() {
+    if (this.liveGap) clearTimeout(this.liveGap);
+    this.live.set(null);
+  }
+
+  /** Stan fragmentu bieżącego w odsłuchu: gra / czekamy na wygenerowanie / pomijamy. */
+  private liveNext() {
+    const l = this.live();
+    if (!l) return;
+    if (l.index >= l.ids.length) {
+      this.live.set(null);
+      return;
+    }
+    const seg = this.segments().find((s) => s.id === l.ids[l.index]);
+    if (!seg) return this.liveAdvance();
+    if (seg.status === 'ready' && seg.audioVersion) {
+      const track = this.segmentTrack(seg);
+      if (!track) return this.liveAdvance();
+      this.live.set({ ...l, waiting: false });
+      void this.player.play({ ...track, title: `${this.name()} · fragment ${l.index + 1} z ${l.ids.length}` }, {
+        force: true,
+        onEnded: () => {
+          const gap = this.accountStore.account()?.pauseBetweenSegmentsMs ?? 300;
+          this.liveGap = setTimeout(() => this.liveAdvance(), gap);
+        },
+      });
+      return;
+    }
+    if (seg.generating || seg.queued) {
+      this.live.set({ ...l, waiting: true }); // wznowi applySegment
+      return;
+    }
+    this.liveAdvance(); // fragment nie będzie generowany (błąd lub nieaktualny) — pomijamy
+  }
+
+  private liveAdvance() {
+    const l = this.live();
+    if (!l) return;
+    this.live.set({ ...l, index: l.index + 1, waiting: false });
+    this.liveNext();
+  }
+
+  /** Fragment właśnie się wygenerował (lub nie powiódł) — jeśli na niego czekamy, gramy dalej. */
+  private liveResume(segmentId: string) {
+    const l = this.live();
+    if (l?.waiting && l.ids[l.index] === segmentId) this.liveNext();
+  }
+
   /** Wyczerpane znaki (plan + pakiety): informacja z przyciskiem do oferty — przyciski generowania działają dalej. */
   readonly quotaEmpty = computed(() => !!this.accountStore.usage() && this.accountStore.charactersLeft() === 0);
 
@@ -959,6 +1034,8 @@ export class EditorStore implements OnDestroy {
       const job = await this.api.startJob(p.id, todo);
       this.jobIds = todo;
       this.applyJob(job);
+      // Odsłuch na bieżąco: gotowe fragmenty grają od razu, kolejne dołączają, gdy się wygenerują
+      if (this.accountStore.account()?.playAfterGenerate ?? true) this.startLive(todo[0]);
     } catch (e) {
       this.jobIds = [];
       this.segments.update((list) => list.map((s) => (s.queued ? { ...s, queued: false } : s)));

@@ -412,3 +412,23 @@ vc-narrator-editor {
 }
 
 .link-btn { border: 0; background: none; padding: 0; cursor: pointer; font: inherit; }
+
+/* ---------- Odsłuch na bieżąco ---------- */
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--text-sm);
+  color: var(--text-2);
+  white-space: nowrap;
+  .spinner { width: 12px; height: 12px; }
+}
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 color-mix(in srgb, var(--success) 60%, transparent);
+  animation: live-pulse 1.4s ease-out infinite;
+}
+@keyframes live-pulse { to { box-shadow: 0 0 0 7px transparent; } }

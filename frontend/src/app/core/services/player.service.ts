@@ -37,6 +37,8 @@ export class PlayerService {
   private ctx: AudioContext | null = null;
   private loadSeq = 0;
   private raf = 0;
+  /** Wywoływane po dojściu nagrania do końca (np. kolejny fragment w odsłuchu na bieżąco). */
+  private onEnded: (() => void) | null = null;
 
   readonly track = signal<PlayerTrack | null>(null);
   readonly status = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
@@ -65,6 +67,9 @@ export class PlayerService {
     this.audio.addEventListener('ended', () => {
       this.playing.set(false);
       this.currentTime.set(this.duration());
+      const next = this.onEnded;
+      this.onEnded = null;
+      next?.();
     });
     this.audio.addEventListener('loadedmetadata', () => {
       if (Number.isFinite(this.audio.duration)) this.duration.set(this.audio.duration);
@@ -85,8 +90,10 @@ export class PlayerService {
   }
 
   /** Ładuje i odtwarza utwór. Ponowne wywołanie dla tego samego utworu przełącza play/pauza. */
-  async play(track: PlayerTrack, opts: { autoplay?: boolean; force?: boolean } = {}) {
+  async play(track: PlayerTrack, opts: { autoplay?: boolean; force?: boolean; onEnded?: () => void } = {}) {
     const autoplay = opts.autoplay ?? true;
+    // Nowy utwór kasuje kontynuację poprzedniego (np. użytkownik włączył inny fragment)
+    this.onEnded = opts.onEnded ?? null;
     if (!opts.force && this.track()?.id === track.id && this.track()?.url === track.url && this.status() === 'ready') {
       this.track.set(track);
       this.toggle();
@@ -117,6 +124,7 @@ export class PlayerService {
 
   /** Odtwarza lokalny plik (np. nagranie referencyjne przed wysłaniem). */
   async playBlob(blob: Blob, track: Omit<PlayerTrack, 'url'>, autoplay = true) {
+    this.onEnded = null;
     const seq = ++this.loadSeq;
     this.audio.pause();
     this.track.set({ ...track, url: null });

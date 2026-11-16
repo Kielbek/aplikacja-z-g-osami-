@@ -99,6 +99,19 @@ export class EditorPage {
     });
   }
 
+  /** Odsłuch na bieżąco — widoczny, gdy rzeczywiście gra lub czeka (użytkownik mógł włączyć inne nagranie). */
+  protected liveActive = computed(() => {
+    const l = this.store.live();
+    if (!l) return null;
+    return l.waiting || this.player.track()?.id === `seg:${l.ids[l.index]}` ? l : null;
+  });
+  protected canListen = computed(() => this.store.nonEmpty().some((s) => s.status === 'ready') || !!this.store.batch());
+
+  protected stopLive() {
+    this.store.stopLive();
+    if (this.player.playing()) this.player.toggle();
+  }
+
   protected playAll() {
     const t = this.store.projectTrack();
     if (t) void this.player.play(t);
