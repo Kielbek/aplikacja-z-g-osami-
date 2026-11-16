@@ -744,7 +744,10 @@ export class EditorStore implements OnDestroy {
     this.name.set(name);
     if (this.nameTimer) clearTimeout(this.nameTimer);
     this.saveState.set('dirty');
-    this.nameTimer = setTimeout(() => void this.saveName(), 600);
+    this.nameTimer = setTimeout(() => {
+      this.nameTimer = null;
+      void this.saveName();
+    }, 600);
   }
 
   private async saveName() {
@@ -755,6 +758,8 @@ export class EditorStore implements OnDestroy {
       const res = await this.api.updateProject(p.id, { name });
       this.project.set({ ...res, segments: [] });
       this.projectsStore.touch(res);
+      // Wyczyszczony tytuł = nazwa automatyczna z początku tekstu (nadaje ją serwer)
+      if (!this.name().trim()) this.name.set(res.name);
       if (!this.segDirty && !this.settingsDirty) this.saveState.set('saved');
     } catch (e) {
       this.saveState.set('error');
@@ -808,6 +813,8 @@ export class EditorStore implements OnDestroy {
   /** Scala odpowiedź serwera z lokalnym stanem (nie nadpisuje tekstu wpisanego w międzyczasie). */
   applyServer(res: ProjectDto) {
     this.project.set({ ...res, segments: [] });
+    // Nazwa automatyczna (z pierwszego zdania) — aktualizuj tytuł, o ile użytkownik go teraz nie edytuje
+    if (!this.nameTimer && res.name !== this.name()) this.name.set(res.name);
     this.projectsStore.touch(res);
     const server = new Map(res.segments.map((s) => [s.id, s]));
     this.segments.update((list) =>

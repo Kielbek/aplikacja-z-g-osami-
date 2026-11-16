@@ -18,6 +18,8 @@ public interface ApiJobRepository extends JpaRepository<ApiJob, String> {
 
     List<ApiJob> findAllByStatusInOrderByCreatedAtAsc(Collection<ApiJob.Status> statuses);
 
+    List<ApiJob> findAllByUserIdAndStatusIn(String userId, Collection<ApiJob.Status> statuses);
+
     @Query("select j.audioFile from ApiJob j where j.audioFile is not null")
     List<String> allAudioFiles();
 

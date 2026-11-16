@@ -36,7 +36,13 @@ public class ApiErrors {
         var res = ResponseEntity.status(e.status());
         if ("engine_busy".equals(code)) res.header("Retry-After", "5");
         if (e.status().is5xxServerError()) log.warn("API {} {}: {}", e.status().value(), code, e.getMessage());
-        return res.body(body(code, e.getMessage(), req));
+        var b = body(code, e.getMessage(), req);
+        if (e.details() != null) {
+            @SuppressWarnings("unchecked")
+            var err = (Map<String, Object>) b.get("error");
+            e.details().forEach(err::put);
+        }
+        return res.body(b);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -70,7 +76,8 @@ public class ApiErrors {
         String c = e.code();
         if (c != null) {
             return switch (c) {
-                case "PLAN_LIMIT" -> "quota_exceeded";
+                case "QUOTA_EXCEEDED" -> "quota_exceeded";
+                case "PLAN_LIMIT" -> "plan_limit";
                 case "ENGINE_BUSY" -> "engine_busy";
                 case "EMAIL_NOT_VERIFIED" -> "email_not_verified";
                 default -> c.toLowerCase();
@@ -89,6 +96,7 @@ public class ApiErrors {
 
     static Map<String, Object> body(String code, String message, HttpServletRequest req) {
         var err = new LinkedHashMap<String, Object>();
+        // (pola dodatkowe, np. needed/available przy quota_exceeded, dopisuje api())
         err.put("code", code);
         err.put("message", message == null ? "" : message);
         Object id = req == null ? null : req.getAttribute(REQUEST_ID);

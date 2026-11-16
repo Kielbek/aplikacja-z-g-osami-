@@ -84,7 +84,8 @@ public class ProjectService {
         var p = new Project();
         p.id = UUID.randomUUID().toString();
         p.ownerId = a.userId;
-        p.name = req.name() == null || req.name().isBlank() ? "Projekt bez tytułu" : req.name().trim();
+        p.nameCustom = req.name() != null && !req.name().isBlank();
+        p.name = p.nameCustom ? req.name().trim() : ProjectNames.DEFAULT;
         p.settings.language = a.defaultLanguage;
         p.settings.voiceId = canUseVoice(a.defaultVoiceId) ? a.defaultVoiceId : null;
         p.folderId = ownFolder(req.folderId());
@@ -92,13 +93,18 @@ public class ProjectService {
         if (parts.isEmpty()) parts = List.of("");
         account.requireProjectCharacters(parts.stream().mapToInt(SpeechText::spokenCharacters).sum());
         for (String t : parts) addSegment(p, t);
+        if (!p.nameCustom) p.name = ProjectNames.fromTexts(parts);
         return dto(projects.save(p));
     }
 
     @Transactional
     public ProjectDto update(String id, UpdateProject req) {
         Project p = find(id);
-        if (req.name() != null) p.name = req.name().trim();
+        if (req.name() != null) {
+            // Pusta nazwa = powrót do nazwy automatycznej z tekstu
+            p.nameCustom = !req.name().isBlank() && !req.name().trim().equals(ProjectNames.DEFAULT);
+            p.name = p.nameCustom ? req.name().trim() : ProjectNames.fromTexts(p.segments.stream().map(s -> s.text).toList());
+        }
         if (req.settings() != null) {
             VoiceSettings s = req.settings();
             if (s.voiceId != null && !canUseVoice(s.voiceId)) throw ApiException.notFound("Głos");
@@ -134,6 +140,7 @@ public class ProjectService {
         }
         p.segments.clear();
         p.segments.addAll(next);
+        if (!p.nameCustom) p.name = ProjectNames.fromTexts(next.stream().map(s -> s.text).toList());
         p.updatedAt = Instant.now();
         return dto(projects.save(p));
     }
@@ -165,6 +172,7 @@ public class ProjectService {
         p.id = UUID.randomUUID().toString();
         p.ownerId = src.ownerId;
         p.name = src.name + " (kopia)";
+        p.nameCustom = true;
         p.settings = src.settings.copy();
         p.folderId = src.folderId;
         p.lastGeneratedAt = src.lastGeneratedAt;

@@ -16,6 +16,8 @@ public class Project {
 
     @Column(nullable = false)
     public String name;
+    /** Nazwa nadana przez użytkownika; false = nazwa tworzona automatycznie z początku tekstu. */
+    public boolean nameCustom;
 
     public Instant createdAt = Instant.now();
     public Instant updatedAt = Instant.now();

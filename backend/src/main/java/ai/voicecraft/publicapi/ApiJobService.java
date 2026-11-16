@@ -43,6 +43,7 @@ public class ApiJobService {
     private final AudioStorage storage;
     private final WebhookSender webhooks;
     private final ApiKeyService keys;
+    private final ai.voicecraft.account.AccountService accounts;
     private final ScheduledExecutorService workers;
     private final ScheduledExecutorService delivery = Executors.newSingleThreadScheduledExecutor(r -> {
         var t = new Thread(r, "api-webhooks");
@@ -51,7 +52,9 @@ public class ApiJobService {
     });
 
     public ApiJobService(ApiJobRepository jobs, SpeechService speech, AudioStorage storage, WebhookSender webhooks,
-                         ApiKeyService keys, @Value("${voicecraft.api.job-workers:2}") int workers) {
+                         ApiKeyService keys, ai.voicecraft.account.AccountService accounts,
+                         @Value("${voicecraft.api.job-workers:2}") int workers) {
+        this.accounts = accounts;
         this.jobs = jobs;
         this.speech = speech;
         this.storage = storage;
@@ -82,6 +85,8 @@ public class ApiJobService {
         }
         webhooks.validate(r.callbackUrl());
         var prepared = speech.prepare(r.text(), r.voiceId(), r.language(), r.format(), r.settings(), maxCharacters);
+        // Cały tekst zadania musi zmieścić się w dostępnych znakach już przy przyjęciu (rezerwacja do końca zadania)
+        accounts.requireGenerationQuota(prepared.characters());
         if (jobs.countByUserIdAndStatusIn(uid, EnumSet.of(ApiJob.Status.QUEUED, ApiJob.Status.PROCESSING)) >= MAX_PENDING_PER_USER) {
             throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, "Masz już " + MAX_PENDING_PER_USER
                     + " zadań w kolejce. Poczekaj na ich zakończenie.", "too_many_pending_jobs");
@@ -141,7 +146,8 @@ public class ApiJobService {
             var s = JSON.readValue(j.settings, SpeechRequest.Settings.class);
             SpeechService.Result r = CurrentUser.runAs(j.userId, () -> {
                 var prepared = speech.prepare(j.text, j.voiceId, j.language, j.outputFormat, s, Integer.MAX_VALUE);
-                return speech.render(prepared, j.apiKeyId, GpuQueue.Priority.BATCH);
+                return ai.voicecraft.account.AccountService.withinReservation("api:" + j.id,
+                        () -> speech.render(prepared, j.apiKeyId, GpuQueue.Priority.BATCH));
             });
             j.audioFile = storage.save("api", r.audio());
             j.durationMs = r.durationMs();

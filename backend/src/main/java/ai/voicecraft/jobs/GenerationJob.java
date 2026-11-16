@@ -30,6 +30,9 @@ public class GenerationJob {
     public int total;
     public int done;
     public int failed;
+    /** Znaki całego zadania (zarezerwowane przy starcie) i znaki już przetworzone. */
+    public int totalCharacters;
+    public int processedCharacters;
     public String currentSegmentId;
 
     @Column(length = 1000)

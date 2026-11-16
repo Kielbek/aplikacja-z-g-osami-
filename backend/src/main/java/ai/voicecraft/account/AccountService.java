@@ -27,10 +27,18 @@ public class AccountService {
     private final UserRepository users;
     private final ai.voicecraft.auth.EmailVerificationService verification;
     private final CharacterCreditRepository credits;
+    private final ai.voicecraft.jobs.JobRepository genJobs;
+    private final ai.voicecraft.publicapi.ApiJobRepository apiJobs;
+
+    /** Zadanie, w którego ramach trwa synteza — jego własna rezerwacja nie blokuje kolejnych fragmentów. */
+    private static final ThreadLocal<String> OWN_RESERVATION = new ThreadLocal<>();
 
     public AccountService(AccountRepository repo, UsageRepository usage, ProjectRepository projects,
                           VoiceRepository voices, UserRepository users, ai.voicecraft.auth.EmailVerificationService verification,
-                          CharacterCreditRepository credits) {
+                          CharacterCreditRepository credits, ai.voicecraft.jobs.JobRepository genJobs,
+                          ai.voicecraft.publicapi.ApiJobRepository apiJobs) {
+        this.genJobs = genJobs;
+        this.apiJobs = apiJobs;
         this.credits = credits;
         this.verification = verification;
         this.repo = repo;
@@ -142,6 +150,7 @@ public class AccountService {
         out.put("charactersUsed", usage.sumPlanCharactersSince(uid, since));
         out.put("characterLimit", p.monthlyCharacters);
         out.put("extraCharacters", creditBalance(uid));
+        out.put("reservedCharacters", reservedCharacters(uid));
         out.put("minutesUsed", Math.round(usage.sumDurationSince(uid, since) / 600.0) / 100.0);
         out.put("minuteLimit", p.monthlyMinutes);
         out.put("generations", usage.countSince(uid, since));
@@ -212,24 +221,58 @@ public class AccountService {
 
     // ------------------------------------------------------------ egzekwowanie limitów
 
+    /**
+     * Wykonuje syntezę w ramach zadania {@code key} („job:&lt;id&gt;” lub „api:&lt;id&gt;”): przy sprawdzaniu limitu
+     * rezerwacja tego zadania nie jest odliczana (znaki zarezerwowano przy jego starcie).
+     */
+    public static <T> T withinReservation(String key, java.util.function.Supplier<T> action) {
+        String previous = OWN_RESERVATION.get();
+        OWN_RESERVATION.set(key);
+        try {
+            return action.get();
+        } finally {
+            if (previous == null) OWN_RESERVATION.remove();
+            else OWN_RESERVATION.set(previous);
+        }
+    }
+
+    /**
+     * Znaki zarezerwowane przez trwające zadania użytkownika (pozostała część zadań „Generuj zmienione”
+     * i zadania API w kolejce) — z pominięciem zadania, w którego ramach właśnie trwa synteza.
+     */
+    public long reservedCharacters(String userId) {
+        String own = OWN_RESERVATION.get();
+        long gen = genJobs.findAllByUserIdAndStatusIn(userId,
+                        java.util.EnumSet.of(ai.voicecraft.jobs.JobStatus.QUEUED, ai.voicecraft.jobs.JobStatus.RUNNING)).stream()
+                .filter(j -> !("job:" + j.id).equals(own))
+                .mapToLong(j -> Math.max(0, j.totalCharacters - j.processedCharacters)).sum();
+        long api = apiJobs.findAllByUserIdAndStatusIn(userId,
+                        java.util.EnumSet.of(ai.voicecraft.publicapi.ApiJob.Status.QUEUED, ai.voicecraft.publicapi.ApiJob.Status.PROCESSING)).stream()
+                .filter(j -> !("api:" + j.id).equals(own))
+                .mapToLong(j -> j.characters).sum();
+        return gen + api;
+    }
+
+    /** Ile znaków można teraz wygenerować: limit planu + pakiety − rezerwacje trwających zadań. */
+    public long availableCharacters(String userId) {
+        Account a = get(userId);
+        return Math.max(0, planCharactersLeft(a) + creditBalance(userId) - reservedCharacters(userId));
+    }
+
     /** Limity miesięczne (znaki i minuty audio); po ich wyczerpaniu — dokupione pakiety znaków. */
     public void requireGenerationQuota(int characters) {
         Account a = get();
         verification.requireVerified(a.userId);
+        long available = availableCharacters(a.userId);
+        if (characters <= available) return;
         SubscriptionPlan p = a.planId;
-        long left = planCharactersLeft(a);
-        if (characters <= left) return;
-        long extra = creditBalance(a.userId);
-        if (characters - left <= extra) return;
         boolean minutes = usage.sumDurationSince(a.userId, periodStart(a)) >= p.monthlyMinutes * 60_000L;
-        String reason = minutes
+        long reserved = reservedCharacters(a.userId);
+        String reason = minutes && creditBalance(a.userId) == 0
                 ? "Wykorzystano miesięczny limit " + p.monthlyMinutes + " minut audio planu " + p.displayName + "."
-                : "Wykorzystano miesięczny limit znaków planu " + p.displayName + " (" + fmt(p.monthlyCharacters) + "). Pozostało "
-                        + fmt(left) + " znaków, fragment ma " + fmt(characters) + ".";
-        String more = extra > 0
-                ? " Dodatkowych znaków z pakietów: " + fmt(extra) + " — za mało na ten fragment."
-                : "";
-        throw ApiException.plan(reason + more + " Dokup pakiet znaków lub zmień plan.");
+                : "Za mało znaków: ten tekst wymaga " + fmt(characters) + ", a dostępnych jest " + fmt(available) + "."
+                        + (reserved > 0 ? " (" + fmt(reserved) + " znaków rezerwują trwające generowania.)" : "");
+        throw ApiException.quota(reason + " Dokup pakiet znaków lub zmień plan.", characters, available);
     }
 
     /** Generowanie i klonowanie wymagają potwierdzonego adresu e-mail. */

@@ -101,6 +101,7 @@ public class DemoDataSeeder implements ApplicationRunner {
         p.id = UUID.randomUUID().toString();
         p.ownerId = demoUserId;
         p.name = name;
+        p.nameCustom = true;
         p.createdAt = Instant.now().minus(Duration.ofDays(daysAgo)).minus(Duration.ofHours(daysAgo * 3L));
         p.updatedAt = p.createdAt.plus(Duration.ofHours(2));
         p.settings.voiceId = voiceId;

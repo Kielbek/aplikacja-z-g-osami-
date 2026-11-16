@@ -35,10 +35,12 @@ public class JobService {
     private final ProjectService projects;
     private final EventHub events;
     private final ThreadPoolTaskExecutor executor;
+    private final ai.voicecraft.account.AccountService accounts;
     private final Map<String, Boolean> cancelFlags = new ConcurrentHashMap<>();
 
     public JobService(JobRepository jobs, ProjectService projects, EventHub events,
-                      @Value("${voicecraft.jobs.concurrency:2}") int concurrency) {
+                      @Value("${voicecraft.jobs.concurrency:2}") int concurrency, ai.voicecraft.account.AccountService accounts) {
+        this.accounts = accounts;
         this.jobs = jobs;
         this.projects = projects;
         this.events = events;
@@ -70,6 +72,11 @@ public class JobService {
                 .map(SegmentDto::id)
                 .toList();
         if (ids.isEmpty()) throw new ApiException(HttpStatus.BAD_REQUEST, "Brak fragmentów do wygenerowania.");
+        // Cały tekst musi zmieścić się w limicie przed startem — inaczej generowanie urwałoby się w połowie,
+        // a czas karty graficznej poszedłby na nagranie, którego nie da się dokończyć
+        var chars = segmentCharacters(project);
+        int total = ids.stream().mapToInt(id -> chars.getOrDefault(id, 0)).sum();
+        accounts.requireGenerationQuota(total);
 
         var job = new GenerationJob();
         job.id = UUID.randomUUID().toString();
@@ -77,6 +84,7 @@ public class JobService {
         job.projectId = projectId;
         job.segmentIds = ids;
         job.total = ids.size();
+        job.totalCharacters = total;
         jobs.save(job);
         events.publish(uid, projectId, "job", JobDto.of(job));
         executor.execute(() -> run(job.id));
@@ -117,6 +125,7 @@ public class JobService {
         jobs.save(job);
         publish(job);
         try {
+            var chars = CurrentUser.runAs(job.userId, () -> segmentCharacters(projects.get(job.projectId)));
             for (int i = job.done; i < job.segmentIds.size(); i++) {
                 if (cancelRequested(job)) {
                     finish(job, JobStatus.CANCELLED);
@@ -128,8 +137,10 @@ public class JobService {
                 publish(job);
                 try {
                     // Generowanie całego projektu ustępuje miejsca na GPU żądaniom interaktywnym i API
+                    // Fragment zadania korzysta z rezerwacji zrobionej przy starcie zadania
                     SegmentDto seg = ai.voicecraft.engine.GpuQueue.withPriority(ai.voicecraft.engine.GpuQueue.Priority.BATCH,
-                            () -> CurrentUser.runAs(job.userId, () -> projects.generateSegment(job.projectId, segmentId)));
+                            () -> ai.voicecraft.account.AccountService.withinReservation("job:" + job.id,
+                                    () -> CurrentUser.runAs(job.userId, () -> projects.generateSegment(job.projectId, segmentId))));
                     events.publish(job.userId, job.projectId, "segment", seg);
                 } catch (ApiException e) {
                     job.failed++;
@@ -143,6 +154,7 @@ public class JobService {
                     }
                 }
                 job.done = i + 1;
+                job.processedCharacters = Math.min(job.totalCharacters, job.processedCharacters + chars.getOrDefault(segmentId, 0));
                 jobs.save(job);
             }
             finish(job, job.failed > 0 && job.failed == job.total ? JobStatus.FAILED : JobStatus.DONE);
@@ -151,6 +163,13 @@ public class JobService {
             job.lastError = "Nieoczekiwany błąd serwera podczas generowania.";
             finish(job, JobStatus.FAILED);
         }
+    }
+
+    /** Znaki do przeczytania w każdym fragmencie (bez znaczników pauz). */
+    private static Map<String, Integer> segmentCharacters(ProjectDto project) {
+        var out = new java.util.HashMap<String, Integer>();
+        for (SegmentDto s : project.segments()) out.put(s.id(), ai.voicecraft.project.SpeechText.spokenCharacters(s.text()));
+        return out;
     }
 
     /** Błędy, przy których dalsze generowanie nie ma sensu (limit planu, silnik niedostępny, projekt usunięty). */

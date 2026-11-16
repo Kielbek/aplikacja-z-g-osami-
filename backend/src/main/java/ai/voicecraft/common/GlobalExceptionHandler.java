@@ -20,6 +20,7 @@ public class GlobalExceptionHandler {
         if (e.code() == null) return res;
         var map = new java.util.LinkedHashMap<>(res.getBody());
         map.put("code", e.code());
+        if (e.details() != null) map.put("details", e.details());
         return ResponseEntity.status(e.status()).body(map);
     }
 
