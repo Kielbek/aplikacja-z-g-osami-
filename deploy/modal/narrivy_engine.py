@@ -20,7 +20,17 @@ import modal
 
 GPU = "L4"            # 24 GB, obsługuje bfloat16; tańsza alternatywa: "A10G"
 SCALEDOWN_S = 120     # ile sekund bez żądań, zanim karta zostanie wyłączona (krócej = taniej, częstsze zimne starty)
-ENGINE_DIR = Path(__file__).resolve().parents[2] / "tts-engine"
+
+
+def _engine_dir() -> Path:
+    """Katalog tts-engine w repozytorium. Plik jest wczytywany dwa razy: lokalnie przy `modal deploy`
+    (deploy/modal/narrivy_engine.py — kod silnika jest wtedy dołączany do obrazu) i w kontenerze Modal
+    (/root/narrivy_engine.py — bez repozytorium; ścieżka nie jest tam już potrzebna)."""
+    here = Path(__file__).resolve()
+    return here.parents[2] / "tts-engine" if len(here.parents) > 2 else Path("/srv/tts-engine")
+
+
+ENGINE_DIR = _engine_dir()
 
 image = (
     modal.Image.debian_slim(python_version="3.12")
