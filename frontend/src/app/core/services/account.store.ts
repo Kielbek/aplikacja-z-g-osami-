@@ -22,7 +22,7 @@ export class AccountStore {
     const u = this.usage();
     if (!u) return Infinity;
     const plan = u.minutesUsed >= u.minuteLimit ? 0 : Math.max(0, u.characterLimit - u.charactersUsed);
-    return plan + (u.extraCharacters ?? 0);
+    return Math.max(0, plan + (u.extraCharacters ?? 0) - (u.reservedCharacters ?? 0));
   });
   /** Limit planu wyczerpany i brak dokupionych znaków. */
   readonly quotaExhausted = computed(() => {

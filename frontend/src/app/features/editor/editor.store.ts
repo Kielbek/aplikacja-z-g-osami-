@@ -15,6 +15,7 @@ import { AccountStore } from '../../core/services/account.store';
 import { PlayerService, PlayerTrack } from '../../core/services/player.service';
 import { ProjectsStore } from '../../core/services/projects.store';
 import { ToastService } from '../../core/services/toast.service';
+import { UpsellService } from '../../core/services/upsell.service';
 import { estimateDurationMs } from '../../core/util/format';
 import { splitIntoSegments, splitSentences, uuid } from '../../core/util/text';
 
@@ -41,6 +42,7 @@ const PENDING: SegmentStatus[] = ['draft', 'stale', 'error'];
 export class EditorStore implements OnDestroy {
   private api = inject(ApiService);
   private toast = inject(ToastService);
+  private upsell = inject(UpsellService);
   private player = inject(PlayerService);
   private accountStore = inject(AccountStore);
   private projectsStore = inject(ProjectsStore);
@@ -91,13 +93,13 @@ export class EditorStore implements OnDestroy {
   /** Limit znaków w projekcie wg planu. */
   readonly projectCharLimit = computed(() => this.accountStore.plan()?.maxCharactersPerProject ?? Infinity);
   readonly overProjectLimit = computed(() => this.characters() > this.projectCharLimit());
-  /** Powód blokady generowania wynikający z planu (null = można generować). */
+  /**
+   * Powód blokady generowania wynikający z planu (null = można generować). Brak znaków NIE blokuje
+   * przycisków — kliknięcie „Generuj” otwiera okno z ofertą (pakiet znaków lub wyższy plan).
+   */
   readonly planBlock = computed<string | null>(() => {
     const plan = this.accountStore.plan();
     if (!plan) return null;
-    if (this.accountStore.quotaExhausted()) {
-      return `Wykorzystano miesięczny limit planu ${plan.name}. Dokup pakiet znaków (bez subskrypcji), poczekaj na odnowienie limitów lub zmień plan.`;
-    }
     if (this.overProjectLimit()) {
       return `Projekt przekracza limit planu ${plan.name}: ${this.projectCharLimit().toLocaleString('pl-PL')} znaków w jednym projekcie. Skróć tekst, podziel go na kilka projektów lub zmień plan.`;
     }
@@ -898,11 +900,42 @@ export class EditorStore implements OnDestroy {
   }
 
   async generateOne(id: string) {
+    const seg = this.segments().find((s) => s.id === id);
+    if (seg && !this.ensureQuota(spokenChars(seg.text), () => void this.generateOne(id))) return;
     try {
       await this.generate(id);
     } catch (e) {
-      this.toast.apiError('Generowanie nie powiodło się', e);
+      if (!this.upsell.handle(e, () => void this.generateOne(id))) this.toast.apiError('Generowanie nie powiodło się', e);
     }
+  }
+
+  /** Wyczerpane znaki (plan + pakiety): informacja z przyciskiem do oferty — przyciski generowania działają dalej. */
+  readonly quotaEmpty = computed(() => !!this.accountStore.usage() && this.accountStore.charactersLeft() === 0);
+
+  openUpsell() {
+    const pending = this.pendingIds();
+    this.upsell.open({
+      needed: pending.length ? this.charactersFor(pending) : undefined,
+      available: this.accountStore.charactersLeft(),
+      retry: pending.length ? () => void this.generateMany(pending) : undefined,
+    });
+  }
+
+  /** Znaki potrzebne do wygenerowania wskazanych fragmentów. */
+  charactersFor(ids: string[]) {
+    return this.segments().filter((s) => ids.includes(s.id)).reduce((n, s) => n + spokenChars(s.text), 0);
+  }
+
+  /**
+   * Sprawdza limit przed wysłaniem (backend i tak weryfikuje cały tekst przed startem).
+   * Gdy brakuje znaków — otwiera okno z ofertą i zwraca false.
+   */
+  private ensureQuota(needed: number, retry: () => void): boolean {
+    if (!this.accountStore.usage()) return true;
+    const available = this.accountStore.charactersLeft();
+    if (needed <= available) return true;
+    this.upsell.open({ needed, available, retry });
+    return false;
   }
 
   /**
@@ -913,6 +946,8 @@ export class EditorStore implements OnDestroy {
     const p = this.project();
     const todo = ids.filter((id) => this.segments().some((s) => s.id === id && s.text.trim()));
     if (!p || !todo.length || this.batch()) return;
+    // Cały tekst musi zmieścić się w limicie — inaczej generowanie urwałoby się w połowie
+    if (!this.ensureQuota(this.charactersFor(todo), () => void this.generateMany(ids))) return;
     try {
       await this.flush();
     } catch {
@@ -927,7 +962,7 @@ export class EditorStore implements OnDestroy {
     } catch (e) {
       this.jobIds = [];
       this.segments.update((list) => list.map((s) => (s.queued ? { ...s, queued: false } : s)));
-      this.toast.apiError('Nie udało się uruchomić generowania', e);
+      if (!this.upsell.handle(e, () => void this.generateMany(ids))) this.toast.apiError('Nie udało się uruchomić generowania', e);
     }
   }
 
@@ -1023,4 +1058,10 @@ function localStatus(s: SegmentDto, text: string): SegmentStatus {
   if (!text.trim()) return 'empty';
   if (text === s.text) return s.status;
   return s.audioVersion ? 'stale' : 'draft';
+}
+
+/** Znaki do przeczytania (bez znaczników pauz) — tak samo liczy backend. */
+const PAUSE_MARKER = /\[\s*(?:pauza|pause)\s+\d+(?:[.,]\d+)?\s*(?:ms|s)?\s*]/gi;
+function spokenChars(text: string): number {
+  return text.replace(PAUSE_MARKER, ' ').replace(/\s+/g, ' ').trim().length;
 }

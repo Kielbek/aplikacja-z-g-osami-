@@ -38,7 +38,8 @@ export function toApiError(err: unknown): ApiError {
     const body = err.error;
     const message = body && typeof body === 'object' && 'message' in body ? String(body.message) : err.message;
     const code = body && typeof body === 'object' && 'code' in body ? String(body.code) : undefined;
-    return { status: err.status, message, code };
+    const details = body && typeof body === 'object' && 'details' in body ? (body.details as ApiError['details']) : undefined;
+    return { status: err.status, message, code, details };
   }
   return { status: -1, message: err instanceof Error ? err.message : 'Nieznany błąd.' };
 }

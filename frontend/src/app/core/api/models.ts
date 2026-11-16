@@ -269,6 +269,8 @@ export interface Usage {
   characterLimit: number;
   /** Saldo dokupionych znaków (pakiety bez subskrypcji, nie wygasają). */
   extraCharacters: number;
+  /** Znaki zarezerwowane przez trwające generowania (edytor i API). */
+  reservedCharacters?: number;
   minutesUsed: number;
   minuteLimit: number;
   generations: number;
@@ -281,8 +283,10 @@ export interface Usage {
 export interface ApiError {
   status: number;
   message: string;
-  /** "PLAN_LIMIT" — akcja niedostępna w bieżącym planie. */
+  /** "PLAN_LIMIT" — akcja niedostępna w bieżącym planie; "QUOTA_EXCEEDED" — za mało znaków. */
   code?: string;
+  /** Przy QUOTA_EXCEEDED: ile znaków potrzeba i ile jest dostępnych. */
+  details?: { needed?: number; available?: number };
 }
 
 /** Jednorazowy pakiet znaków — do kupienia bez subskrypcji. */

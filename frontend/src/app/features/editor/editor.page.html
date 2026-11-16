@@ -69,6 +69,12 @@
               <div class="callout-body">{{ reason }}</div>
               <a class="plan-link" routerLink="/settings/subscription">Zobacz plany</a>
             </div>
+          } @else if (store.quotaEmpty()) {
+            <div class="callout callout-warning banner" role="status">
+              <vc-icon name="gauge" />
+              <div class="callout-body">Wykorzystano dostępne znaki. Dokup pakiet znaków (bez subskrypcji) albo przejdź na wyższy plan, aby generować dalej.</div>
+              <button class="plan-link link-btn" (click)="store.openUpsell()">Dokup znaki</button>
+            </div>
           }
 
           <div class="doc-head">
