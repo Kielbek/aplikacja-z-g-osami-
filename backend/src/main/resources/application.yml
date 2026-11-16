@@ -68,4 +68,8 @@ voicecraft:
       STARTER: ${STRIPE_PRICE_STARTER:}
       PRO: ${STRIPE_PRICE_PRO:}
       BUSINESS: ${STRIPE_PRICE_BUSINESS:}
+      # Opcjonalne ceny roczne ze Stripe; bez nich Checkout użyje cen z aplikacji (10 × cena miesięczna)
+      STARTER_YEARLY: ${STRIPE_PRICE_STARTER_YEARLY:}
+      PRO_YEARLY: ${STRIPE_PRICE_PRO_YEARLY:}
+      BUSINESS_YEARLY: ${STRIPE_PRICE_BUSINESS_YEARLY:}
     demo-plan-switch: ${DEMO_PLAN_SWITCH:true}

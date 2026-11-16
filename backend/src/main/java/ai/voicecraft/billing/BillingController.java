@@ -20,7 +20,7 @@ public class BillingController {
 
     @PostMapping("/checkout")
     public Map<String, String> checkout(@RequestBody Map<String, String> body) {
-        return Map.of("url", billing.checkout(body.get("planId")));
+        return Map.of("url", billing.checkout(body.get("planId"), body.get("interval")));
     }
 
     @GetMapping("/packs")

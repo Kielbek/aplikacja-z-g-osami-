@@ -68,6 +68,8 @@ public class AccountController {
         } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("Nieznany plan: " + id);
         }
-        return service.changePlan(CurrentUser.id(), plan);
+        Account a = service.changePlan(CurrentUser.id(), plan);
+        a.billingInterval = plan == SubscriptionPlan.FREE ? null : ("year".equals(body.get("interval")) ? "year" : "month");
+        return a;
     }
 }

@@ -223,12 +223,21 @@ export interface Plan {
   maxMp3Bitrate: number;
   advancedControls: boolean;
   historyRetentionDays: number;
+  /** Cena w groszach: za miesiąc (rozliczenie miesięczne) i za cały rok (rozliczenie roczne). */
+  monthlyPriceMinor: number;
+  yearlyPriceMinor: number;
+  currency: string;
 }
+
+export type BillingInterval = 'month' | 'year';
 
 export interface Usage {
   plan: Plan;
   periodStart: string;
+  /** Kiedy odnowią się miesięczne limity (co miesiąc, także przy subskrypcji rocznej). */
+  limitsResetOn: string;
   renewsOn: string;
+  billingInterval: BillingInterval | '';
   charactersUsed: number;
   characterLimit: number;
   /** Saldo dokupionych znaków (pakiety bez subskrypcji, nie wygasają). */
@@ -264,6 +273,11 @@ export interface BillingConfig {
   demoPlanSwitch: boolean;
   hasSubscription: boolean;
   subscriptionStatus: string;
+  billingInterval: BillingInterval | '';
+  /** Pierwsza subskrypcja: pierwszy miesiąc taniej (tylko rozliczenie miesięczne). */
+  introEligible: boolean;
+  introPercentOff: number;
+  yearlyMonthsCharged: number;
 }
 
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'DONE' | 'CANCELLED' | 'FAILED';

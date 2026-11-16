@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { ApiService } from '../../core/api/api.service';
-import { ApiError, BillingConfig, CreditPack, LoudnessTarget, PronunciationEntry } from '../../core/api/models';
+import { ApiError, BillingConfig, BillingInterval, CreditPack, LoudnessTarget, PronunciationEntry } from '../../core/api/models';
 import { ConfirmService } from '../../core/services/confirm.service';
 import { Account, Plan } from '../../core/api/models';
 import { AccountStore } from '../../core/services/account.store';
@@ -46,6 +46,9 @@ export class SettingsPage {
 
   protected billing = signal<BillingConfig | null>(null);
   protected packs = signal<CreditPack[]>([]);
+  protected interval = signal<BillingInterval>('month');
+  protected introPct = computed(() => (this.billing()?.introEligible ? this.billing()!.introPercentOff : 0));
+  protected yearlySavePct = computed(() => Math.round((1 - (this.billing()?.yearlyMonthsCharged ?? 10) / 12) * 100));
   protected buying = signal<string | null>(null);
   protected canBuyPacks = computed(() => !!this.billing() && (this.billing()!.stripeEnabled || this.billing()!.demoPlanSwitch));
   protected dict = signal<PronunciationEntry[]>([]);
@@ -103,6 +106,7 @@ export class SettingsPage {
 
   protected planRows: { label: string; kind: (p: Plan) => string }[] = [
     { label: 'Znaki miesięcznie', kind: (p) => formatNumber(p.monthlyCharacters) },
+    { label: 'Koszt 1000 znaków', kind: (p) => this.planPerThousand(p) },
     { label: 'Minuty audio miesięcznie', kind: (p) => formatNumber(p.monthlyMinutes) },
     { label: 'Projekty', kind: (p) => (p.maxProjects < 0 ? 'bez limitu' : formatNumber(p.maxProjects)) },
     { label: 'Znaki w projekcie', kind: (p) => formatNumber(p.maxCharactersPerProject) },
@@ -148,7 +152,10 @@ export class SettingsPage {
     });
     void this.store.refreshUsage();
     void this.voices.load();
-    void this.api.billingConfig().then((b) => this.billing.set(b)).catch(() => null);
+    void this.api.billingConfig().then((b) => {
+      this.billing.set(b);
+      if (b.billingInterval) this.interval.set(b.billingInterval);
+    }).catch(() => null);
     void this.api.billingPacks().then((p) => this.packs.set(p)).catch(() => null);
     void this.loadDict();
     this.handleCheckoutReturn();
@@ -230,6 +237,29 @@ export class SettingsPage {
     return formatNumber(Math.round(chars / 900));
   }
 
+  /** Cena planu w wybranym okresie: kwota miesięczna (przy rocznym — średnio za miesiąc). */
+  protected planPrice(p: Plan) {
+    if (!p.monthlyPriceMinor) return this.price(0);
+    return this.interval() === 'year' ? this.price(Math.round(p.yearlyPriceMinor / 12)) : this.price(p.monthlyPriceMinor);
+  }
+
+  protected planPriceNote(p: Plan) {
+    if (!p.monthlyPriceMinor) return 'na zawsze';
+    if (this.interval() === 'year') return `${this.price(p.yearlyPriceMinor)} płatne rocznie`;
+    return 'płatne co miesiąc';
+  }
+
+  protected introPrice(p: Plan) {
+    return this.price(Math.round((p.monthlyPriceMinor * (100 - this.introPct())) / 100));
+  }
+
+  /** Koszt 1000 znaków w planie — do porównania z pakietami. */
+  protected planPerThousand(p: Plan) {
+    if (!p.monthlyPriceMinor) return '—';
+    const monthly = this.interval() === 'year' ? p.yearlyPriceMinor / 12 : p.monthlyPriceMinor;
+    return (monthly / 100 / (p.monthlyCharacters / 1000)).toLocaleString('pl-PL', { style: 'currency', currency: 'PLN', minimumFractionDigits: 2 });
+  }
+
   async buyPack(p: CreditPack) {
     this.buying.set(p.id);
     try {
@@ -259,7 +289,7 @@ export class SettingsPage {
       this.changing.set(true);
       try {
         // Obniżenie do Free = anulowanie subskrypcji w panelu Stripe
-        const { url } = p.id === 'FREE' ? await this.api.billingPortal() : await this.api.billingCheckout(p.id);
+        const { url } = p.id === 'FREE' ? await this.api.billingPortal() : await this.api.billingCheckout(p.id, this.interval());
         window.location.assign(url);
       } catch (e) {
         this.toast.apiError('Nie udało się otworzyć płatności', e);
@@ -381,7 +411,8 @@ export class SettingsPage {
   async changePlan(p: Plan) {
     this.changing.set(true);
     try {
-      await this.store.changePlan(p.id);
+      await this.store.changePlan(p.id, this.interval());
+      void this.api.billingConfig().then((b) => this.billing.set(b)).catch(() => null);
       this.draft.set({ ...this.store.account()! });
       this.toast.success(`Zmieniono plan na ${p.name}`, 'Nowe limity obowiązują od razu.');
     } catch (e) {

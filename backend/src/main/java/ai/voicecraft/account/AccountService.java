@@ -135,8 +135,10 @@ public class AccountService {
         String uid = a.userId;
         var out = new LinkedHashMap<String, Object>();
         out.put("plan", p.dto());
-        out.put("periodStart", a.billingPeriodStart.toString());
+        out.put("periodStart", since.atZone(ZoneId.systemDefault()).toLocalDate().toString());
+        out.put("limitsResetOn", currentPeriodStart(a).plusMonths(1).toString());
         out.put("renewsOn", a.renewsOn.toString());
+        out.put("billingInterval", a.billingInterval == null ? "" : a.billingInterval);
         out.put("charactersUsed", usage.sumPlanCharactersSince(uid, since));
         out.put("characterLimit", p.monthlyCharacters);
         out.put("extraCharacters", creditBalance(uid));
@@ -318,8 +320,21 @@ public class AccountService {
         if (changed) verification.emailChanged(u);
     }
 
+    /** Początek bieżącego okresu limitów (początek bieżącego miesiąca liczonego od dnia aktywacji planu). */
     private static Instant periodStart(Account a) {
-        return a.billingPeriodStart.atStartOfDay(ZoneId.systemDefault()).toInstant();
+        return currentPeriodStart(a).atStartOfDay(ZoneId.systemDefault()).toInstant();
+    }
+
+    /**
+     * Limity odnawiają się co miesiąc od dnia aktywacji planu — także przy subskrypcji rocznej
+     * (np. plan od 31 stycznia: kolejne okresy od 28/29 lutego, 31 marca, 30 kwietnia…).
+     */
+    static java.time.LocalDate currentPeriodStart(Account a) {
+        java.time.LocalDate anchor = a.billingPeriodStart, today = java.time.LocalDate.now();
+        if (!today.isAfter(anchor)) return anchor;
+        long months = java.time.temporal.ChronoUnit.MONTHS.between(anchor, today);
+        java.time.LocalDate start = anchor.plusMonths(months);
+        return start.isAfter(today) ? anchor.plusMonths(months - 1) : start;
     }
 
     private static String fmt(long n) {

@@ -122,8 +122,12 @@
                       <span class="t-small t-muted">{{ fmtNum(plan.monthlyCharacters) }} znaków · {{ fmtNum(plan.monthlyMinutes) }} minut audio miesięcznie</span>
                     </div>
                     <div class="plan-side">
+                      @if (store.usage()?.billingInterval; as bi) {
+                        <span class="t-small t-muted">Rozliczenie</span>
+                        <span class="t-small">{{ bi === 'year' ? 'roczne' : 'miesięczne' }}</span>
+                      }
                       <span class="t-small t-muted">Odnowienie limitów</span>
-                      <span class="t-small">{{ fmtDate(d.renewsOn) }}</span>
+                      <span class="t-small">{{ fmtDate(store.usage()?.limitsResetOn ?? d.renewsOn) }}</span>
                     </div>
                   </div>
                 </section>
@@ -180,7 +184,26 @@
                 </div>
               </section>
               <section class="section">
-                <div class="section-head"><div><h2>Plany i limity</h2><p>Porównanie możliwości dostępnych planów.</p></div></div>
+                <div class="section-head plans-head">
+                  <div><h2>Plany i limity</h2><p>Subskrypcja wychodzi taniej za znak niż pakiety — opłaca się przy regularnym generowaniu.</p></div>
+                  <div class="segmented interval-switch" role="tablist" aria-label="Okres rozliczenia">
+                    <button role="tab" [class.on]="interval() === 'month'" [attr.aria-selected]="interval() === 'month'" (click)="interval.set('month')">Miesięcznie</button>
+                    <button role="tab" [class.on]="interval() === 'year'" [attr.aria-selected]="interval() === 'year'" (click)="interval.set('year')">
+                      Rocznie <span class="save-pill">−{{ yearlySavePct() }}%</span>
+                    </button>
+                  </div>
+                </div>
+                @if (introPct() && interval() === 'month') {
+                  <div class="callout intro-note plans-note">
+                    <vc-icon name="card" />
+                    <div class="callout-body"><strong>Pierwszy miesiąc {{ introPct() }}% taniej.</strong> Zniżka dotyczy pierwszej subskrypcji z płatnością miesięczną — od drugiego miesiąca obowiązuje zwykła cena.</div>
+                  </div>
+                } @else if (interval() === 'year') {
+                  <div class="callout intro-note plans-note">
+                    <vc-icon name="card" />
+                    <div class="callout-body"><strong>Rocznie płacisz za {{ billing()?.yearlyMonthsCharged ?? 10 }} miesięcy — 2 miesiące gratis.</strong> Limity znaków i minut odnawiają się co miesiąc.</div>
+                  </div>
+                }
                 @if (billing(); as b) {
                   @if (!b.stripeEnabled && b.demoPlanSwitch) {
                     <div class="callout callout-demo plans-note">
@@ -200,8 +223,12 @@
                         <th></th>
                         @for (p of store.plans(); track p.id) {
                           <th [class.is-current]="p.id === d.planId">
-                            <span class="p-name">{{ p.name }}</span>
-                            @if (p.id === d.planId) { <span class="badge badge-accent">Bieżący</span> }
+                            <span class="p-name">{{ p.name }}@if (p.id === d.planId) { <span class="badge badge-accent p-current">Bieżący</span> }</span>
+                            <span class="p-price tabular">{{ planPrice(p) }}<small> / mies.</small></span>
+                            <span class="p-note t-xs t-muted">{{ planPriceNote(p) }}</span>
+                            @if (p.monthlyPriceMinor && introPct() && interval() === 'month') {
+                              <span class="p-intro t-xs">1. miesiąc: <strong>{{ introPrice(p) }}</strong></span>
+                            }
                           </th>
                         }
                       </tr>

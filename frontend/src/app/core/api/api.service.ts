@@ -5,6 +5,7 @@ import {
   Account,
   ApiError,
   BillingConfig,
+  BillingInterval,
   CreditPack,
   ProjectFolder,
   ConsentText,
@@ -167,8 +168,8 @@ export class ApiService {
   billingConfig() {
     return this.p(this.http.get<BillingConfig>(`${API}/billing/config`));
   }
-  billingCheckout(planId: string) {
-    return this.p(this.http.post<{ url: string }>(`${API}/billing/checkout`, { planId }));
+  billingCheckout(planId: string, interval: BillingInterval) {
+    return this.p(this.http.post<{ url: string }>(`${API}/billing/checkout`, { planId, interval }));
   }
   billingPacks() {
     return this.p(this.http.get<CreditPack[]>(`${API}/billing/packs`));
@@ -281,8 +282,8 @@ export class ApiService {
   plans() {
     return this.p(this.http.get<Plan[]>(`${API}/account/plans`));
   }
-  changePlan(planId: PlanId) {
-    return this.p(this.http.put<Account>(`${API}/account/plan`, { planId }));
+  changePlan(planId: PlanId, interval: BillingInterval = 'month') {
+    return this.p(this.http.put<Account>(`${API}/account/plan`, { planId, interval }));
   }
 
   // --- Audio ---------------------------------------------------------------

@@ -49,27 +49,42 @@ public class BillingService {
                 "stripeEnabled", props.billing().stripeEnabled(),
                 "demoPlanSwitch", props.billing().demoPlanSwitch(),
                 "hasSubscription", a.stripeSubscriptionId != null,
-                "subscriptionStatus", a.subscriptionStatus == null ? "" : a.subscriptionStatus);
+                "subscriptionStatus", a.subscriptionStatus == null ? "" : a.subscriptionStatus,
+                "billingInterval", a.billingInterval == null ? "" : a.billingInterval,
+                "introEligible", introEligible(a),
+                "introPercentOff", SubscriptionPlan.INTRO_PERCENT_OFF,
+                "yearlyMonthsCharged", SubscriptionPlan.YEARLY_MONTHS_CHARGED);
     }
 
+    /** Zniżka na pierwszy miesiąc: tylko pierwsza subskrypcja konta. */
+    private static boolean introEligible(Account a) {
+        return !a.introOfferUsed && a.stripeSubscriptionId == null;
+    }
+
+    public static final String INTRO_COUPON_ID = "NARRIVY_FIRST_MONTH_" + SubscriptionPlan.INTRO_PERCENT_OFF;
+
     @Transactional
-    public String checkout(String planId) {
+    public String checkout(String planId, String interval) {
         requireStripe();
         SubscriptionPlan plan = parse(planId);
         if (plan == SubscriptionPlan.FREE) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Aby przejść na plan Free, anuluj subskrypcję w panelu płatności.");
         }
-        String price = props.billing().prices() == null ? null : props.billing().prices().get(plan.name());
-        if (price == null || price.isBlank()) {
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Plan " + plan.displayName + " nie ma skonfigurowanej ceny w Stripe.");
-        }
+        boolean yearly = "year".equals(interval);
+        if (interval != null && !yearly && !"month".equals(interval)) throw new IllegalArgumentException("Nieznany okres rozliczenia: " + interval);
+        // Cena ze Stripe (STRIPE_PRICE_PRO / STRIPE_PRICE_PRO_YEARLY), a gdy jej brak — cena z aplikacji (price_data)
+        String price = props.billing().prices() == null ? null : props.billing().prices().get(plan.name() + (yearly ? "_YEARLY" : ""));
         Account a = accounts.get();
         if (a.stripeSubscriptionId != null && isActive(a.subscriptionStatus)) {
             // Zmiana istniejącej subskrypcji odbywa się w panelu klienta Stripe
             return stripe.createPortalSession(a.stripeCustomerId, props.publicUrl() + "/settings/subscription");
         }
         if (a.stripeCustomerId == null) a.stripeCustomerId = stripe.createCustomer(a.email, a.userId);
-        return stripe.createCheckoutSession(a.stripeCustomerId, price, a.userId, plan.name(),
+        // Pierwszy miesiąc taniej — tylko przy rozliczeniu miesięcznym (przy rocznym kupon objąłby cały rok)
+        String coupon = !yearly && introEligible(a)
+                ? stripe.ensureCoupon(INTRO_COUPON_ID, SubscriptionPlan.INTRO_PERCENT_OFF, "Pierwszy miesiąc −" + SubscriptionPlan.INTRO_PERCENT_OFF + "%")
+                : null;
+        return stripe.createCheckoutSession(a.stripeCustomerId, price, plan, yearly, a.userId, coupon,
                 props.publicUrl() + "/settings/subscription?checkout=success",
                 props.publicUrl() + "/settings/subscription?checkout=cancelled");
     }
@@ -131,6 +146,8 @@ public class BillingService {
                     a.stripeCustomerId = str(obj.get("customer"));
                     a.stripeSubscriptionId = str(obj.get("subscription"));
                     a.subscriptionStatus = "active";
+                    if ("true".equals(str(meta.get("intro")))) a.introOfferUsed = true;
+                    if (meta.get("interval") != null) a.billingInterval = str(meta.get("interval"));
                     SubscriptionPlan plan = parseOrNull(str(meta.get("planId")));
                     if (plan != null) accounts.changePlan(userId, plan);
                 }
@@ -187,7 +204,13 @@ public class BillingService {
         a.subscriptionStatus = status;
 
         Map<String, Object> item = firstItem(sub);
-        SubscriptionPlan plan = planForPrice(item == null ? null : str(((Map<String, Object>) item.get("price")).get("id")));
+        Map<String, Object> price = item == null ? null : (Map<String, Object>) item.get("price");
+        SubscriptionPlan plan = planForPrice(price == null ? null : str(price.get("id")));
+        if (plan == null) plan = parseOrNull(str(meta.get("planId"))); // cena inline (price_data) — plan z metadanych
+        if (price != null && price.get("recurring") instanceof Map<?, ?> rec && rec.get("interval") != null) {
+            a.billingInterval = str(rec.get("interval"));
+        }
+        if (deleted) a.billingInterval = null;
         if (deleted || "canceled".equals(status) || "unpaid".equals(status) || "incomplete_expired".equals(status)) {
             accounts.changePlan(a.userId, SubscriptionPlan.FREE);
         } else if (isActive(status) && plan != null) {
@@ -215,7 +238,7 @@ public class BillingService {
         if (priceId == null || props.billing().prices() == null) return null;
         return props.billing().prices().entrySet().stream()
                 .filter(e -> priceId.equals(e.getValue()))
-                .map(e -> parseOrNull(e.getKey()))
+                .map(e -> parseOrNull(e.getKey().replace("_YEARLY", "")))
                 .findFirst().orElse(null);
     }
 

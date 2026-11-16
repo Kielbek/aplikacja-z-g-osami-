@@ -25,7 +25,12 @@ public class Account {
     public String stripeSubscriptionId;
     public String subscriptionStatus;
     public LocalDate billingPeriodStart = LocalDate.now().withDayOfMonth(1);
+    /** Odnowienie subskrypcji (koniec okresu rozliczeniowego Stripe). Limity odnawiają się co miesiąc niezależnie od tego. */
     public LocalDate renewsOn = LocalDate.now().withDayOfMonth(1).plusMonths(1);
+    /** month | year (null = brak płatnej subskrypcji). */
+    public String billingInterval;
+    /** Zniżka na pierwszy miesiąc została już wykorzystana. */
+    public boolean introOfferUsed;
 
     // Eksport
     public String exportFormat = "mp3";

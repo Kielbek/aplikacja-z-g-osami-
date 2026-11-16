@@ -27,18 +27,34 @@ public class StripeClient {
         return String.valueOf(post("/customers", form).get("id"));
     }
 
-    public String createCheckoutSession(String customerId, String priceId, String userId, String planId, String successUrl, String cancelUrl) {
+    /**
+     * Checkout subskrypcji. {@code priceId} z konfiguracji Stripe albo — gdy brak — cena inline (price_data).
+     * {@code couponId}: zniżka startowa (wtedy bez kodów promocyjnych — Stripe nie łączy obu).
+     */
+    public String createCheckoutSession(String customerId, String priceId, ai.voicecraft.account.SubscriptionPlan plan, boolean yearly,
+                                        String userId, String couponId, String successUrl, String cancelUrl) {
         var form = new LinkedMultiValueMap<String, String>();
+        String interval = yearly ? "year" : "month";
         form.add("mode", "subscription");
         form.add("customer", customerId);
-        form.add("line_items[0][price]", priceId);
+        if (priceId != null && !priceId.isBlank()) {
+            form.add("line_items[0][price]", priceId);
+        } else {
+            form.add("line_items[0][price_data][currency]", ai.voicecraft.account.SubscriptionPlan.CURRENCY);
+            form.add("line_items[0][price_data][unit_amount]", String.valueOf(plan.priceMinor(yearly)));
+            form.add("line_items[0][price_data][recurring][interval]", interval);
+            form.add("line_items[0][price_data][product_data][name]", "Narrivy " + plan.displayName + (yearly ? " (rocznie)" : " (miesięcznie)"));
+        }
         form.add("line_items[0][quantity]", "1");
         form.add("client_reference_id", userId);
         form.add("metadata[userId]", userId);
-        form.add("metadata[planId]", planId);
+        form.add("metadata[planId]", plan.name());
+        form.add("metadata[interval]", interval);
+        form.add("metadata[intro]", String.valueOf(couponId != null));
         form.add("subscription_data[metadata][userId]", userId);
-        form.add("subscription_data[metadata][planId]", planId);
-        form.add("allow_promotion_codes", "true");
+        form.add("subscription_data[metadata][planId]", plan.name());
+        if (couponId != null) form.add("discounts[0][coupon]", couponId);
+        else form.add("allow_promotion_codes", "true");
         form.add("success_url", successUrl);
         form.add("cancel_url", cancelUrl);
         return String.valueOf(post("/checkout/sessions", form).get("url"));
@@ -63,6 +79,26 @@ public class StripeClient {
         form.add("success_url", successUrl);
         form.add("cancel_url", cancelUrl);
         return String.valueOf(post("/checkout/sessions", form).get("url"));
+    }
+
+    /** Kupon jednorazowej zniżki (duration=once). Tworzony przy pierwszym użyciu, potem tylko odczytywany. */
+    public String ensureCoupon(String id, int percentOff, String name) {
+        try {
+            http.get().uri("/coupons/" + id)
+                    .header("Authorization", "Bearer " + props.billing().stripeSecretKey())
+                    .retrieve().toBodilessEntity();
+            return id;
+        } catch (RestClientResponseException e) {
+            if (e.getStatusCode().value() != 404) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "Operator płatności odrzucił żądanie (" + e.getStatusCode().value() + ").");
+            }
+        }
+        var form = new LinkedMultiValueMap<String, String>();
+        form.add("id", id);
+        form.add("percent_off", String.valueOf(percentOff));
+        form.add("duration", "once");
+        form.add("name", name);
+        return String.valueOf(post("/coupons", form).get("id"));
     }
 
     public String createPortalSession(String customerId, String returnUrl) {

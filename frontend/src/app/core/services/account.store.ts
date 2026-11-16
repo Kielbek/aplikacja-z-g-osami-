@@ -1,6 +1,6 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { ApiService } from '../api/api.service';
-import { Account, Plan, PlanId, Usage } from '../api/models';
+import { Account, BillingInterval, Plan, PlanId, Usage } from '../api/models';
 import { ThemeService } from './theme.service';
 
 /** Konto, plan subskrypcji i wykorzystanie limitów. */
@@ -65,8 +65,8 @@ export class AccountStore {
     return a;
   }
 
-  async changePlan(id: PlanId) {
-    const a = await this.api.changePlan(id);
+  async changePlan(id: PlanId, interval: BillingInterval = 'month') {
+    const a = await this.api.changePlan(id, interval);
     this.account.set(a);
     await this.refreshUsage();
     return a;

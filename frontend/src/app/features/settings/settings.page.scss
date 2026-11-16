@@ -228,3 +228,49 @@
   small { font-family: var(--font-sans); font-size: var(--text-sm); font-weight: 400; letter-spacing: 0; color: var(--text-3); }
 }
 .pack-price { font-size: var(--text-lg, 18px); font-weight: 600; }
+
+/* ---------- Cennik: okres rozliczenia i zniżka startowa ---------- */
+
+.plans-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.interval-switch { flex-shrink: 0; }
+
+.save-pill {
+  margin-left: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--success-soft, #e6f4ea);
+  color: var(--success, #1f7a3d);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.intro-note { background: var(--accent-soft); border-color: var(--border); }
+
+.plans {
+  .p-price {
+    display: block;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: var(--display-weight);
+    letter-spacing: var(--display-tracking);
+    small { font-family: var(--font-sans); font-size: var(--text-xs); font-weight: 400; letter-spacing: 0; color: var(--text-3); }
+  }
+  .p-note { display: block; font-weight: 400; margin-bottom: 4px; }
+  .p-intro {
+    display: inline-block;
+    margin-bottom: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--success-soft, #e6f4ea);
+    color: var(--success, #1f7a3d);
+    font-weight: 500;
+  }
+}
+.plans .p-current { margin-left: 6px; vertical-align: 2px; }

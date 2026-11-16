@@ -66,4 +66,25 @@ class StripeWebhookTest {
                 .andExpect(status().isOk());
         mvc.perform(get("/api/account/usage").cookie(c)).andExpect(jsonPath("$.plan.id").value("FREE"));
     }
+
+    @Test
+    void inlinePricedYearlySubscriptionUsesMetadataAndMarksIntroUsed() throws Exception {
+        var reg = mvc.perform(post("/api/auth/register").contentType(MediaType.APPLICATION_JSON).header("X-Requested-With", "t")
+                .content("{\"name\":\"Y\",\"email\":\"yearly@test.pl\",\"password\":\"Haslo12345\",\"acceptTerms\":true}")).andReturn();
+        Cookie c = reg.getResponse().getCookie("vc_session");
+        String uid = reg.getResponse().getContentAsString().replaceAll(".*?\"id\":\"([^\"]+)\".*", "$1");
+        mvc.perform(get("/api/billing/config").cookie(c)).andExpect(jsonPath("$.introEligible").value(true))
+                .andExpect(jsonPath("$.introPercentOff").value(50));
+
+        send("{\"id\":\"evt_y1\",\"type\":\"checkout.session.completed\",\"data\":{\"object\":{\"client_reference_id\":\"" + uid
+                + "\",\"customer\":\"cus_y\",\"subscription\":\"sub_y\",\"metadata\":{\"planId\":\"STARTER\",\"interval\":\"month\",\"intro\":\"true\"}}}}", "whsec_test")
+                .andExpect(status().isOk());
+        // Zmiana na rozliczenie roczne z ceną inline (nieznany identyfikator ceny) — plan z metadanych subskrypcji
+        send("{\"id\":\"evt_y2\",\"type\":\"customer.subscription.updated\",\"data\":{\"object\":{\"id\":\"sub_y\",\"customer\":\"cus_y\","
+                + "\"status\":\"active\",\"metadata\":{\"planId\":\"PRO\"},\"items\":{\"data\":[{\"price\":{\"id\":\"price_inline_1\",\"recurring\":{\"interval\":\"year\"}}}]}}}}", "whsec_test")
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/account/usage").cookie(c)).andExpect(jsonPath("$.plan.id").value("PRO"))
+                .andExpect(jsonPath("$.billingInterval").value("year"));
+        mvc.perform(get("/api/billing/config").cookie(c)).andExpect(jsonPath("$.introEligible").value(false));
+    }
 }
