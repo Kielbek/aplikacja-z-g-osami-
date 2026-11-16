@@ -26,8 +26,10 @@ public class EngineClient {
     private final String baseUrl;
     private volatile Health cachedHealth;
     private volatile Instant cachedAt = Instant.EPOCH;
+    private final GpuQueue queue;
 
-    public EngineClient(AppProperties props) {
+    public EngineClient(AppProperties props, GpuQueue queue) {
+        this.queue = queue;
         var factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(props.engine().connectTimeout());
         factory.setReadTimeout(props.engine().readTimeout());
@@ -67,13 +69,13 @@ public class EngineClient {
     }
 
     public Audio synthesize(SynthesizeRequest req) {
-        return audio(() -> http.post().uri("/v1/synthesize").contentType(MediaType.APPLICATION_JSON).body(req)
-                .retrieve().toEntity(byte[].class));
+        return queue.run(() -> audio(() -> http.post().uri("/v1/synthesize").contentType(MediaType.APPLICATION_JSON).body(req)
+                .retrieve().toEntity(byte[].class)));
     }
 
     public Audio design(VoiceDesignRequest req) {
-        return audio(() -> http.post().uri("/v1/voice-design").contentType(MediaType.APPLICATION_JSON).body(req)
-                .retrieve().toEntity(byte[].class));
+        return queue.run(() -> audio(() -> http.post().uri("/v1/voice-design").contentType(MediaType.APPLICATION_JSON).body(req)
+                .retrieve().toEntity(byte[].class)));
     }
 
     public AudioAnalysis analyze(byte[] file, String filename) {

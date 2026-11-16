@@ -54,13 +54,18 @@ public class AuthService {
     private final EmailVerificationService verification;
     private final ai.voicecraft.user.EmailVerificationTokenRepository verificationTokens;
     private final SecureRandom random = new SecureRandom();
+    private final ai.voicecraft.publicapi.ApiKeyRepository apiKeys;
+    private final ai.voicecraft.publicapi.ApiJobRepository apiJobs;
 
     public AuthService(UserRepository users, AccountRepository accounts, AccountService accountService, ProjectService projects,
                        VoiceService voices, HistoryRepository history, PasswordResetTokenRepository resetTokens,
                        PasswordEncoder encoder, LoginRateLimiter limiter, MailService mail, AppProperties props,
                        JobRepository jobs, PronunciationRepository dictionary,
                        ai.voicecraft.usage.UsageRepository usage, EmailVerificationService verification,
-                       ai.voicecraft.user.EmailVerificationTokenRepository verificationTokens) {
+                       ai.voicecraft.user.EmailVerificationTokenRepository verificationTokens,
+                       ai.voicecraft.publicapi.ApiKeyRepository apiKeys, ai.voicecraft.publicapi.ApiJobRepository apiJobs) {
+        this.apiKeys = apiKeys;
+        this.apiJobs = apiJobs;
         this.usage = usage;
         this.verification = verification;
         this.verificationTokens = verificationTokens;
@@ -224,6 +229,8 @@ public class AuthService {
             throw new ApiException(HttpStatus.CONFLICT, "Najpierw anuluj aktywną subskrypcję w panelu płatności.");
         }
         jobs.deleteByUserId(userId);
+        apiJobs.deleteByUserId(userId);
+        apiKeys.deleteByUserId(userId);
         dictionary.deleteByOwnerId(userId);
         projects.deleteAllOf(userId);
         voices.deleteAllOf(userId);

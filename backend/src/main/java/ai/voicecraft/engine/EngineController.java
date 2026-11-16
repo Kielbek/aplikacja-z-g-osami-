@@ -12,8 +12,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class EngineController {
     private final EngineClient engine;
 
-    public EngineController(EngineClient engine) {
+    private final GpuQueue queue;
+
+    public EngineController(EngineClient engine, GpuQueue queue) {
         this.engine = engine;
+        this.queue = queue;
     }
 
     @GetMapping("/status")
@@ -22,6 +25,8 @@ public class EngineController {
         var out = new LinkedHashMap<String, Object>();
         out.put("url", engine.baseUrl());
         out.put("online", h != null);
+        var q = queue.stats();
+        out.put("queue", Map.of("capacity", q.capacity(), "running", q.running(), "waiting", q.waitingTotal()));
         if (h == null) {
             out.put("mode", "offline");
             out.put("message", "Serwis silnika TTS nie odpowiada. Uruchom tts-engine (uvicorn app.main:app --port 8808).");

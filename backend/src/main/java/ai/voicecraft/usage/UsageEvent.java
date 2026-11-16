@@ -24,6 +24,8 @@ public class UsageEvent {
     public int characters;
     /** Część znaków pokryta pakietem dodatkowych znaków (nie liczy się do limitu planu). */
     public int creditCharacters;
+    /** Klucz API, którym wykonano syntezę (null = aplikacja). */
+    public String apiKeyId;
     public long durationMs;
     public Instant createdAt = Instant.now();
 

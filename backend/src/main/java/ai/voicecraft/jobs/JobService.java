@@ -127,7 +127,9 @@ public class JobService {
                 jobs.save(job);
                 publish(job);
                 try {
-                    SegmentDto seg = CurrentUser.runAs(job.userId, () -> projects.generateSegment(job.projectId, segmentId));
+                    // Generowanie całego projektu ustępuje miejsca na GPU żądaniom interaktywnym i API
+                    SegmentDto seg = ai.voicecraft.engine.GpuQueue.withPriority(ai.voicecraft.engine.GpuQueue.Priority.BATCH,
+                            () -> CurrentUser.runAs(job.userId, () -> projects.generateSegment(job.projectId, segmentId)));
                     events.publish(job.userId, job.projectId, "segment", seg);
                 } catch (ApiException e) {
                     job.failed++;

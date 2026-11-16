@@ -50,6 +50,17 @@ public enum SubscriptionPlan {
         this.monthlyPriceMinor = monthlyPriceMinor;
     }
 
+    /** Publiczne API: dostęp, liczba równoległych żądań i limit żądań na minutę. */
+    public record ApiLimits(boolean enabled, int concurrency, int requestsPerMinute) {}
+
+    public ApiLimits api() {
+        return switch (this) {
+            case PRO -> new ApiLimits(true, 2, 60);
+            case BUSINESS -> new ApiLimits(true, 5, 300);
+            default -> new ApiLimits(false, 0, 0);
+        };
+    }
+
     /** Cena za cały rok przy rozliczeniu rocznym. */
     public int yearlyPriceMinor() {
         return monthlyPriceMinor * YEARLY_MONTHS_CHARGED;
@@ -68,11 +79,12 @@ public enum SubscriptionPlan {
     public record Dto(String id, String name, long monthlyCharacters, int monthlyMinutes, int maxProjects,
                       int maxCharactersPerProject, int maxCustomVoices, boolean voiceCloning, List<String> exportFormats,
                       int maxMp3Bitrate, boolean advancedControls, int historyRetentionDays,
-                      int monthlyPriceMinor, int yearlyPriceMinor, String currency) {}
+                      int monthlyPriceMinor, int yearlyPriceMinor, String currency,
+                      boolean apiAccess, int apiConcurrency, int apiRequestsPerMinute) {}
 
     public Dto dto() {
         return new Dto(name(), displayName, monthlyCharacters, monthlyMinutes, maxProjects, maxCharactersPerProject,
                 maxCustomVoices, voiceCloning, exportFormats, maxMp3Bitrate, advancedControls, historyRetentionDays,
-                monthlyPriceMinor, yearlyPriceMinor(), CURRENCY);
+                monthlyPriceMinor, yearlyPriceMinor(), CURRENCY, api().enabled(), api().concurrency(), api().requestsPerMinute());
     }
 }

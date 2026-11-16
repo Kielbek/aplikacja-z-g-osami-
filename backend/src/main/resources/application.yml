@@ -34,6 +34,9 @@ voicecraft:
     api-key: ${ENGINE_API_KEY:}
     connect-timeout: 3s
     read-timeout: 180s
+    # Ile wywołań modelu naraz (1 = jedno GPU) i jak długo żądanie interaktywne/API może czekać w kolejce
+    concurrency: ${ENGINE_CONCURRENCY:1}
+    queue-timeout: ${ENGINE_QUEUE_TIMEOUT:120s}
   seed-demo-data: ${SEED_DEMO_DATA:true}
   voices:
     # Katalog z nagraniami wzorcowymi; ścieżki z catalog.json ("prompts/....wav") są względne wobec niego

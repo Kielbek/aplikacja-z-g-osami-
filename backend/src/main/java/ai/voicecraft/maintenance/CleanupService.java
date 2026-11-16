@@ -41,10 +41,15 @@ public class CleanupService {
     private final PasswordResetTokenRepository resetTokens;
     private final EmailVerificationTokenRepository verificationTokens;
     private final ai.voicecraft.voice.VoicePreviewRepository previews;
+    private final ai.voicecraft.publicapi.ApiJobService apiJobs;
+    private final ai.voicecraft.publicapi.ApiJobRepository apiJobRepo;
 
     public CleanupService(HistoryRepository history, ProjectRepository projects, VoiceRepository voices, AudioStorage storage,
                           PasswordResetTokenRepository resetTokens, EmailVerificationTokenRepository verificationTokens,
-                          ai.voicecraft.voice.VoicePreviewRepository previews) {
+                          ai.voicecraft.voice.VoicePreviewRepository previews,
+                          ai.voicecraft.publicapi.ApiJobService apiJobs, ai.voicecraft.publicapi.ApiJobRepository apiJobRepo) {
+        this.apiJobs = apiJobs;
+        this.apiJobRepo = apiJobRepo;
         this.previews = previews;
         this.history = history;
         this.projects = projects;
@@ -80,7 +85,10 @@ public class CleanupService {
         projects.deleteAll(empty);
 
         // Zbiór referencji budowany PO usunięciu historii — pliki wygasłych wersji stają się osierocone
+        // Wyniki zadań API są dostępne przez 7 dni
+        apiJobs.deleteExpired(now);
         Set<String> referenced = new HashSet<>();
+        referenced.addAll(apiJobRepo.allAudioFiles());
         referenced.addAll(projects.allSegmentAudioFiles());
         referenced.addAll(voices.allSampleFiles());
         referenced.addAll(voices.allReferenceFiles());

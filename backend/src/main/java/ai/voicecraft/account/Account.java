@@ -31,6 +31,9 @@ public class Account {
     public String billingInterval;
     /** Zniżka na pierwszy miesiąc została już wykorzystana. */
     public boolean introOfferUsed;
+    /** Sekret podpisu webhooków publicznego API (HMAC-SHA256); tworzony przy pierwszym użyciu. */
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    public String apiWebhookSecret;
 
     // Eksport
     public String exportFormat = "mp3";

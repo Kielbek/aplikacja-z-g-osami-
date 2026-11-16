@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import re
+import threading
 import time
 import uuid
 
@@ -35,6 +36,19 @@ app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow
 
 engine: TTSEngine
 load_error: str | None = None
+
+# Model na GPU obsługuje jedno wywołanie naraz. FastAPI wykonuje funkcje synchroniczne w puli wątków,
+# więc bez blokady równoległe żądania wywoływałyby model jednocześnie (błędy CUDA, brak pamięci).
+# Kolejkę z priorytetem i limitem oczekiwania prowadzi backend; tu jest ostatnia linia obrony.
+_model_lock = threading.Lock()
+
+
+def _locked(fn, *args):
+    """Wywołuje model pod blokadą; zwraca (wynik, czas oczekiwania w ms)."""
+    waited = time.perf_counter()
+    with _model_lock:
+        wait_ms = int((time.perf_counter() - waited) * 1000)
+        return fn(*args), wait_ms
 
 
 @app.middleware("http")
@@ -131,22 +145,25 @@ def health() -> HealthResponse:
 def synthesize(req: SynthesizeRequest) -> Response:
     started = time.perf_counter()
     try:
-        samples = engine.synthesize(req.text, req.language, req.voice, req.params)
+        samples, wait_ms = _locked(engine.synthesize, req.text, req.language, req.voice, req.params)
     except ReferenceMissing as exc:
         # Backend rozpoznaje ten kod i rejestruje nagranie wzorcowe ponownie (z własnej kopii)
         raise HTTPException(409, f"REFERENCE_MISSING:{exc.reference_id}") from exc
     except EngineUnavailable as exc:
         raise HTTPException(503, str(exc)) from exc
-    log.info("synthesize %d znaków → %.2fs audio w %.2fs [%s]", len(req.text), len(samples) / engine.sample_rate,
-             time.perf_counter() - started, engine.mode)
-    return _wav_response(samples)
+    log.info("synthesize %d znaków → %.2fs audio w %.2fs (oczekiwanie %d ms) [%s]", len(req.text),
+             len(samples) / engine.sample_rate, time.perf_counter() - started, wait_ms, engine.mode)
+    res = _wav_response(samples)
+    res.headers["X-Queue-Wait-Ms"] = str(wait_ms)
+    return res
 
 
 @app.post("/v1/voice-design")
 def voice_design(req: VoiceDesignRequest) -> Response:
     if not engine.capabilities().voice_design:
         raise HTTPException(501, "Projektowanie głosu z opisu wymaga modelu VoxCPM2 — bieżący silnik ma tylko gotowe głosy.")
-    return _wav_response(engine.design(req.description, req.text, req.language, req.params))
+    samples, _ = _locked(engine.design, req.description, req.text, req.language, req.params)
+    return _wav_response(samples)
 
 
 @app.post("/v1/clone/analyze", response_model=AudioAnalysis)

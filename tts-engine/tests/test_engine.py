@@ -69,3 +69,37 @@ def test_api_key_required_when_configured(monkeypatch):
     assert c.get("/health").status_code == 401
     assert c.get("/health", headers={"Authorization": "Bearer zly"}).status_code == 401
     assert c.get("/health", headers={"Authorization": "Bearer tajny-klucz"}).status_code == 200
+
+
+def test_model_calls_are_serialized_under_concurrent_requests(monkeypatch):
+    """Równoległe żądania nie mogą wywoływać modelu jednocześnie (jedno GPU = jedno wywołanie naraz)."""
+    import threading
+    import time as _time
+
+    from app import main
+
+    active, peak, guard = [0], [0], threading.Lock()
+    real = main.engine.synthesize
+
+    def tracked(*args):
+        with guard:
+            active[0] += 1
+            peak[0] = max(peak[0], active[0])
+        _time.sleep(0.05)
+        try:
+            return real(*args)
+        finally:
+            with guard:
+                active[0] -= 1
+
+    monkeypatch.setattr(main.engine, "synthesize", tracked)
+    req = {"text": "Równolegle.", "voice": {"id": "v1"}}
+    results = []
+    threads = [threading.Thread(target=lambda: results.append(client.post("/v1/synthesize", json=req))) for _ in range(4)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert all(r.status_code == 200 for r in results)
+    assert peak[0] == 1
+    assert any(int(r.headers["x-queue-wait-ms"]) > 0 for r in results)

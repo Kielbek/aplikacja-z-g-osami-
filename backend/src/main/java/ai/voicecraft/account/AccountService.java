@@ -158,10 +158,22 @@ public class AccountService {
      */
     @Transactional
     public void recordUsage(String userId, String kind, int characters, long durationMs) {
+        recordUsage(userId, kind, characters, durationMs, null);
+    }
+
+    @Transactional
+    public void recordUsage(String userId, String kind, int characters, long durationMs, String apiKeyId) {
         Account a = get(userId);
         long fromPlan = Math.min(characters, planCharactersLeft(a));
         int fromCredits = (int) Math.min(characters - fromPlan, creditBalance(userId));
-        usage.save(UsageEvent.of(userId, kind, characters, fromCredits, durationMs));
+        var e = UsageEvent.of(userId, kind, characters, fromCredits, durationMs);
+        e.apiKeyId = apiKeyId;
+        usage.save(e);
+    }
+
+    /** Początek bieżącego okresu limitów (do statystyk API). */
+    public Instant currentPeriodStartInstant(String userId) {
+        return periodStart(get(userId));
     }
 
     /** Saldo dokupionych znaków: kupione minus zużyte z pakietów. */

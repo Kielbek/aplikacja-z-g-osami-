@@ -5,6 +5,9 @@ voicecraft:
   data-dir: ${java.io.tmpdir}/voicecraft-test-${random.uuid}
   engine:
     url: http://127.0.0.1:9
+  api:
+    # Testy odbierają webhooki na lokalnym serwerze HTTP
+    allow-private-webhooks: true
   auth:
     jwt-secret: test-secret-test-secret-test-secret-0123456789
     require-email-verification: false

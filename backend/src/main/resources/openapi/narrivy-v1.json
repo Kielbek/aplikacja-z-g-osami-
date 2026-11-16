@@ -1,0 +1,1155 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Narrivy API",
+    "version": "1.0.0",
+    "description": "Zamiana tekstu na mowę (TTS) z głosami Narrivy. Uwierzytelnianie kluczem API utworzonym w Ustawieniach → API. Dostęp w planach Pro i Business. Znaki zużyte przez API liczą się do miesięcznego limitu planu i dokupionych pakietów.\n\nKlucz API przechowuj wyłącznie po stronie serwera — nie umieszczaj go w kodzie przeglądarki ani aplikacji mobilnej."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Ten serwer"
+    }
+  ],
+  "security": [
+    {
+      "bearer": []
+    },
+    {
+      "apiKey": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Synteza mowy"
+    },
+    {
+      "name": "Zadania"
+    },
+    {
+      "name": "Głosy"
+    },
+    {
+      "name": "Konto"
+    }
+  ],
+  "paths": {
+    "/v1/text-to-speech": {
+      "post": {
+        "tags": [
+          "Synteza mowy"
+        ],
+        "operationId": "textToSpeech",
+        "summary": "Synteza mowy (synchronicznie)",
+        "description": "Zwraca plik audio. Do 5 000 znaków; dłuższe teksty wysyłaj jako zadanie (`POST /v1/text-to-speech/jobs`). Plik zawiera w metadanych oznaczenie treści wygenerowanej przez AI.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeechRequest"
+              },
+              "example": {
+                "text": "Dzień dobry! Tak brzmi Narrivy.",
+                "voice_id": "voice_warm_velvet",
+                "language": "pl",
+                "format": "mp3",
+                "emotion": "Happy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Nagranie.",
+            "headers": {
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Limit żądań na minutę w Twoim planie."
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Pozostałe żądania w bieżącej minucie."
+              },
+              "X-RateLimit-Reset": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Sekundy do odnowienia limitu."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Identyfikator żądania (podaj go, kontaktując się z pomocą)."
+              },
+              "X-Characters": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Naliczone znaki."
+              },
+              "X-Duration-Ms": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Długość nagrania w ms."
+              },
+              "X-Engine-Mode": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Silnik, który wygenerował nagranie (`voxcpm2`, `piper`, `demo`)."
+              }
+            },
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Niepoprawne dane (`invalid_request`, `invalid_json`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Wyczerpany limit znaków planu i pakietów (`quota_exceeded`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nieznany głos (`voice_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Tekst za długi dla wywołania synchronicznego (`text_too_long`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Silnik zajęty (`engine_busy`, ponów po `Retry-After`) lub niedostępny (`engine_unavailable`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/text-to-speech/jobs": {
+      "post": {
+        "tags": [
+          "Zadania"
+        ],
+        "operationId": "createTextToSpeechJob",
+        "summary": "Utwórz zadanie syntezy (w tle)",
+        "description": "Dla długich tekstów — do limitu znaków w projekcie z Twojego planu (Pro: 100 000, Business: 500 000). Wynik jest dostępny przez 7 dni. Podaj `callback_url`, aby otrzymać webhook po zakończeniu. Nagłówek `Idempotency-Key` chroni przed podwójnym utworzeniem zadania przy ponowieniu żądania.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            },
+            "description": "Unikalny klucz operacji (np. UUID). Ponowne żądanie z tym samym kluczem zwraca istniejące zadanie."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeechRequest"
+              },
+              "example": {
+                "text": "Rozdział pierwszy. …",
+                "voice_id": "voice_warm_narrator",
+                "format": "mp3",
+                "callback_url": "https://example.com/narrivy/webhook"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Zadanie przyjęte.",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "X-RateLimit-Limit": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Limit żądań na minutę w Twoim planie."
+              },
+              "X-RateLimit-Remaining": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Pozostałe żądania w bieżącej minucie."
+              },
+              "X-RateLimit-Reset": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Sekundy do odnowienia limitu."
+              },
+              "X-Request-Id": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "Identyfikator żądania (podaj go, kontaktując się z pomocą)."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Niepoprawne dane.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nieznany głos (`voice_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Tekst przekracza limit planu (`text_too_long`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/text-to-speech/jobs/{job_id}": {
+      "get": {
+        "tags": [
+          "Zadania"
+        ],
+        "operationId": "getTextToSpeechJob",
+        "summary": "Stan zadania",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Zadanie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Zadanie nie istnieje lub wygasło (`job_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/text-to-speech/jobs/{job_id}/audio": {
+      "get": {
+        "tags": [
+          "Zadania"
+        ],
+        "operationId": "getTextToSpeechJobAudio",
+        "summary": "Pobierz nagranie zadania",
+        "parameters": [
+          {
+            "name": "job_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Nagranie.",
+            "content": {
+              "audio/mpeg": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              },
+              "audio/wav": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Zadanie nie istnieje (`job_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Nagranie nie jest gotowe (`job_not_ready`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/voices": {
+      "get": {
+        "tags": [
+          "Głosy"
+        ],
+        "operationId": "listVoices",
+        "summary": "Lista głosów",
+        "description": "Głosy z biblioteki Narrivy oraz Twoje własne (zaprojektowane i sklonowane).",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Tylko głosy obsługujące język, np. `pl`."
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "audiobooks",
+                "social_media",
+                "media_business",
+                "gaming_animation",
+                "wellness_relax"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Głosy.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "object": {
+                      "const": "list"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Voice"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/voices/{voice_id}": {
+      "get": {
+        "tags": [
+          "Głosy"
+        ],
+        "operationId": "getVoice",
+        "summary": "Szczegóły głosu",
+        "parameters": [
+          {
+            "name": "voice_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Głos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Voice"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Nieznany głos (`voice_not_found`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/usage": {
+      "get": {
+        "tags": [
+          "Konto"
+        ],
+        "operationId": "getUsage",
+        "summary": "Zużycie i limity",
+        "responses": {
+          "200": {
+            "description": "Zużycie w bieżącym okresie.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Brak lub nieprawidłowy klucz API (`missing_api_key`, `invalid_api_key`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Plan bez dostępu do API (`plan_required`) lub niepotwierdzony e-mail (`email_not_verified`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Limit żądań na minutę (`rate_limit_exceeded`) lub równoległych syntez (`concurrency_limit_exceeded`). Sprawdź nagłówek `Retry-After`.",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Po ilu sekundach ponowić."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {
+    "jobFinished": {
+      "post": {
+        "summary": "Zakończenie zadania",
+        "description": "Wysyłany na `callback_url` po zakończeniu zadania (`job.succeeded` lub `job.failed`). Nagłówek `Narrivy-Signature: t=<unix>,v1=<hex>` zawiera HMAC-SHA256 z tekstu `t + \".\" + body` podpisany sekretem webhooków (Ustawienia → API). Odpowiedz kodem 2xx; w przeciwnym razie ponowimy wysyłkę po 10 s, 1 min, 5 min i 30 min.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookEvent"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Odebrano."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "`Authorization: Bearer nrv_live_…`"
+      },
+      "apiKey": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "SpeechRequest": {
+        "type": "object",
+        "required": [
+          "text",
+          "voice_id"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "Tekst do przeczytania. Znaczniki pauz: `[pauza 1s]`, `[pauza 500ms]`."
+          },
+          "voice_id": {
+            "type": "string",
+            "description": "Identyfikator z `GET /v1/voices`."
+          },
+          "language": {
+            "type": "string",
+            "description": "Kod języka (np. `pl`, `en`, `de`); domyślnie pierwszy język głosu. 30 języków."
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "mp3",
+              "wav"
+            ],
+            "default": "mp3"
+          },
+          "style": {
+            "type": "string",
+            "maxLength": 300,
+            "description": "Opis sposobu mówienia, np. „spokojna narracja, wyraźna dykcja”."
+          },
+          "emotion": {
+            "type": "string",
+            "maxLength": 60,
+            "examples": [
+              "Neutral",
+              "Happy",
+              "Whisper",
+              "Calm",
+              "Sad",
+              "Excited",
+              "Serious",
+              "Menacing"
+            ]
+          },
+          "speed": {
+            "type": "number",
+            "minimum": 0.5,
+            "maximum": 2.0,
+            "default": 1.0
+          },
+          "expressiveness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.5
+          },
+          "seed": {
+            "type": "integer",
+            "description": "Ziarno losowości — ten sam tekst i ziarno dają powtarzalny wynik."
+          },
+          "callback_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Tylko zadania: adres https:// na webhook po zakończeniu."
+          }
+        }
+      },
+      "Job": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "examples": [
+              "job_3f2a9c0e7b1d4e5f6a7b8c9d"
+            ]
+          },
+          "object": {
+            "const": "text_to_speech_job"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "succeeded",
+              "failed"
+            ]
+          },
+          "voice_id": {
+            "type": "string"
+          },
+          "language": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string"
+          },
+          "characters": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finished_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "duration_ms": {
+            "type": "integer",
+            "description": "Gdy `succeeded`."
+          },
+          "audio_url": {
+            "type": "string",
+            "description": "Gdy `succeeded` — ścieżka do pobrania (wymaga klucza API)."
+          },
+          "demo": {
+            "type": "boolean",
+            "description": "Nagranie z silnika demonstracyjnego (sygnał zastępczy)."
+          },
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              }
+            }
+          },
+          "webhook": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "pending",
+                  "delivered",
+                  "failed"
+                ]
+              },
+              "attempts": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "Voice": {
+        "type": "object",
+        "properties": {
+          "voice_id": {
+            "type": "string"
+          },
+          "object": {
+            "const": "voice"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "library",
+              "designed",
+              "cloned"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "gender": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "age": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "languages": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "default_instruction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Domyślna instrukcja sposobu mówienia, stosowana gdy nie podasz `style` ani `emotion`."
+          }
+        }
+      },
+      "Usage": {
+        "type": "object",
+        "properties": {
+          "object": {
+            "const": "usage"
+          },
+          "plan": {
+            "type": "string"
+          },
+          "period_start": {
+            "type": "string",
+            "format": "date"
+          },
+          "period_end": {
+            "type": "string",
+            "format": "date"
+          },
+          "characters_used": {
+            "type": "integer"
+          },
+          "character_limit": {
+            "type": "integer"
+          },
+          "extra_characters": {
+            "type": "integer",
+            "description": "Dokupione znaki (nie wygasają)."
+          },
+          "characters_remaining": {
+            "type": "integer"
+          },
+          "rate_limits": {
+            "type": "object",
+            "properties": {
+              "requests_per_minute": {
+                "type": "integer"
+              },
+              "concurrent_requests": {
+                "type": "integer"
+              },
+              "max_sync_characters": {
+                "type": "integer"
+              },
+              "max_job_characters": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      },
+      "WebhookEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "job.succeeded",
+              "job.failed"
+            ]
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "$ref": "#/components/schemas/Job"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "missing_api_key",
+                  "invalid_api_key",
+                  "plan_required",
+                  "rate_limit_exceeded",
+                  "concurrency_limit_exceeded",
+                  "invalid_request",
+                  "invalid_json",
+                  "text_too_long",
+                  "voice_not_found",
+                  "quota_exceeded",
+                  "email_not_verified",
+                  "engine_busy",
+                  "engine_unavailable",
+                  "job_not_found",
+                  "job_not_ready",
+                  "too_many_pending_jobs",
+                  "internal_error"
+                ]
+              },
+              "message": {
+                "type": "string"
+              },
+              "request_id": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
