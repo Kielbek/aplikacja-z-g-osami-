@@ -142,7 +142,11 @@
             <div class="f-body">
               <span class="p-name" [title]="p.name">{{ p.name }}</span>
               <span class="p-meta">
-                <span class="dot" [class]="'dot-' + PROJECT_STATUS[p.stats.status].tone"></span>{{ PROJECT_STATUS[p.stats.status].label }}
+                @if (store.generatingIds().has(p.id)) {
+                  <span class="spinner gen-spinner"></span>Generowanie…
+                } @else {
+                  <span class="dot" [class]="'dot-' + PROJECT_STATUS[p.stats.status].tone"></span>{{ PROJECT_STATUS[p.stats.status].label }}
+                }
                 · {{ formatRelative(p.updatedAt) }}
               </span>
               @if (query().trim() && p.folderId && folderName(p.folderId); as fn) {
@@ -192,7 +196,9 @@
             </div>
             <div class="c-dur tabular" role="cell">{{ p.stats.durationMs ? formatDuration(p.stats.durationMs) : '—' }}</div>
             <div class="c-status" role="cell">
-              @if (p.stats.status === 'partial' && p.stats.readyCount === 0) {
+              @if (store.generatingIds().has(p.id)) {
+                <span class="badge gen-badge"><span class="spinner gen-spinner"></span>Generowanie…</span>
+              } @else if (p.stats.status === 'partial' && p.stats.readyCount === 0) {
                 <span class="badge badge-warning" title="Ustawienia lub tekst zmieniły się po wygenerowaniu">Nieaktualny</span>
               } @else {
                 <span class="badge" [class]="'badge-' + PROJECT_STATUS[p.stats.status].tone">

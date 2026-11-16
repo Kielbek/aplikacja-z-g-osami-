@@ -22,7 +22,11 @@
       <div class="nav-label">Ostatnie projekty</div>
       @for (p of recent(); track p.id) {
         <a class="recent" [routerLink]="['/editor', p.id]" routerLinkActive="is-active" (click)="navigate.emit()" [title]="p.name">
-          <span class="dot" [class]="'dot-' + PROJECT_STATUS[p.stats.status].tone"></span>
+          @if (projects.generatingIds().has(p.id)) {
+            <span class="spinner recent-spinner" role="status" aria-label="Generowanie"></span>
+          } @else {
+            <span class="dot" [class]="'dot-' + PROJECT_STATUS[p.stats.status].tone"></span>
+          }
           <span class="truncate">{{ p.name }}</span>
         </a>
       }

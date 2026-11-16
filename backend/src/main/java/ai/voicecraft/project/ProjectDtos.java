@@ -17,7 +17,8 @@ public final class ProjectDtos {
     public record VoiceRef(String id, String name) {}
 
     public record ProjectDto(String id, String name, Instant createdAt, Instant updatedAt, Instant lastGeneratedAt,
-                             VoiceSettings settings, VoiceRef voice, Stats stats, List<SegmentDto> segments, String folderId) {}
+                             VoiceSettings settings, VoiceRef voice, Stats stats, List<SegmentDto> segments, String folderId,
+                             boolean generating) {}
 
     public record CreateProject(@Size(max = 200) String name, @Size(max = 100_000) String text, String folderId) {
         public CreateProject(String name, String text) {

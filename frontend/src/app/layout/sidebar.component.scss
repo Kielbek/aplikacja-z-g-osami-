@@ -157,3 +157,6 @@ vc-dropdown { display: block; }
 .nowrap { white-space: nowrap; }
 .usage .meter { background: var(--border); border-color: transparent; height: 4px; }
 .usage .extra { display: block; margin-top: 5px; }
+
+/* Projekt w trakcie generowania: spinner w miejscu kropki statusu */
+.recent .recent-spinner { width: 12px; height: 12px; margin: 0 2px; flex-shrink: 0; border-width: 1.5px; }

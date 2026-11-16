@@ -150,6 +150,8 @@ export class EditorStore implements OnDestroy {
 
   ngOnDestroy() {
     this.events?.close();
+    const p = this.project();
+    if (p) this.projectsStore.releaseLocal(p.id);
     void this.discardIfEmpty();
   }
 
@@ -192,7 +194,7 @@ export class EditorStore implements OnDestroy {
     es.onopen = () => {
       if (!dropped) return;
       dropped = false;
-      void this.api.activeJob(projectId).then((job) => (job ? this.applyJob(job) : this.batch.set(null))).catch(() => null);
+      void this.api.activeJob(projectId).then((job) => (job ? this.applyJob(job) : this.endBatch())).catch(() => null);
     };
     this.events = es;
   }
@@ -208,6 +210,8 @@ export class EditorStore implements OnDestroy {
 
   private applyJob(job: GenerationJob) {
     if (job.status === 'QUEUED' || job.status === 'RUNNING') {
+      const p = this.project();
+      if (p && !this.batch()) this.projectsStore.markGenerating(p, true);
       this.batch.set({ jobId: job.id, total: job.total, done: job.done, failed: job.failed, cancelRequested: this.batch()?.cancelRequested ?? false });
       this.segments.update((list) =>
         list.map((s) => {
@@ -220,6 +224,8 @@ export class EditorStore implements OnDestroy {
     }
     // Zadanie zakończone
     const wasRunning = this.batch()?.jobId === job.id;
+    const finished = this.project();
+    if (this.batch() && finished) this.projectsStore.markGenerating(finished, false);
     this.batch.set(null);
     this.jobIds = [];
     this.segments.update((list) => list.map((s) => (s.queued || s.generating ? { ...s, queued: false, generating: false } : s)));
@@ -243,7 +249,17 @@ export class EditorStore implements OnDestroy {
     }
   }
 
+  /** Zadanie zniknęło (np. zakończyło się podczas zerwanego połączenia) — zdejmij znacznik generowania. */
+  private endBatch() {
+    const p = this.project();
+    if (this.batch() && p) this.projectsStore.markGenerating(p, false);
+    this.batch.set(null);
+  }
+
   private reset() {
+    // Przejście do innego projektu w tym samym edytorze: dalszy stan poprzedniego śledzimy z serwera
+    const prev = this.project();
+    if (prev) this.projectsStore.releaseLocal(prev.id);
     this.undoStack = [];
     this.redoStack = [];
     this.syncHistoryFlags();
@@ -851,6 +867,8 @@ export class EditorStore implements OnDestroy {
       return;
     }
     this.patchSeg(id, { generating: true, queued: false, error: null });
+    const current0 = this.project() ?? p;
+    this.projectsStore.markGenerating(current0, true);
     try {
       const res = await this.api.generateSegment(p.id, id);
       const current = this.segments().find((s) => s.id === id);
@@ -867,6 +885,8 @@ export class EditorStore implements OnDestroy {
       const err = e as ApiError;
       this.patchSeg(id, { generating: false, status: 'error', error: err.message });
       throw err;
+    } finally {
+      this.projectsStore.markGenerating(current0, false);
     }
   }
 

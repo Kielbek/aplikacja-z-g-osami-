@@ -11,6 +11,8 @@ public interface JobRepository extends JpaRepository<GenerationJob, String> {
 
     List<GenerationJob> findAllByStatusIn(Collection<JobStatus> statuses);
 
+    List<GenerationJob> findAllByUserIdAndStatusIn(String userId, Collection<JobStatus> statuses);
+
     Optional<GenerationJob> findByIdAndUserId(String id, String userId);
 
     @org.springframework.transaction.annotation.Transactional

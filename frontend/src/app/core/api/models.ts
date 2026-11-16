@@ -109,6 +109,8 @@ export interface ProjectDto {
   segments: SegmentDto[];
   /** Folder projektu (null = bez folderu). */
   folderId?: string | null;
+  /** Na serwerze trwa generowanie (zadanie w tle lub pojedynczy fragment). */
+  generating?: boolean;
 }
 
 /** Folder porządkujący projekty (jeden poziom). */

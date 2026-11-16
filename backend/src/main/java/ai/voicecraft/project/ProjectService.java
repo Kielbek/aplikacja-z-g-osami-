@@ -35,10 +35,18 @@ public class ProjectService {
     private final EngineClient engine;
     private final PronunciationRepository dictionary;
     private final ProjectFolderRepository folders;
+    private final ai.voicecraft.jobs.JobRepository jobs;
+    /**
+     * Projekty, w których trwa generowanie pojedynczego fragmentu (żądanie z edytora lub krok zadania).
+     * Razem z aktywnymi zadaniami daje flagę {@code generating} na liście projektów — widoczną także po odświeżeniu strony.
+     */
+    private final java.util.concurrent.ConcurrentHashMap<String, Integer> inFlight = new java.util.concurrent.ConcurrentHashMap<>();
 
     public ProjectService(ProjectRepository projects, VoiceRepository voices, HistoryRepository history,
                           AccountService account, AudioStorage storage, GenerationService generation, EngineClient engine,
-                          PronunciationRepository dictionary, ProjectFolderRepository folders) {
+                          PronunciationRepository dictionary, ProjectFolderRepository folders,
+                          ai.voicecraft.jobs.JobRepository jobs) {
+        this.jobs = jobs;
         this.folders = folders;
         this.dictionary = dictionary;
         this.projects = projects;
@@ -57,8 +65,9 @@ public class ProjectService {
         String mode = generation.currentMode();
         Map<String, Voice> vs = voices.findVisible(uid).stream().collect(Collectors.toMap(v -> v.id, Function.identity()));
         List<PronunciationEntry> all = dictionary.findAllOf(uid);
+        var busy = generatingProjects(uid);
         return projects.findAllByOwnerIdOrderByUpdatedAtDesc(uid).stream()
-                .map(p -> toDto(p, mode, vs, false, applicable(all, p.id)))
+                .map(p -> toDto(p, mode, vs, false, applicable(all, p.id), busy.contains(p.id)))
                 .toList();
     }
 
@@ -175,6 +184,15 @@ public class ProjectService {
 
     /** Generuje pojedynczy fragment. Pozostałe fragmenty projektu pozostają nietknięte. */
     public SegmentDto generateSegment(String projectId, String segmentId) {
+        inFlight.merge(projectId, 1, Integer::sum);
+        try {
+            return doGenerateSegment(projectId, segmentId);
+        } finally {
+            inFlight.computeIfPresent(projectId, (k, n) -> n > 1 ? n - 1 : null);
+        }
+    }
+
+    private SegmentDto doGenerateSegment(String projectId, String segmentId) {
         Project p = find(projectId);
         Segment s = p.segments.stream().filter(x -> x.id.equals(segmentId)).findFirst()
                 .orElseThrow(() -> ApiException.notFound("Fragment"));
@@ -438,7 +456,21 @@ public class ProjectService {
         return s.error != null ? "error" : "ready";
     }
 
+    /** Projekty użytkownika, w których właśnie trwa generowanie (aktywne zadanie lub pojedynczy fragment). */
+    private java.util.Set<String> generatingProjects(String uid) {
+        var ids = new java.util.HashSet<String>();
+        jobs.findAllByUserIdAndStatusIn(uid, java.util.EnumSet.of(ai.voicecraft.jobs.JobStatus.QUEUED, ai.voicecraft.jobs.JobStatus.RUNNING))
+                .forEach(j -> ids.add(j.projectId));
+        ids.addAll(inFlight.keySet());
+        return ids;
+    }
+
     private ProjectDto toDto(Project p, String mode, Map<String, Voice> vs, boolean withSegments, List<PronunciationEntry> dict) {
+        return toDto(p, mode, vs, withSegments, dict, generatingProjects(p.ownerId).contains(p.id));
+    }
+
+    private ProjectDto toDto(Project p, String mode, Map<String, Voice> vs, boolean withSegments, List<PronunciationEntry> dict,
+                             boolean generating) {
         var segs = new ArrayList<SegmentDto>();
         int chars = 0, ready = 0, stale = 0, draft = 0, err = 0, nonEmpty = 0;
         long duration = 0;
@@ -468,7 +500,7 @@ public class ProjectService {
         return new ProjectDto(p.id, p.name, p.createdAt, p.updatedAt, p.lastGeneratedAt, p.settings,
                 v == null ? null : new VoiceRef(v.id, v.name),
                 new Stats(chars, p.segments.size(), ready, stale, draft, err, duration, status),
-                withSegments ? segs : List.of(), p.folderId);
+                withSegments ? segs : List.of(), p.folderId, generating);
     }
 
     private static String fileName(String pattern, String project) {
