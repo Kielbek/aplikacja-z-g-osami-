@@ -227,6 +227,31 @@ export interface Plan {
   monthlyPriceMinor: number;
   yearlyPriceMinor: number;
   currency: string;
+  apiAccess: boolean;
+  apiConcurrency: number;
+  apiRequestsPerMinute: number;
+}
+
+/** Klucz publicznego API (bez wartości — widać ją tylko raz, przy utworzeniu). */
+export interface ApiKey {
+  id: string;
+  name: string;
+  prefix: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  revokedAt: string | null;
+  charactersThisPeriod: number;
+  requestsThisPeriod: number;
+}
+
+export interface ApiOverview {
+  enabled: boolean;
+  plan: string;
+  requiredPlan: string;
+  concurrency: number;
+  requestsPerMinute: number;
+  charactersThisPeriod: number;
+  keys: ApiKey[];
 }
 
 export type BillingInterval = 'month' | 'year';

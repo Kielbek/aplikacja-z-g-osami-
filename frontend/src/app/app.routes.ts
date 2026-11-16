@@ -7,6 +7,7 @@ export const routes: Routes = [
   { path: 'reset-password', loadComponent: () => import('./features/login/reset-password.page').then((m) => m.ResetPasswordPage), title: 'Nowe hasło · Narrivy' },
   { path: 'verify-email', loadComponent: () => import('./features/login/verify-email.page').then((m) => m.VerifyEmailPage), title: 'Potwierdzenie e-mail · Narrivy' },
   { path: 'terms', loadComponent: () => import('./features/legal/legal.page').then((m) => m.LegalPage), data: { doc: 'terms' }, title: 'Regulamin · Narrivy' },
+  { path: 'docs/api', loadComponent: () => import('./features/docs/api-docs.page').then((m) => m.ApiDocsPage), title: 'Dokumentacja API · Narrivy' },
   { path: 'privacy', loadComponent: () => import('./features/legal/legal.page').then((m) => m.LegalPage), data: { doc: 'privacy' }, title: 'Polityka prywatności · Narrivy' },
   {
     path: '',

@@ -13,13 +13,15 @@ import { formatDate, formatNumber } from '../../core/util/format';
 import { categoryLabel, initials, languageLabel, languageOptions } from '../../core/util/labels';
 import { SelectComponent, SelectOption } from '../../shared/select.component';
 import { IconComponent } from '../../shared/icon.component';
+import { ApiSettingsComponent } from './api-settings.component';
 
-type Tab = 'profile' | 'account' | 'subscription' | 'export' | 'dictionary' | 'preferences' | 'engine';
+type Tab = 'profile' | 'account' | 'subscription' | 'api' | 'export' | 'dictionary' | 'preferences' | 'engine';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'profile', label: 'Profil', icon: 'user' },
   { id: 'account', label: 'Konto i bezpieczeństwo', icon: 'shield' },
   { id: 'subscription', label: 'Subskrypcja i limity', icon: 'gauge' },
+  { id: 'api', label: 'API', icon: 'terminal' },
   { id: 'export', label: 'Eksport', icon: 'download' },
   { id: 'dictionary', label: 'Słownik wymowy', icon: 'book' },
   { id: 'preferences', label: 'Preferencje', icon: 'settings' },
@@ -29,7 +31,7 @@ const TABS: { id: Tab; label: string; icon: string }[] = [
 @Component({
   selector: 'vc-settings-page',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterLink, IconComponent, SelectComponent],
+  imports: [RouterLink, IconComponent, SelectComponent, ApiSettingsComponent],
   styleUrl: './settings.page.scss',
   templateUrl: './settings.page.html',
 })
@@ -117,6 +119,7 @@ export class SettingsPage {
     { label: 'Eksport', kind: (p) => p.exportFormats.map((f) => f.toUpperCase()).join(' + ') },
     { label: 'Jakość MP3', kind: (p) => `do ${p.maxMp3Bitrate} kb/s` },
     { label: 'Historia generowania', kind: (p) => `${p.historyRetentionDays} dni` },
+    { label: 'Dostęp przez API', kind: (p) => (p.apiAccess ? `${p.apiRequestsPerMinute} żądań/min` : 'no') },
   ];
   protected fileNamePreview = computed(() => {
     const p = this.draft()?.fileNamePattern || '{project}';

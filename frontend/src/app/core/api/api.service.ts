@@ -4,6 +4,8 @@ import { Observable, catchError, firstValueFrom, throwError } from 'rxjs';
 import {
   Account,
   ApiError,
+  ApiKey,
+  ApiOverview,
   BillingConfig,
   BillingInterval,
   CreditPack,
@@ -178,6 +180,26 @@ export class ApiService {
   buyPack(packId: string) {
     return this.p(this.http.post<{ url?: string; granted?: boolean; extraCharacters?: number }>(`${API}/billing/packs/checkout`, { packId }));
   }
+  // --- Publiczne API: klucze ------------------------------------------------
+  apiOverview() {
+    return this.p(this.http.get<ApiOverview>(`${API}/api-keys`));
+  }
+  createApiKey(name: string) {
+    return this.p(this.http.post<{ key: ApiKey; secret: string }>(`${API}/api-keys`, { name }));
+  }
+  renameApiKey(id: string, name: string) {
+    return this.p(this.http.patch<ApiKey>(`${API}/api-keys/${id}`, { name }));
+  }
+  revokeApiKey(id: string) {
+    return this.p(this.http.delete<ApiKey>(`${API}/api-keys/${id}`));
+  }
+  webhookSecret() {
+    return this.p(this.http.get<{ secret: string }>(`${API}/api-keys/webhook-secret`));
+  }
+  rotateWebhookSecret() {
+    return this.p(this.http.post<{ secret: string }>(`${API}/api-keys/webhook-secret/rotate`, {}));
+  }
+
   billingPortal() {
     return this.p(this.http.post<{ url: string }>(`${API}/billing/portal`, {}));
   }

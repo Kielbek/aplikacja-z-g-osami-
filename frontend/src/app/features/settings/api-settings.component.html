@@ -1,0 +1,113 @@
+<section class="section">
+  <div class="section-head">
+    <div>
+      <h2>Dostęp przez API</h2>
+      <p>Generuj nagrania z własnych aplikacji, wtyczek i automatyzacji. Znaki z API liczą się do limitu planu i dokupionych pakietów.</p>
+    </div>
+    <a class="btn btn-sm" routerLink="/docs/api" target="_blank"><vc-icon name="book" [size]="14" />Dokumentacja</a>
+  </div>
+
+  @if (loadError()) {
+    <div class="callout callout-warning"><vc-icon name="alert" /><div class="callout-body">Nie udało się wczytać ustawień API. <button class="link" (click)="load()">Spróbuj ponownie</button></div></div>
+  } @else if (overview(); as o) {
+    @if (!o.enabled) {
+      <div class="upsell panel">
+        <div class="upsell-icon"><vc-icon name="terminal" [size]="20" /></div>
+        <div class="upsell-body">
+          <strong>API jest dostępne od planu {{ o.requiredPlan }}.</strong>
+          <p>Twój plan: {{ o.plan }}. W planie Pro: 60 żądań na minutę i 2 równoległe syntezy, w Business: 300 żądań i 5 syntez naraz.</p>
+        </div>
+        <a class="btn btn-primary" routerLink="/settings/subscription">Zobacz plany</a>
+      </div>
+    } @else {
+      <div class="limits">
+        <div class="limit"><span class="t-xs t-muted">Żądania na minutę</span><span class="limit-v tabular">{{ o.requestsPerMinute }}</span></div>
+        <div class="limit"><span class="t-xs t-muted">Równoległe syntezy</span><span class="limit-v tabular">{{ o.concurrency }}</span></div>
+        <div class="limit"><span class="t-xs t-muted">Znaki przez API w tym okresie</span><span class="limit-v tabular">{{ fmtNum(o.charactersThisPeriod) }}</span></div>
+      </div>
+    }
+  }
+</section>
+
+@if (overview(); as o) {
+  @if (o.enabled || o.keys.length) {
+    <section class="section">
+      <div class="section-head"><div><h2>Klucze API</h2><p>Klucz daje pełny dostęp do generowania na Twoim koncie — trzymaj go na serwerze, nigdy w kodzie strony ani aplikacji mobilnej.</p></div></div>
+
+      @if (created(); as c) {
+        <div class="new-key" role="status">
+          <div class="new-key-head">
+            <vc-icon name="circle-check" [size]="16" />
+            <strong>Klucz „{{ c.name }}” utworzony. Skopiuj go teraz — nie pokażemy go ponownie.</strong>
+          </div>
+          <div class="secret-row">
+            <code class="secret mono">{{ c.secret }}</code>
+            <button class="btn btn-sm" [class.btn-primary]="!copiedKey()" (click)="copy(c.secret, 'key')">
+              <vc-icon [name]="copiedKey() ? 'check' : 'copy'" [size]="13" />{{ copiedKey() ? 'Skopiowano' : 'Kopiuj' }}
+            </button>
+            <button class="btn btn-sm btn-ghost" (click)="created.set(null)">Gotowe</button>
+          </div>
+        </div>
+      }
+
+      @if (o.enabled) {
+        <form class="create" (submit)="create($event)">
+          <input class="input" placeholder="Nazwa klucza, np. „Serwer produkcyjny”" maxlength="100" [value]="name()" (input)="name.set($any($event.target).value)" aria-label="Nazwa nowego klucza" />
+          <button class="btn btn-primary" type="submit" [disabled]="creating()">
+            @if (creating()) { <span class="spinner"></span> } @else { <vc-icon name="plus" [size]="14" /> }
+            Utwórz klucz
+          </button>
+        </form>
+      }
+
+      @if (activeKeys().length || revokedKeys().length) {
+        <div class="keys panel">
+          <div class="keys-head t-xs t-muted">
+            <span>Nazwa</span><span>Klucz</span><span>Ostatnio użyty</span><span class="num">Znaki w okresie</span><span></span>
+          </div>
+          @for (k of activeKeys(); track k.id) {
+            <div class="key-row">
+              <span class="k-name">{{ k.name }}<small class="t-xs t-muted">utworzony {{ fmtDate(k.createdAt) }}</small></span>
+              <code class="mono t-small">{{ k.prefix }}</code>
+              <span class="t-small" [class.t-muted]="!k.lastUsedAt">{{ k.lastUsedAt ? fmtDate(k.lastUsedAt) : 'nigdy' }}</span>
+              <span class="t-small tabular num">{{ fmtNum(k.charactersThisPeriod) }}</span>
+              <button class="btn btn-sm btn-ghost danger" (click)="revoke(k.id, k.name)">Unieważnij</button>
+            </div>
+          }
+          @for (k of revokedKeys(); track k.id) {
+            <div class="key-row revoked">
+              <span class="k-name">{{ k.name }}<small class="t-xs t-muted">unieważniony {{ fmtDate(k.revokedAt) }}</small></span>
+              <code class="mono t-small">{{ k.prefix }}</code>
+              <span class="t-small t-muted">{{ k.lastUsedAt ? fmtDate(k.lastUsedAt) : 'nigdy' }}</span>
+              <span class="t-small tabular num t-muted">{{ fmtNum(k.charactersThisPeriod) }}</span>
+              <span class="badge">Unieważniony</span>
+            </div>
+          }
+        </div>
+      } @else if (o.enabled) {
+        <p class="t-small t-muted empty">Nie masz jeszcze kluczy. Utwórz pierwszy, aby wywołać API.</p>
+      }
+    </section>
+  }
+
+  @if (o.enabled) {
+    <section class="section">
+      <div class="section-head"><div><h2>Szybki start</h2><p>Wygeneruj pierwsze nagranie jednym wywołaniem. Pełny opis parametrów, zadań w tle i kodów błędów jest w dokumentacji.</p></div></div>
+      <vc-code-block [samples]="samples()" />
+      <div class="doc-links t-small">
+        <a routerLink="/docs/api" target="_blank"><vc-icon name="book" [size]="13" />Dokumentacja API</a>
+        <a href="/v1/openapi.json" target="_blank" rel="noopener"><vc-icon name="external" [size]="13" />Specyfikacja OpenAPI 3.1</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head"><div><h2>Webhooki</h2><p>Po zakończeniu zadania w tle wysyłamy powiadomienie na podany <code>callback_url</code>. Sprawdzaj podpis z nagłówka <code>Narrivy-Signature</code> tym sekretem.</p></div></div>
+      <div class="secret-row panel">
+        <code class="secret mono">{{ maskedSecret() }}</code>
+        <button class="btn btn-sm btn-ghost" (click)="secretVisible.set(!secretVisible())">{{ secretVisible() ? 'Ukryj' : 'Pokaż' }}</button>
+        <button class="btn btn-sm" (click)="copy(secret()!, 'secret')" [disabled]="!secret()"><vc-icon name="copy" [size]="13" />Kopiuj</button>
+        <button class="btn btn-sm btn-ghost danger" (click)="rotateSecret()">Wygeneruj nowy</button>
+      </div>
+    </section>
+  }
+}

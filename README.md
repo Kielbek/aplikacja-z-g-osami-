@@ -197,6 +197,37 @@ W produkcji plan zmienia się wyłącznie przez Stripe (zob. „Płatności”).
 - Zadanie można zatrzymać. Przekroczenie limitu planu lub niedostępność silnika kończy zadanie z komunikatem.
 - Kanał zdarzeń działa w pamięci jednej instancji. Przy kilku instancjach backendu potrzebny jest Redis Pub/Sub lub sticky sessions.
 
+## Kolejka GPU
+
+Jedna karta graficzna liczy jedno nagranie naraz. Wszystkie wywołania modelu (synteza i projektowanie głosu) przechodzą przez kolejkę w backendzie (`GpuQueue`) z trzema priorytetami:
+
+1. **Interaktywne** — użytkownik czeka w edytorze (pojedynczy fragment, próbka głosu).
+2. **API** — synchroniczne `POST /v1/text-to-speech`.
+3. **W tle** — „Generuj zmienione” i zadania API.
+
+W ramach priorytetu obowiązuje kolejność zgłoszeń. Żądanie interaktywne lub API czekające dłużej niż `ENGINE_QUEUE_TIMEOUT` (domyślnie 120 s) kończy się kodem 503 `ENGINE_BUSY`; zadania w tle czekają tyle, ile trzeba. `ENGINE_CONCURRENCY` (domyślnie 1) ustawia liczbę wywołań naraz — zwiększ ją dopiero przy kilku kartach lub serwerze z przetwarzaniem wsadowym. Stan kolejki zwraca `GET /api/engine/status` (`queue.running`, `queue.waiting`). Silnik dodatkowo blokuje model na czas wywołania i zwraca czas oczekiwania w nagłówku `X-Queue-Wait-Ms`.
+
+## Publiczne API (v1)
+
+Programiści wywołują Narrivy ze swoich aplikacji kluczem API. Dokumentacja dla użytkowników: `/docs/api`, opis OpenAPI 3.1: `/v1/openapi.json`.
+
+| Metoda | Ścieżka | Opis |
+|---|---|---|
+| POST | `/v1/text-to-speech` | synteza do 5 000 znaków, odpowiedź: MP3/WAV |
+| POST | `/v1/text-to-speech/jobs` | zadanie w tle (do limitu znaków w projekcie z planu), `Idempotency-Key`, opcjonalny `callback_url` |
+| GET | `/v1/text-to-speech/jobs/{id}`, `…/audio` | stan zadania i nagranie (przechowywane 7 dni) |
+| GET | `/v1/voices`, `/v1/voices/{id}` | głosy biblioteki i własne |
+| GET | `/v1/usage` | zużycie, saldo pakietów, limity |
+
+- **Dostęp:** plany Pro (60 żądań/min, 2 równoległe syntezy) i Business (300 żądań/min, 5 syntez). Limity są w `SubscriptionPlan.api()`. Po obniżeniu planu klucze zostają, ale API zwraca `403 plan_required`.
+- **Klucze:** `nrv_live_…`, tworzone w Ustawienia → API (najwyżej 10 aktywnych). W bazie jest tylko skrót SHA-256; pełny klucz widać raz. Każdy klucz ma statystykę znaków i żądań w bieżącym okresie (`usage_events.api_key_id`).
+- **Bezpieczeństwo:** osobny łańcuch Spring Security dla `/v1/**` — wyłącznie klucz w `Authorization: Bearer` lub `X-API-Key`, ciasteczka sesji są ignorowane (brak ryzyka CSRF), bez CORS (klucz nie powinien trafiać do przeglądarki).
+- **Rozliczanie:** te same limity znaków co w edytorze (plan, potem pakiety), naliczane po udanej syntezie; słownik wymowy konta działa także w API. Pliki mają oznaczenie treści AI w metadanych.
+- **Błędy:** jednolity format `{"error": {"code", "message", "request_id"}}` ze stałymi kodami (`quota_exceeded`, `rate_limit_exceeded`, `engine_busy`…); nieznane pola JSON są odrzucane z nazwą pola.
+- **Webhooki:** podpis `Narrivy-Signature: t=…,v1=HMAC-SHA256(t + "." + body)` sekretem z ustawień; 5 prób (0 s, 10 s, 1 min, 5 min, 30 min). Adres musi być `https://` i publiczny — ochrona przed SSRF blokuje sieci prywatne, loopback, link-local i metadane chmury; przekierowania nie są wykonywane. Lokalnie (testy) `voicecraft.api.allow-private-webhooks=true`.
+- **Zadania** wykonuje pula `voicecraft.api.job-workers` (domyślnie 2) z najniższym priorytetem na GPU; po restarcie niedokończone zadania wracają do kolejki. Nocne sprzątanie usuwa zadania i nagrania starsze niż 7 dni.
+- Limity żądań są w pamięci jednej instancji — przy kilku instancjach backendu przenieś je do Redis.
+
 ## Baza danych i magazyn plików
 
 - **Baza:** PostgreSQL 14+ w produkcji. Schemat jest zarządzany przez Flyway (`backend/src/main/resources/db/migration`), a Hibernate tylko go waliduje (`ddl-auto: validate`). Ta sama migracja działa na H2 w lokalnym developmencie. Sprawdzone na PostgreSQL 16.
@@ -399,11 +430,13 @@ tts-engine/app/
 cd backend && mvn test
 ```
 
-Backend ma 55 testów:
+Backend ma 68 testów:
 
 - integracyjne: logowanie, sesje, izolacja danych, CSRF, limit prób, webhook Stripe;
 - zgodność: licznik zużycia odporny na czyszczenie historii, nagrania wzorcowe i ich odtwarzanie po utracie w silniku, oznaczenie AI w eksporcie, rejestr zgód, eksport danych ZIP, sprzątanie, potwierdzenie e-mail, limit rejestracji;
 - funkcje edytora z atrapą silnika: głosy fragmentów, pauzy, słownik, wersje, napisy, eksport −16 LUFS, import;
+- publiczne API: klucze i plany, limity żądań, synteza z oznaczeniem AI, ścisła walidacja JSON, wyczerpany limit (402), zadania z idempotencją i podpisanym webhookiem, ochrona SSRF;
+- kolejka GPU: priorytety, kolejność i limit oczekiwania; pakiety znaków, okresy rozliczeniowe;
 - jednostkowe: pauzy i słownik, LUFS (sinus 1 kHz 0 dBFS = −3,01 LUFS), napisy, ekstrakcja DOCX/PDF/TXT, metadane AI w WAV i MP3.
 
 ```bash
@@ -418,7 +451,8 @@ cd frontend && npx ng build
 
 - Uruchomienie VoxCPM2 z prawdziwymi wagami na GPU i odsłuch jakości, w tym spójności głosu z nagrań wzorcowych (adapter jest zweryfikowany z kodem biblioteki).
 - Znak wodny w sygnale audio (oprócz metadanych) i przegląd prawny regulaminu oraz polityki prywatności.
-- Redis dla kanału zdarzeń i limitu logowań przy wielu instancjach backendu.
+- Redis dla kanału zdarzeń, limitu logowań i limitów API przy wielu instancjach backendu.
+- Nano-vLLM w silniku (ok. 2× większa przepustowość karty według twórców VoxCPM2).
 - Opcjonalne 2FA.
 - Testy end-to-end frontendu w CI (Playwright).
 - OCR dla skanowanych PDF-ów i podgląd odsłuchu pojedynczego wpisu słownika.
